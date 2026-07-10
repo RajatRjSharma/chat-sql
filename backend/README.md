@@ -22,7 +22,7 @@ make warehouse-init && make warehouse-seed
 make dev              # http://localhost:8000
 ```
 
-Virtualenv lives at `backend/.venv`. App package is `app/` with `PYTHONPATH=.`.
+Virtualenv lives at `backend/.venv` (gitignored). `make install` creates it if missing, or recreates it if broken/moved.
 
 ## Environment
 

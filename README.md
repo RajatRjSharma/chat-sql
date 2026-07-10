@@ -61,3 +61,5 @@ make destroy       # remove DB containers and volumes
 ├── .env.example
 └── backend/          # FastAPI application — see backend/README.md
 ```
+
+If you move or rename this repository, run `make install` again — it recreates a broken or relocated virtualenv automatically.
