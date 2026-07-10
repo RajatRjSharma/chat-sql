@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Demo script: inspect a user-connected warehouse database.
-Supply credentials via CLI flags or load a saved data_source_id from the project DB.
-"""
+"""Inspect a warehouse database using CLI credentials or a saved data source."""
 
 from __future__ import annotations
 

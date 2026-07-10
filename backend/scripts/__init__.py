@@ -1,1 +1,1 @@
-"""Backend CLI scripts (warehouse seed, demo checks, app seed)."""
+"""Backend CLI scripts for warehouse provisioning and verification."""

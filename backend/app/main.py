@@ -23,7 +23,7 @@ APP_VERSION = "0.1.0"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Application lifespan — extend with startup/shutdown hooks later."""
+    """Application lifespan hooks for startup and shutdown."""
     yield
     await engine.dispose()
 
@@ -54,7 +54,7 @@ async def health() -> dict[str, str]:
 
 @app.get("/health/ai", tags=["health"])
 async def health_ai() -> dict[str, str]:
-    """Verify OpenRouter connectivity with a tiny completion."""
+    """Verify OpenRouter connectivity with a short completion request."""
     try:
         client = get_openrouter_client()
         reply = client.complete(

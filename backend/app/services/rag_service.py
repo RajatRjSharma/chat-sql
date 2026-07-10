@@ -28,7 +28,7 @@ class RagService:
         openrouter = client or get_openrouter_client()
         query_vector = openrouter.embed_one(question)
 
-        # Cosine distance via pgvector: smaller = more similar
+        # pgvector cosine distance: lower values indicate higher similarity.
         stmt = (
             select(SchemaEmbedding.content)
             .where(SchemaEmbedding.data_source_id == data_source_id)
@@ -42,7 +42,7 @@ class RagService:
         if chunks:
             return chunks
 
-        # Fallback: return any stored chunks if vector search yields nothing
+        # If similarity search returns nothing, return any stored chunks for the source.
         fallback = await session.execute(
             select(SchemaEmbedding.content)
             .where(SchemaEmbedding.data_source_id == data_source_id)

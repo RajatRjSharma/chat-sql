@@ -50,7 +50,7 @@ class ChatService:
             client=openrouter,
         )
         if not chunks:
-            # Soft fallback: introspect live schema text without embeddings
+            # Fall back to live schema introspection when no embeddings are available.
             try:
                 tables = await asyncio.to_thread(
                     SchemaIntrospectionService.introspect, info
@@ -100,10 +100,6 @@ class ChatService:
             status=status,
         )
         await session.flush()
-
-        if status == "failed" and not final.get("rows"):
-            # Still return structured failure — not a hard HTTP error unless empty answer
-            pass
 
         return {
             "session_id": chat_session.session_id,

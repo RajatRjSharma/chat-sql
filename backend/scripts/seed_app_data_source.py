@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Register a user-provided warehouse connection in the project DB (ORM).
-Simulates the same input the API will receive from the UI.
-"""
+"""Register a warehouse connection in the project database (CLI equivalent of the connect API)."""
 
 from __future__ import annotations
 

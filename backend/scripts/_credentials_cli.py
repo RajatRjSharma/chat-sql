@@ -1,4 +1,4 @@
-"""Shared CLI for user-provided warehouse credentials (dev/demo scripts)."""
+"""Shared CLI helpers for warehouse credentials used by development scripts."""
 
 from __future__ import annotations
 
