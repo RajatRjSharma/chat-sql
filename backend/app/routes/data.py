@@ -56,7 +56,7 @@ async def embed_schema(
             status="ok",
         )
     except ValueError as exc:
-        # DataSourceService raises ValueError only for missing/inactive sources
+        # Missing or inactive data source.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except (SchemaEmbeddingError, OpenRouterError) as exc:
         raise HTTPException(

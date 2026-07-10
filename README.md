@@ -11,7 +11,7 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 | `bi_app` | 5432 | Sessions, messages, RAG embeddings, encrypted data sources |
 | `bi_warehouse` | 5433 | Demo analytics data (`sales` schema) |
 
-Warehouse credentials are **user-provided** via API (never stored in `.env`). Project DB credentials live in `.env`.
+Warehouse credentials are provided via the API and stored encrypted. Project database credentials are configured in `.env`.
 
 ## Quick start
 
@@ -25,15 +25,15 @@ make warehouse-seed
 make dev
 ```
 
-API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-## Day 2 flow (Swagger)
+## Typical API flow
 
-1. `POST /api/data/connect` — connect warehouse  
-2. `POST /api/data/embed-schema` — embed schema for RAG  
-3. `POST /api/chat` — ask a question (omit `session_id` on first message)
+1. `POST /api/data/connect` — connect a warehouse  
+2. `POST /api/data/embed-schema` — index schema metadata for retrieval  
+3. `POST /api/chat` — ask a question (omit `session_id` on the first message)
 
-Demo warehouse (local):
+### Local demo warehouse
 
 | Field | Value |
 |-------|-------|
@@ -47,9 +47,9 @@ Demo warehouse (local):
 ## Useful commands
 
 ```bash
-make help          # all targets
-make test          # backend tests
-make destroy       # wipe DB containers + volumes
+make help          # list all targets
+make test          # run backend tests
+make destroy       # remove DB containers and volumes
 ```
 
 ## Project layout
@@ -59,11 +59,5 @@ make destroy       # wipe DB containers + volumes
 ├── Makefile
 ├── docker-compose.yml
 ├── .env.example
-└── backend/          # FastAPI app — see backend/README.md
+└── backend/          # FastAPI application — see backend/README.md
 ```
-
-## Status
-
-- **Day 1:** Dual Postgres, connect API, migrations, warehouse seed  
-- **Day 2:** OpenRouter, schema RAG, LangGraph NL→SQL chat  
-- **Later:** Next.js UI, charts, voice (STT/TTS)

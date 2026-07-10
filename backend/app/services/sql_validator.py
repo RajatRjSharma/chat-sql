@@ -30,7 +30,7 @@ def extract_sql(raw: str) -> str:
     fence = _SQL_FENCE_RE.search(text)
     if fence:
         text = fence.group(1).strip()
-    # Drop leading labels like "SQL:" if present
+    # Drop a leading "SQL:" label when present.
     if text.lower().startswith("sql:"):
         text = text[4:].strip()
     return text.rstrip(";").strip()

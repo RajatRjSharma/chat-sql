@@ -40,7 +40,7 @@ class DataSource(Base):
     database: Mapped[str] = mapped_column(String(100), nullable=False)
     schema_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    # Stored encrypted in production; nullable when credentials come from env.
+    # Encrypted at rest; nullable when credentials are supplied out of band.
     password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_readonly: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

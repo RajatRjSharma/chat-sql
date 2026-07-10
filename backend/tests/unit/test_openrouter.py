@@ -56,7 +56,7 @@ class TestOpenRouterClient:
     def test_complete_empty_raises(self) -> None:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = _mock_completion("")
-        # empty strip still empty — choices with empty content
+        # empty content after strip is treated as an empty LLM response
         choice = MagicMock()
         choice.message.content = None
         response = MagicMock()

@@ -50,7 +50,7 @@ class OpenRouterClient:
             )
         except APIError as exc:
             if use_fallback:
-                # Last resort: OpenRouter free router picks any available free model
+                # Final attempt: OpenRouter free router selects an available free model
                 if model != "openrouter/free":
                     try:
                         response = self._client.chat.completions.create(
@@ -84,7 +84,7 @@ class OpenRouterClient:
         if not texts:
             return []
 
-        # Prefer float encoding — OpenRouter free providers often mishandle base64.
+        # Request float vectors; some OpenRouter providers mishandle base64 encoding.
         try:
             response = self._client.embeddings.create(
                 model=self._embedding_model,
@@ -96,14 +96,14 @@ class OpenRouterClient:
                 f"Embedding request failed for model {self._embedding_model!r}: {exc}"
             ) from exc
         except ValueError as exc:
-            # OpenAI SDK raises ValueError("No embedding data received") on empty payloads
+            # OpenAI SDK raises ValueError when the provider returns an empty embedding payload.
             raise OpenRouterError(
                 f"Embedding provider returned no data for model {self._embedding_model!r}. "
-                f"The free model may be rate-limited or unavailable. Detail: {exc}"
+                f"The model may be rate-limited or unavailable. Detail: {exc}"
             ) from exc
 
         if not response.data:
-            # Fallback: embed one text at a time (some providers fail on batches)
+            # Retry per-text when the provider rejects batched embedding requests.
             if len(texts) > 1:
                 return [self.embed_one(text) for text in texts]
             raise OpenRouterError(

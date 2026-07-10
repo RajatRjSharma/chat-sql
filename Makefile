@@ -14,13 +14,13 @@ RUN_BACKEND := cd $(BACKEND_DIR) && PYTHONPATH=.
 APP_DB_CONTAINER := vda_app_db
 WAREHOUSE_DB_CONTAINER := vda_warehouse_db
 
-# Local demo warehouse defaults (Makefile only — NOT stored in .env)
-# Override: make warehouse-seed DEMO_WH_HOST=db.example.com ...
+# Local demo warehouse defaults (Makefile only; not read from .env)
+# Override example: make warehouse-seed DEMO_WH_HOST=db.example.com ...
 DEMO_WH_NAME ?= Demo Sales Warehouse
 DEMO_WH_HOST ?= localhost
 DEMO_WH_PORT ?= 5433
 DEMO_WH_DATABASE ?= bi_warehouse
-DEMO_WH_SCHEMA ?= sales   # optional — PostgreSQL default if empty
+DEMO_WH_SCHEMA ?= sales   # optional; empty uses the PostgreSQL connection default
 DEMO_WH_USER ?= bi_readonly
 DEMO_WH_PASSWORD ?= readonly_pass
 DEMO_WH_ADMIN_USER ?= postgres
@@ -155,11 +155,11 @@ dev: ## Run FastAPI dev server (reload)
 	$(RUN_BACKEND) $(VENV_BIN)/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # ---------------------------------------------------------------------------
-# Day 1 full setup (run commands in order — does not auto-run)
+# Full local setup
 # ---------------------------------------------------------------------------
 
-.PHONY: setup-day1
-setup-day1: ## Print Day 1 setup command sequence
+.PHONY: setup
+setup: ## Print recommended setup command sequence
 	@echo "Run these commands in order:"
 	@echo "  1. cp .env.example .env   # set APP_DB_* and AI_API_KEY"
 	@echo "  2. make up"
@@ -170,14 +170,14 @@ setup-day1: ## Print Day 1 setup command sequence
 	@echo "  7. make warehouse-seed"
 	@echo "  8. make warehouse-check-cli   # optional: verify warehouse data"
 	@echo "  9. make dev"
-	@echo "Then test API manually: http://localhost:8000/docs"
-	@echo "Day 2: POST /api/data/connect → POST /api/data/embed-schema → POST /api/chat"
+	@echo "API docs: http://localhost:8000/docs"
+	@echo "Flow: POST /api/data/connect → POST /api/data/embed-schema → POST /api/chat"
 
-.PHONY: setup-day1-run
-setup-day1-run: up wait-db install migrate warehouse-init warehouse-seed ## Run Day 1 DB setup (then: make dev)
-	@echo "Day 1 DB setup complete. Start API with: make dev"
-	@echo "Test API manually: http://localhost:8000/docs"
-	@echo "Day 2: connect warehouse → embed-schema → /api/chat"
+.PHONY: setup-run
+setup-run: up wait-db install migrate warehouse-init warehouse-seed ## Provision databases and dependencies
+	@echo "Setup complete. Start the API with: make dev"
+	@echo "API docs: http://localhost:8000/docs"
+	@echo "Flow: connect warehouse → embed-schema → /api/chat"
 
 # ---------------------------------------------------------------------------
 # Utilities

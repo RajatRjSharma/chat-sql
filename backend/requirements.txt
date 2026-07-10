@@ -19,13 +19,13 @@ httpx==0.28.1
 langgraph==0.6.11
 langchain-core==0.3.80
 
-# SQL safety (Day 2+)
+# SQL parsing and validation
 sqlglot==29.0.0
 
-# Warehouse seed scripts
+# Scripts and credential encryption
 python-dotenv==1.1.0
 cryptography==45.0.5
 
-# Future: CSV upload
+# Multipart uploads and tabular processing
 python-multipart==0.0.20
 pandas==2.3.0
