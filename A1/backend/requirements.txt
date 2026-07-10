@@ -1,0 +1,31 @@
+# Core API
+fastapi==0.139.0
+uvicorn[standard]==0.50.2
+pydantic==2.13.4
+pydantic-settings==2.14.2
+
+# Project database (ORM + migrations)
+sqlalchemy[asyncio]==2.0.41
+asyncpg==0.30.0
+alembic==1.16.2
+psycopg2-binary==2.9.10
+pgvector==0.4.1
+
+# AI gateway (OpenRouter — OpenAI-compatible SDK)
+openai==2.44.0
+httpx==0.28.1
+
+# Chat orchestration
+langgraph==0.6.11
+langchain-core==0.3.80
+
+# SQL safety (Day 2+)
+sqlglot==29.0.0
+
+# Warehouse seed scripts
+python-dotenv==1.1.0
+cryptography==45.0.5
+
+# Future: CSV upload
+python-multipart==0.0.20
+pandas==2.3.0
