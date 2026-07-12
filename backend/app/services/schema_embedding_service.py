@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import SchemaEmbeddingError
 from app.models import SchemaEmbedding
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 from app.services.data_source_service import DataSourceService
 from app.services.schema_chunker import chunk_tables
 from app.services.schema_introspection import SchemaIntrospectionService
@@ -23,7 +23,7 @@ class SchemaEmbeddingService:
         session: AsyncSession,
         data_source_id: uuid.UUID,
         *,
-        client: OpenRouterClient | None = None,
+        client: AIClient | None = None,
     ) -> int:
         data_source = await DataSourceService.get_active(session, data_source_id)
         info = DataSourceService.connection_info_from_record(data_source)
@@ -36,8 +36,8 @@ class SchemaEmbeddingService:
             )
 
         chunks = chunk_tables(tables)
-        openrouter = client or get_openrouter_client()
-        vectors = openrouter.embed([content for content, _ in chunks])
+        ai = client or get_ai_client()
+        vectors = ai.embed([content for content, _ in chunks])
         if len(vectors) != len(chunks):
             raise SchemaEmbeddingError("Embedding count does not match chunk count.")
 

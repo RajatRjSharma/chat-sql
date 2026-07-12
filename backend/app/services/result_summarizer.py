@@ -1,11 +1,11 @@
-"""Summarize query results for the end user via OpenRouter."""
+"""Summarize query results for the end user."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 
 _SYSTEM = """\
 You are a concise business analyst. Summarize SQL query results in 2-4 clear sentences.
@@ -21,9 +21,9 @@ class ResultSummarizer:
         sql: str,
         columns: list[str],
         rows: list[dict[str, Any]],
-        client: OpenRouterClient | None = None,
+        client: AIClient | None = None,
     ) -> str:
-        openrouter = client or get_openrouter_client()
+        ai = client or get_ai_client()
         preview = rows[:20]
         payload = {
             "question": question,
@@ -42,4 +42,4 @@ class ResultSummarizer:
                 ),
             },
         ]
-        return openrouter.complete(messages, temperature=0.2, max_tokens=512)
+        return ai.complete(messages, temperature=0.2, max_tokens=512)

@@ -1,4 +1,4 @@
-"""Tests for SQL generator and summarizer (mocked LLM)."""
+"""Tests for SQL generator and summarizer (mocked AI client)."""
 
 from __future__ import annotations
 

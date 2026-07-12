@@ -1,12 +1,12 @@
 # Backend
 
-FastAPI service for the Voice-Driven Data Analyst. Handles warehouse connections, schema RAG, and LangGraph-orchestrated NL→SQL chat via OpenRouter.
+FastAPI service for the Voice-Driven Data Analyst. Handles warehouse connections, schema RAG, and LangGraph-orchestrated NL→SQL chat.
 
 ## Requirements
 
 - Python 3.11+
 - Docker (for Postgres)
-- OpenRouter API key
+- AI provider API key
 
 Run Makefile targets from the **repo root** (not this folder).
 
@@ -33,8 +33,8 @@ Copy from `.env.example` at repo root. Important keys:
 | `APP_DB_*` | Project database (`bi_app`) |
 | `APP_DB_SCHEMA` | Leave empty → PostgreSQL `public` |
 | `CREDENTIALS_SECRET` | Encrypts warehouse passwords in `data_sources` |
-| `AI_API_KEY` / `AI_BASE_URL` | OpenRouter |
-| `LLM_MODEL` / `LLM_MODEL_FALLBACK` | Chat models (fallback defaults to `openrouter/free`) |
+| `AI_API_KEY` / `AI_BASE_URL` | AI provider endpoint and credentials |
+| `LLM_MODEL` / `LLM_MODEL_FALLBACK` | Primary and fallback chat models |
 | `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | Schema embeddings |
 
 Warehouse credentials are **not** in `.env` — pass them to `POST /api/data/connect`.
@@ -48,7 +48,7 @@ Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 | `GET` | `/health` | Liveness |
 | `GET` | `/health/db` | Project DB |
 | `GET` | `/health/warehouse` | Connected warehouse |
-| `GET` | `/health/ai` | OpenRouter smoke test |
+| `GET` | `/health/ai` | AI provider smoke test |
 | `POST` | `/api/data/connect` | Save + verify warehouse connection |
 | `GET` | `/api/data/sources` | List data sources |
 | `POST` | `/api/data/embed-schema` | Introspect + embed schema chunks |
@@ -84,7 +84,7 @@ backend/
 ├── app/
 │   ├── main.py           # FastAPI entry
 │   ├── config.py
-│   ├── providers/        # OpenRouter client
+│   ├── providers/        # AI client
 │   ├── graph/            # LangGraph nodes + state
 │   ├── services/         # RAG, SQL, warehouse, chat
 │   ├── routes/           # /api/data, /api/chat

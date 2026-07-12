@@ -7,8 +7,8 @@ class AppError(Exception):
     """Base application error."""
 
 
-class OpenRouterError(AppError):
-    """OpenRouter / LLM provider failure."""
+class AIProviderError(AppError):
+    """AI provider failure."""
 
 
 class SqlValidationError(AppError):

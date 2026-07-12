@@ -11,8 +11,8 @@ alembic==1.16.2
 psycopg2-binary==2.9.10
 pgvector==0.4.1
 
-# AI gateway (OpenRouter — OpenAI-compatible SDK)
-openai==2.44.0
+# AI chat and embeddings
+langchain-openai==0.3.35
 httpx==0.28.1
 
 # Chat orchestration

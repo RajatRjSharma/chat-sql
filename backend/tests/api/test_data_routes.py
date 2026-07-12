@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.schemas.data_source import WarehouseConnectResponse
@@ -30,8 +29,13 @@ class TestConnectWarehouse:
         assert body["status"] == "connected"
         assert body["schema_name"] == "sales"
 
-    def test_connect_validation_error(self, client: TestClient) -> None:
+    def test_connect_validation_error_returns_422(self, client: TestClient) -> None:
         payload = {**WAREHOUSE_CONNECT_PAYLOAD, "port": 0}
+        response = client.post("/api/data/connect", json=payload)
+        assert response.status_code == 422
+
+    def test_connect_missing_required_field_returns_422(self, client: TestClient) -> None:
+        payload = {k: v for k, v in WAREHOUSE_CONNECT_PAYLOAD.items() if k != "password"}
         response = client.post("/api/data/connect", json=payload)
         assert response.status_code == 422
 

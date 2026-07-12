@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from app.core.exceptions import AIProviderError
 from app.main import APP_NAME, APP_VERSION
 from tests.conftest import DEMO_SOURCE_ID
 
@@ -18,6 +19,36 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert body["app"] == APP_NAME
         assert body["version"] == APP_VERSION
+
+
+class TestHealthAiEndpoint:
+    def test_health_ai_ok(self, client: TestClient) -> None:
+        mock = MagicMock()
+        mock.complete.return_value = "ok"
+        with patch("app.main.get_ai_client", return_value=mock):
+            response = client.get("/health/ai")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "ok"
+        assert body["sample"] == "ok"
+
+    def test_health_ai_provider_error_returns_503(self, client: TestClient) -> None:
+        mock = MagicMock()
+        mock.complete.side_effect = AIProviderError("rate limited")
+        with patch("app.main.get_ai_client", return_value=mock):
+            response = client.get("/health/ai")
+        assert response.status_code == 503
+        body = response.json()
+        assert body["status"] == "error"
+        assert "rate limited" in body["detail"]
+
+    def test_health_ai_unexpected_error_returns_503(self, client: TestClient) -> None:
+        mock = MagicMock()
+        mock.complete.side_effect = RuntimeError("network down")
+        with patch("app.main.get_ai_client", return_value=mock):
+            response = client.get("/health/ai")
+        assert response.status_code == 503
+        assert response.json()["status"] == "error"
 
 
 class TestHealthDbEndpoint:
@@ -61,16 +92,17 @@ class TestHealthDbEndpoint:
         assert response.status_code == 200
         assert response.json()["schema"] == "analytics"
 
-    def test_health_db_returns_error_payload_on_failure(self, client: TestClient) -> None:
+    def test_health_db_failure_returns_503(self, client: TestClient) -> None:
         mock_engine = MagicMock()
         mock_engine.connect.side_effect = RuntimeError("db down")
 
         with patch("app.main.engine", mock_engine):
             response = client.get("/health/db")
 
-        assert response.status_code == 200
+        assert response.status_code == 503
         body = response.json()
         assert body["status"] == "error"
+        assert body["database"] == "bi_app"
         assert "db down" in body["detail"]
 
 
@@ -79,7 +111,7 @@ class TestHealthWarehouseEndpoint:
         response = client.get("/health/warehouse")
         assert response.status_code == 422
 
-    def test_health_warehouse_not_found(self, client: TestClient) -> None:
+    def test_health_warehouse_not_found_returns_404(self, client: TestClient) -> None:
         with patch(
             "app.main.DataSourceService.get_active",
             side_effect=ValueError("Data source not found"),
@@ -87,13 +119,16 @@ class TestHealthWarehouseEndpoint:
             response = client.get(f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}")
 
         assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
     def test_health_warehouse_success(self, client: TestClient) -> None:
         mock_info = MagicMock()
         mock_info.name = "Demo Sales Warehouse"
         mock_info.database = "bi_warehouse"
         mock_info.schema_name = "sales"
-        mock_info.connection_url = "postgresql://bi_readonly:readonly_pass@localhost:5433/bi_warehouse"
+        mock_info.connection_url = (
+            "postgresql://bi_readonly:readonly_pass@localhost:5433/bi_warehouse"
+        )
 
         mock_cursor = MagicMock()
         mock_cursor.fetchone.side_effect = [(1,), (3,)]
@@ -107,7 +142,9 @@ class TestHealthWarehouseEndpoint:
                 return_value=mock_info,
             ):
                 with patch("app.main.psycopg2.connect", return_value=mock_conn):
-                    response = client.get(f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}")
+                    response = client.get(
+                        f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}"
+                    )
 
         assert response.status_code == 200
         body = response.json()
@@ -116,7 +153,7 @@ class TestHealthWarehouseEndpoint:
         assert body["table_count"] == 3
         assert body["data_source_id"] == str(DEMO_SOURCE_ID)
 
-    def test_health_warehouse_connection_error(self, client: TestClient) -> None:
+    def test_health_warehouse_connection_error_returns_503(self, client: TestClient) -> None:
         mock_info = MagicMock()
         mock_info.connection_url = "postgresql://bad"
 
@@ -125,10 +162,16 @@ class TestHealthWarehouseEndpoint:
                 "app.main.DataSourceService.connection_info_from_record",
                 return_value=mock_info,
             ):
-                with patch("app.main.psycopg2.connect", side_effect=RuntimeError("refused")):
-                    response = client.get(f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}")
+                with patch(
+                    "app.main.psycopg2.connect",
+                    side_effect=RuntimeError("refused"),
+                ):
+                    response = client.get(
+                        f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}"
+                    )
 
-        assert response.status_code == 200
+        assert response.status_code == 503
         body = response.json()
         assert body["status"] == "error"
+        assert body["data_source_id"] == str(DEMO_SOURCE_ID)
         assert "refused" in body["detail"]

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import SchemaEmbeddingError
 from app.graph.chat_graph import build_chat_graph, initial_chat_state, run_chat_graph
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
 from app.services.rag_service import RagService
@@ -27,9 +27,9 @@ class ChatService:
         data_source_id: uuid.UUID,
         question: str,
         session_id: uuid.UUID | None = None,
-        client: OpenRouterClient | None = None,
+        client: AIClient | None = None,
     ) -> dict[str, Any]:
-        openrouter = client or get_openrouter_client()
+        ai = client or get_ai_client()
         data_source = await DataSourceService.get_active(session, data_source_id)
         info = DataSourceService.connection_info_from_record(data_source)
 
@@ -47,10 +47,9 @@ class ChatService:
             session,
             data_source_id,
             question,
-            client=openrouter,
+            client=ai,
         )
         if not chunks:
-            # Fall back to live schema introspection when no embeddings are available.
             try:
                 tables = await asyncio.to_thread(
                     SchemaIntrospectionService.introspect, info
@@ -73,7 +72,7 @@ class ChatService:
             session_id=chat_session.session_id,
             history=history,
         )
-        graph = build_chat_graph(schema_context=schema_context, client=openrouter)
+        graph = build_chat_graph(schema_context=schema_context, client=ai)
         final = await asyncio.to_thread(run_chat_graph, graph, state)
 
         status = final.get("status") or "failed"

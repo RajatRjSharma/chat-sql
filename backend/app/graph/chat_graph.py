@@ -19,19 +19,15 @@ from app.graph.nodes import (
     validate_sql_node,
 )
 from app.graph.state import ChatGraphState
-from app.providers.openrouter import OpenRouterClient
+from app.providers.ai import AIClient
 
 
 def build_chat_graph(
     *,
     schema_context: str,
-    client: OpenRouterClient | None = None,
+    client: AIClient | None = None,
 ):
-    """
-    Build a compiled chat graph.
-
-    schema_context is injected at build time so async RAG can run before invoke.
-    """
+    """Build a compiled chat graph with schema context injected at build time."""
     graph = StateGraph(ChatGraphState)
 
     graph.add_node(

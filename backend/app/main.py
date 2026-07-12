@@ -1,24 +1,32 @@
 """FastAPI application entrypoint."""
 
 from contextlib import asynccontextmanager
+from typing import Any
 from uuid import UUID
 
 import psycopg2
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import settings
+from app.core.exceptions import AIProviderError
+from app.core.schema import read_connection_schema
 from app.database import AsyncSessionLocal, engine
+from app.providers.ai import get_ai_client
 from app.routes.chat import router as chat_router
 from app.routes.data import router as data_router
-from app.core.schema import read_connection_schema
 from app.services.data_source_service import DataSourceService
-from app.providers.openrouter import get_openrouter_client
-from app.core.exceptions import OpenRouterError
 
 APP_NAME = "Voice-Driven Data Analyst"
 APP_VERSION = "0.1.0"
+
+
+def _health_error(detail: str, *, status_code: int = 503, **extra: Any) -> JSONResponse:
+    payload: dict[str, Any] = {"status": "error", "detail": str(detail)}
+    payload.update(extra)
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 @asynccontextmanager
@@ -52,29 +60,29 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "app": APP_NAME, "version": APP_VERSION}
 
 
-@app.get("/health/ai", tags=["health"])
-async def health_ai() -> dict[str, str]:
-    """Verify OpenRouter connectivity with a short completion request."""
+@app.get("/health/ai", tags=["health"], response_model=None)
+async def health_ai() -> dict[str, str] | JSONResponse:
+    """Verify AI provider connectivity with a short completion request."""
     try:
-        client = get_openrouter_client()
+        client = get_ai_client()
         reply = client.complete(
             [{"role": "user", "content": "Reply with exactly: ok"}],
             temperature=0,
-            max_tokens=8,
+            max_tokens=64,
         )
         return {
             "status": "ok",
             "model": settings.llm_model,
             "sample": reply[:80],
         }
-    except OpenRouterError as exc:
-        return {"status": "error", "detail": str(exc)}
+    except AIProviderError as exc:
+        return _health_error(str(exc))
     except Exception as exc:
-        return {"status": "error", "detail": str(exc)}
+        return _health_error(str(exc))
 
 
-@app.get("/health/db", tags=["health"])
-async def health_db() -> dict[str, str | None]:
+@app.get("/health/db", tags=["health"], response_model=None)
+async def health_db() -> dict[str, str | None] | JSONResponse:
     """Verify project database connectivity."""
     try:
         async with engine.connect() as conn:
@@ -91,17 +99,13 @@ async def health_db() -> dict[str, str | None]:
             "schema": schema,
         }
     except Exception as exc:
-        return {
-            "status": "error",
-            "database": settings.app_db_name,
-            "detail": str(exc),
-        }
+        return _health_error(str(exc), database=settings.app_db_name)
 
 
-@app.get("/health/warehouse", tags=["health"])
+@app.get("/health/warehouse", tags=["health"], response_model=None)
 async def health_warehouse(
     data_source_id: UUID = Query(..., description="Connected warehouse data_source_id"),
-) -> dict[str, str | int]:
+) -> dict[str, str | int] | JSONResponse:
     """Verify a user-connected warehouse database (credentials from project DB)."""
     try:
         async with AsyncSessionLocal() as session:
@@ -134,8 +138,4 @@ async def health_warehouse(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
-        return {
-            "status": "error",
-            "data_source_id": str(data_source_id),
-            "detail": str(exc),
-        }
+        return _health_error(str(exc), data_source_id=str(data_source_id))

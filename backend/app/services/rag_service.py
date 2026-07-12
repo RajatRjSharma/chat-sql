@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import SchemaEmbedding
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 
 
 class RagService:
@@ -22,13 +22,12 @@ class RagService:
         question: str,
         *,
         top_k: int | None = None,
-        client: OpenRouterClient | None = None,
+        client: AIClient | None = None,
     ) -> list[str]:
         k = top_k or settings.rag_top_k
-        openrouter = client or get_openrouter_client()
-        query_vector = openrouter.embed_one(question)
+        ai = client or get_ai_client()
+        query_vector = ai.embed_one(question)
 
-        # pgvector cosine distance: lower values indicate higher similarity.
         stmt = (
             select(SchemaEmbedding.content)
             .where(SchemaEmbedding.data_source_id == data_source_id)
@@ -38,11 +37,9 @@ class RagService:
         )
         result = await session.execute(stmt)
         chunks = list(result.scalars().all())
-
         if chunks:
             return chunks
 
-        # If similarity search returns nothing, return any stored chunks for the source.
         fallback = await session.execute(
             select(SchemaEmbedding.content)
             .where(SchemaEmbedding.data_source_id == data_source_id)
