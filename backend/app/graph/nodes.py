@@ -7,7 +7,7 @@ from typing import Any
 from app.config import settings
 from app.core.exceptions import SqlValidationError, WarehouseQueryError
 from app.graph.state import ChatGraphState
-from app.providers.openrouter import OpenRouterClient
+from app.providers.ai import AIClient
 from app.services.rag_service import RagService
 from app.services.result_summarizer import ResultSummarizer
 from app.services.sql_generator import SqlGenerator
@@ -31,7 +31,7 @@ def retrieve_schema_node(
 def generate_sql_node(
     state: ChatGraphState,
     *,
-    client: OpenRouterClient | None = None,
+    client: AIClient | None = None,
 ) -> dict[str, Any]:
     attempts = int(state.get("attempts") or 0) + 1
     sql = SqlGenerator.generate(
@@ -89,7 +89,7 @@ def execute_sql_node(state: ChatGraphState) -> dict[str, Any]:
 def summarize_node(
     state: ChatGraphState,
     *,
-    client: OpenRouterClient | None = None,
+    client: AIClient | None = None,
 ) -> dict[str, Any]:
     columns = state.get("columns") or []
     rows = state.get("rows") or []

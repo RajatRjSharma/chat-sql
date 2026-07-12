@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Encrypts user-provided warehouse passwords stored in app.data_sources
     credentials_secret: SecretStr = Field(alias="CREDENTIALS_SECRET")
 
-    # AI gateway (OpenRouter)
+    # AI provider
     ai_base_url: str = Field(
         default="https://openrouter.ai/api/v1",
         alias="AI_BASE_URL",

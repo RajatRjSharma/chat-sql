@@ -1,8 +1,8 @@
-"""Generate warehouse SQL from a natural-language question via OpenRouter."""
+"""Generate warehouse SQL from a natural-language question."""
 
 from __future__ import annotations
 
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 from app.services.sql_validator import extract_sql
 
 _SYSTEM_PROMPT = """\
@@ -30,9 +30,9 @@ class SqlGenerator:
         history: list[dict[str, str]] | None = None,
         previous_sql: str | None = None,
         previous_error: str | None = None,
-        client: OpenRouterClient | None = None,
+        client: AIClient | None = None,
     ) -> str:
-        openrouter = client or get_openrouter_client()
+        ai = client or get_ai_client()
         schema_hint = schema_name or "the connection default schema"
 
         user_parts = [
@@ -62,5 +62,5 @@ class SqlGenerator:
                     messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": "\n".join(user_parts)})
 
-        raw = openrouter.complete(messages, temperature=0.0, max_tokens=1024)
+        raw = ai.complete(messages, temperature=0.0, max_tokens=1024)
         return extract_sql(raw)

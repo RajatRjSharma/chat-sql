@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import OpenRouterError, SchemaEmbeddingError
+from app.core.exceptions import AIProviderError, SchemaEmbeddingError
 from app.database import get_db
 from app.schemas.chat import EmbedSchemaRequest, EmbedSchemaResponse
 from app.schemas.data_source import (
@@ -56,9 +56,8 @@ async def embed_schema(
             status="ok",
         )
     except ValueError as exc:
-        # Missing or inactive data source.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (SchemaEmbeddingError, OpenRouterError) as exc:
+    except (SchemaEmbeddingError, AIProviderError) as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),

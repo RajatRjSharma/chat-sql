@@ -2,7 +2,7 @@
 
 Conversational BI assistant: ask questions in natural language, get validated SQL against a connected warehouse, plus a plain-language answer.
 
-**Stack:** FastAPI · SQLAlchemy · Alembic · LangGraph · OpenRouter · PostgreSQL (+ pgvector)
+**Stack:** FastAPI · SQLAlchemy · Alembic · LangGraph · LangChain · PostgreSQL (+ pgvector)
 
 ## Architecture
 

@@ -1,5 +1,5 @@
-"""External AI / provider clients."""
+"""External AI providers."""
 
-from app.providers.openrouter import OpenRouterClient, get_openrouter_client
+from app.providers.ai import AIClient, get_ai_client
 
-__all__ = ["OpenRouterClient", "get_openrouter_client"]
+__all__ = ["AIClient", "get_ai_client"]
