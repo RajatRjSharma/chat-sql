@@ -19,10 +19,14 @@ build/
 # Alembic
 backend/alembic/versions/__pycache__/
 
-# Node / Next.js (future)
+# Node / Next.js
 node_modules/
 .next/
 out/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/playwright/.cache/
 
 # OS and editors
 .DS_Store

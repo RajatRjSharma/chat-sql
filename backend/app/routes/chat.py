@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ChatPipelineError, AIProviderError, SchemaEmbeddingError
@@ -13,9 +13,8 @@ from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
     SessionDetailResponse,
-    SessionMessage,
+    SessionSummary,
 )
-from app.services.chat_persistence import ChatPersistenceService
 from app.services.chat_service import ChatService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -54,17 +53,30 @@ async def ask_question(
         ) from exc
 
 
+@router.get("/sessions", response_model=list[SessionSummary])
+async def list_sessions(
+    data_source_id: UUID = Query(..., description="Warehouse data source id"),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> list[SessionSummary]:
+    """List chat sessions for a data source (newest activity first)."""
+    try:
+        rows = await ChatService.list_sessions(
+            db, data_source_id=data_source_id, limit=limit
+        )
+        return [SessionSummary.model_validate(row) for row in rows]
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session(
     session_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> SessionDetailResponse:
-    chat = await ChatPersistenceService.get_session_with_messages(db, session_id)
-    if chat is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    return SessionDetailResponse(
-        session_id=chat.session_id,
-        data_source_id=chat.data_source_id,
-        title=chat.title,
-        messages=[SessionMessage(role=m.role, content=m.content) for m in chat.messages],
-    )
+    """Load a full session: messages + reconstructed turns (SQL / table / chart data)."""
+    try:
+        result = await ChatService.get_session_detail(db, session_id)
+        return SessionDetailResponse.model_validate(result)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

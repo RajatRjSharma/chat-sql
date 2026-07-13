@@ -63,7 +63,7 @@ class TestConnectWarehouse:
 class TestListDataSources:
     def test_list_sources_empty(self, client: TestClient) -> None:
         with patch(
-            "app.routes.data.DataSourceService.list_active",
+            "app.routes.data.DataSourceService.list_active_summaries",
             new=AsyncMock(return_value=[]),
         ):
             response = client.get("/api/data/sources")
@@ -71,10 +71,23 @@ class TestListDataSources:
         assert response.status_code == 200
         assert response.json() == []
 
-    def test_list_sources_returns_summaries(self, client: TestClient, sample_data_source) -> None:
+    def test_list_sources_returns_summaries(self, client: TestClient) -> None:
+        summary = {
+            "id": DEMO_SOURCE_ID,
+            "name": "Demo Sales Warehouse",
+            "host": "localhost",
+            "port": 5433,
+            "database": "bi_warehouse",
+            "schema_name": "sales",
+            "db_type": "postgres",
+            "is_readonly": True,
+            "is_active": True,
+            "chunks_embedded": 3,
+            "session_count": 2,
+        }
         with patch(
-            "app.routes.data.DataSourceService.list_active",
-            new=AsyncMock(return_value=[sample_data_source]),
+            "app.routes.data.DataSourceService.list_active_summaries",
+            new=AsyncMock(return_value=[summary]),
         ):
             response = client.get("/api/data/sources")
 
@@ -83,6 +96,8 @@ class TestListDataSources:
         assert len(body) == 1
         assert body[0]["id"] == str(DEMO_SOURCE_ID)
         assert body[0]["name"] == "Demo Sales Warehouse"
+        assert body[0]["chunks_embedded"] == 3
+        assert body[0]["session_count"] == 2
         assert "password" not in body[0]
 
 

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import psycopg2
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import DataSource
+from app.models import ChatSession, DataSource, SchemaEmbedding
 from app.schemas.data_source import WarehouseConnectRequest, WarehouseConnectResponse
 from app.security import encrypt_credential
 from app.core.schema import read_connection_schema
@@ -85,9 +86,54 @@ class DataSourceService:
     @staticmethod
     async def list_active(session: AsyncSession) -> list[DataSource]:
         result = await session.execute(
-            select(DataSource).where(DataSource.is_active.is_(True)).order_by(DataSource.created_at)
+            select(DataSource)
+            .where(DataSource.is_active.is_(True))
+            .order_by(DataSource.updated_at.desc())
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    async def list_active_summaries(session: AsyncSession) -> list[dict[str, Any]]:
+        """Active sources with embedding + session counts for the reconnect UI."""
+        chunk_count = (
+            select(func.count(SchemaEmbedding.id))
+            .where(SchemaEmbedding.data_source_id == DataSource.id)
+            .correlate(DataSource)
+            .scalar_subquery()
+        )
+        session_count = (
+            select(func.count(ChatSession.session_id))
+            .where(ChatSession.data_source_id == DataSource.id)
+            .correlate(DataSource)
+            .scalar_subquery()
+        )
+        result = await session.execute(
+            select(
+                DataSource,
+                chunk_count.label("chunks_embedded"),
+                session_count.label("session_count"),
+            )
+            .where(DataSource.is_active.is_(True))
+            .order_by(DataSource.updated_at.desc())
+        )
+        summaries: list[dict[str, Any]] = []
+        for source, chunks_embedded, sessions in result.all():
+            summaries.append(
+                {
+                    "id": source.id,
+                    "name": source.name,
+                    "host": source.host,
+                    "port": source.port,
+                    "database": source.database,
+                    "schema_name": source.schema_name,
+                    "db_type": source.db_type,
+                    "is_readonly": source.is_readonly,
+                    "is_active": source.is_active,
+                    "chunks_embedded": int(chunks_embedded or 0),
+                    "session_count": int(sessions or 0),
+                }
+            )
+        return summaries
 
     @staticmethod
     def connection_info_from_record(data_source: DataSource) -> WarehouseConnectionInfo:

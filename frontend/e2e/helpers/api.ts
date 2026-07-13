@@ -1,0 +1,139 @@
+import type { Page, Route } from "@playwright/test";
+import {
+  chatOkResponse,
+  connectResponse,
+  demoSource,
+  embedResponse,
+  sessionDetailA,
+  sessionDetailB,
+  sessionSummaries,
+  SESSION_A_ID,
+  SESSION_B_ID,
+} from "../fixtures/api";
+
+type Json = unknown;
+
+async function fulfill(route: Route, body: Json, status = 200) {
+  await route.fulfill({
+    status,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
+}
+
+export type MockApiOptions = {
+  sources?: Json[];
+  connect?: Json;
+  embed?: Json;
+  chat?: Json | ((payload: unknown) => Json);
+  sessions?: Json[];
+  sessionDetails?: Record<string, Json>;
+  connectStatus?: number;
+  chatStatus?: number;
+};
+
+/**
+ * Stub FastAPI routes used by the Meridian UI.
+ * Paths match NEXT_PUBLIC_API_URL (http://127.0.0.1:8000).
+ */
+export async function mockApi(page: Page, options: MockApiOptions = {}) {
+  const sources = options.sources ?? [];
+  const connect = options.connect ?? connectResponse;
+  const embed = options.embed ?? embedResponse;
+  const sessions = options.sessions ?? sessionSummaries;
+  const sessionDetails = options.sessionDetails ?? {
+    [SESSION_A_ID]: sessionDetailA,
+    [SESSION_B_ID]: sessionDetailB,
+  };
+  const chat =
+    options.chat ??
+    ((payload: unknown) => {
+      const body = payload as { question?: string; session_id?: string | null };
+      return {
+        ...chatOkResponse,
+        question: body.question || chatOkResponse.question,
+        session_id: body.session_id || chatOkResponse.session_id,
+      };
+    });
+
+  await page.route("**/api/**", async (route) => {
+    const request = route.request();
+    const method = request.method();
+    const url = new URL(request.url());
+    const path = url.pathname;
+
+    if (method === "GET" && path === "/api/data/sources") {
+      return fulfill(route, sources);
+    }
+
+    if (method === "POST" && path === "/api/data/connect") {
+      if (options.connectStatus && options.connectStatus >= 400) {
+        return fulfill(
+          route,
+          { detail: "Could not connect to warehouse: mocked failure" },
+          options.connectStatus,
+        );
+      }
+      return fulfill(route, connect);
+    }
+
+    if (method === "POST" && path === "/api/data/embed-schema") {
+      return fulfill(route, embed);
+    }
+
+    if (method === "POST" && path === "/api/chat") {
+      if (options.chatStatus && options.chatStatus >= 400) {
+        return fulfill(
+          route,
+          { detail: "AI provider error: mocked upstream failure" },
+          options.chatStatus,
+        );
+      }
+      const payload = request.postDataJSON();
+      const body = typeof chat === "function" ? chat(payload) : chat;
+      return fulfill(route, body);
+    }
+
+    if (method === "GET" && path === "/api/chat/sessions") {
+      return fulfill(route, sessions);
+    }
+
+    const sessionMatch = path.match(/^\/api\/chat\/sessions\/([^/]+)$/);
+    if (method === "GET" && sessionMatch) {
+      const id = sessionMatch[1];
+      const detail = sessionDetails[id];
+      if (!detail) {
+        return fulfill(route, { detail: "Session not found" }, 404);
+      }
+      return fulfill(route, detail);
+    }
+
+    return fulfill(route, { detail: `Unmocked ${method} ${path}` }, 404);
+  });
+}
+
+export async function clearWorkspace(page: Page) {
+  await page.addInitScript(() => {
+    try {
+      sessionStorage.removeItem("vda.workspace.v1");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+export async function seedWorkspace(
+  page: Page,
+  workspace: {
+    dataSourceId: string;
+    dataSourceName: string;
+    sessionId: string | null;
+    chunksEmbedded: number | null;
+  },
+) {
+  await page.addInitScript((value) => {
+    sessionStorage.setItem("vda.workspace.v1", JSON.stringify(value));
+  }, workspace);
+}
+
+export { demoSource, chatOkResponse, SESSION_A_ID, SESSION_B_ID };

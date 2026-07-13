@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -221,19 +221,77 @@ class TestChatRoute:
 
 
 class TestChatSessionRoute:
+    def test_list_sessions_success(self, client: TestClient) -> None:
+        session_id = uuid.uuid4()
+        rows = [
+            {
+                "session_id": session_id,
+                "data_source_id": DEMO_SOURCE_ID,
+                "title": "sales by region",
+                "created_at": "2026-07-14T00:00:00Z",
+                "updated_at": "2026-07-14T01:00:00Z",
+                "message_count": 2,
+            }
+        ]
+        with patch(
+            "app.routes.chat.ChatService.list_sessions",
+            new=AsyncMock(return_value=rows),
+        ):
+            response = client.get(
+                "/api/chat/sessions",
+                params={"data_source_id": str(DEMO_SOURCE_ID)},
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["session_id"] == str(session_id)
+        assert body[0]["title"] == "sales by region"
+        assert body[0]["message_count"] == 2
+
+    def test_list_sessions_missing_data_source_returns_422(self, client: TestClient) -> None:
+        response = client.get("/api/chat/sessions")
+        assert response.status_code == 422
+
+    def test_list_sessions_not_found_returns_404(self, client: TestClient) -> None:
+        with patch(
+            "app.routes.chat.ChatService.list_sessions",
+            new=AsyncMock(side_effect=ValueError("Data source not found")),
+        ):
+            response = client.get(
+                "/api/chat/sessions",
+                params={"data_source_id": str(uuid.uuid4())},
+            )
+        assert response.status_code == 404
+
     def test_get_session_success(self, client: TestClient) -> None:
         session_id = uuid.uuid4()
-        chat = MagicMock()
-        chat.session_id = session_id
-        chat.data_source_id = DEMO_SOURCE_ID
-        chat.title = "sales?"
-        msg_user = MagicMock(role="user", content="sales?")
-        msg_assistant = MagicMock(role="assistant", content="East leads.")
-        chat.messages = [msg_user, msg_assistant]
+        payload = {
+            "session_id": session_id,
+            "data_source_id": DEMO_SOURCE_ID,
+            "title": "sales?",
+            "created_at": "2026-07-14T00:00:00Z",
+            "updated_at": "2026-07-14T01:00:00Z",
+            "messages": [
+                {"role": "user", "content": "sales?"},
+                {"role": "assistant", "content": "East leads."},
+            ],
+            "turns": [
+                {
+                    "question": "sales?",
+                    "answer": "East leads.",
+                    "sql": "SELECT region, SUM(amount) FROM sales.orders GROUP BY 1",
+                    "columns": ["region", "sum"],
+                    "rows": [{"region": "East", "sum": 100}],
+                    "status": "ok",
+                    "attempts": 0,
+                }
+            ],
+        }
 
         with patch(
-            "app.routes.chat.ChatPersistenceService.get_session_with_messages",
-            new=AsyncMock(return_value=chat),
+            "app.routes.chat.ChatService.get_session_detail",
+            new=AsyncMock(return_value=payload),
         ):
             response = client.get(f"/api/chat/sessions/{session_id}")
 
@@ -242,12 +300,15 @@ class TestChatSessionRoute:
         assert body["session_id"] == str(session_id)
         assert len(body["messages"]) == 2
         assert body["messages"][0]["role"] == "user"
+        assert len(body["turns"]) == 1
+        assert body["turns"][0]["sql"] is not None
+        assert body["turns"][0]["rows"][0]["region"] == "East"
 
     def test_get_session_not_found_returns_404(self, client: TestClient) -> None:
         missing = uuid.uuid4()
         with patch(
-            "app.routes.chat.ChatPersistenceService.get_session_with_messages",
-            new=AsyncMock(return_value=None),
+            "app.routes.chat.ChatService.get_session_detail",
+            new=AsyncMock(side_effect=ValueError("Session not found")),
         ):
             response = client.get(f"/api/chat/sessions/{missing}")
         assert response.status_code == 404
