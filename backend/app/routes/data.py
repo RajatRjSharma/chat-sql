@@ -72,7 +72,7 @@ async def embed_schema(
 @router.get("/sources", response_model=list[DataSourceSummary])
 async def list_data_sources(db: AsyncSession = Depends(get_db)) -> list[DataSourceSummary]:
     """List active user-connected data sources (passwords never returned)."""
-    sources = await DataSourceService.list_active(db)
+    sources = await DataSourceService.list_active_summaries(db)
     return [DataSourceSummary.model_validate(source) for source in sources]
 
 

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -39,6 +40,12 @@ class ChatPersistenceService:
         session.add(chat)
         await session.flush()
         return chat
+
+    @staticmethod
+    async def touch_session(session: AsyncSession, chat: ChatSession) -> None:
+        chat.updated_at = datetime.now(timezone.utc)
+        session.add(chat)
+        await session.flush()
 
     @staticmethod
     async def load_history(
@@ -99,6 +106,49 @@ class ChatPersistenceService:
         result = await session.execute(
             select(ChatSession)
             .where(ChatSession.session_id == session_id)
-            .options(selectinload(ChatSession.messages))
+            .options(
+                selectinload(ChatSession.messages),
+                selectinload(ChatSession.query_history),
+            )
         )
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def list_sessions_for_data_source(
+        session: AsyncSession,
+        data_source_id: uuid.UUID,
+        *,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return session summaries newest-first for a warehouse connection."""
+        msg_count = (
+            select(func.count(Message.id))
+            .where(Message.session_id == ChatSession.session_id)
+            .correlate(ChatSession)
+            .scalar_subquery()
+        )
+        result = await session.execute(
+            select(
+                ChatSession.session_id,
+                ChatSession.data_source_id,
+                ChatSession.title,
+                ChatSession.created_at,
+                ChatSession.updated_at,
+                msg_count.label("message_count"),
+            )
+            .where(ChatSession.data_source_id == data_source_id)
+            .order_by(ChatSession.updated_at.desc())
+            .limit(limit)
+        )
+        rows = result.all()
+        return [
+            {
+                "session_id": row.session_id,
+                "data_source_id": row.data_source_id,
+                "title": row.title,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "message_count": int(row.message_count or 0),
+            }
+            for row in rows
+        ]

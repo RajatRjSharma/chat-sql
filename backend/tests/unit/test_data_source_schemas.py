@@ -107,3 +107,5 @@ class TestDataSourceSummary:
         assert summary.name == sample_data_source.name
         assert summary.schema_name == "sales"
         assert summary.is_active is True
+        assert summary.chunks_embedded == 0
+        assert summary.session_count == 0

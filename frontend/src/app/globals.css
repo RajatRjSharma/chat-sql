@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-shell: #0b0f17;
+  --bg-shell-elevated: #121826;
+  --border-shell: #1e293b;
+
+  --bg-surface: #f4f6f9;
+  --bg-card: #ffffff;
+  --bg-user: #e8eef5;
+  --border-card: #d9e1ec;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-on-dark: #f1f5f9;
+  --text-muted-dark: #94a3b8;
+
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-soft: #ccfbf1;
+  --accent-fg: #ffffff;
+
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+
+  --chart-1: #0d9488;
+  --chart-2: #2563eb;
+  --chart-3: #b45309;
+  --chart-4: #0e7490;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg-shell);
+    color: var(--text-on-dark);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 35%, white);
+    color: var(--text-primary);
+  }
+}
+
+@layer utilities {
+  .mesh-grid {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  }
+
+  .animate-rise {
+    animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.45s ease-out both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

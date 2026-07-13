@@ -56,5 +56,7 @@ class DataSourceSummary(BaseModel):
     db_type: str
     is_readonly: bool
     is_active: bool
+    chunks_embedded: int = 0
+    session_count: int = 0
 
     model_config = {"from_attributes": True}

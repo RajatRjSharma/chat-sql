@@ -169,6 +169,36 @@ dev: ## Run FastAPI dev server (reload)
 	$(RUN_PY) -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # ---------------------------------------------------------------------------
+# Frontend (Next.js)
+# ---------------------------------------------------------------------------
+
+FRONTEND_DIR := frontend
+
+.PHONY: frontend-install
+frontend-install: ## Install frontend npm dependencies
+	cd $(FRONTEND_DIR) && npm install
+
+.PHONY: frontend-dev
+frontend-dev: ## Run Next.js dev server (port 3000)
+	cd $(FRONTEND_DIR) && npm run dev
+
+.PHONY: frontend-build
+frontend-build: ## Production build of the Next.js app
+	cd $(FRONTEND_DIR) && npm run build
+
+.PHONY: frontend-e2e-install
+frontend-e2e-install: ## Install Playwright Chromium browser (once per machine)
+	cd $(FRONTEND_DIR) && npx playwright install chromium
+
+.PHONY: frontend-e2e
+frontend-e2e: ## Run Playwright UI E2E tests (mocked API)
+	cd $(FRONTEND_DIR) && npm run test:e2e
+
+.PHONY: frontend-e2e-ui
+frontend-e2e-ui: ## Open Playwright UI mode
+	cd $(FRONTEND_DIR) && npm run test:e2e:ui
+
+# ---------------------------------------------------------------------------
 # Full local setup
 # ---------------------------------------------------------------------------
 
@@ -183,15 +213,20 @@ setup: ## Print recommended setup command sequence
 	@echo "  6. make warehouse-init"
 	@echo "  7. make warehouse-seed"
 	@echo "  8. make warehouse-check-cli   # optional: verify warehouse data"
-	@echo "  9. make dev"
+	@echo "  9. make frontend-install"
+	@echo " 10. make dev                   # terminal A — API :8000"
+	@echo " 11. make frontend-dev          # terminal B — UI  :3000"
 	@echo "API docs: http://localhost:8000/docs"
-	@echo "Flow: POST /api/data/connect → POST /api/data/embed-schema → POST /api/chat"
+	@echo "UI: http://localhost:3000"
+	@echo "Flow: connect warehouse → embed-schema → chat (UI or API)"
 
 .PHONY: setup-run
 setup-run: up wait-db install migrate warehouse-init warehouse-seed ## Provision databases and dependencies
 	@echo "Setup complete. Start the API with: make dev"
+	@echo "Start the UI with: make frontend-dev  (after make frontend-install)"
 	@echo "API docs: http://localhost:8000/docs"
-	@echo "Flow: connect warehouse → embed-schema → /api/chat"
+	@echo "UI: http://localhost:3000"
+	@echo "Flow: connect warehouse → embed-schema → chat"
 
 # ---------------------------------------------------------------------------
 # Utilities
