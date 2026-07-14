@@ -16,10 +16,29 @@ class TestSqlGenerator:
             question="test",
             schema_context="Table: sales.orders",
             schema_name="sales",
+            source_metadata={
+                "engine": "PostgreSQL",
+                "db_type": "postgres",
+                "sql_dialect": "postgres",
+                "vendor": "PostgreSQL Global Development Group",
+                "database": "bi_warehouse",
+                "schema_name": "sales",
+                "host": "localhost",
+                "port": 5433,
+                "is_readonly": True,
+                "access_mode": "read_only_select",
+                "identifier_quoting": "double_quote",
+                "dialect_notes": "ok",
+                "embedding_model": "embed",
+                "embedding_dimensions": 8,
+            },
             client=client,
         )
         assert sql == "SELECT 1 AS x"
         client.complete.assert_called_once()
+        user_msg = client.complete.call_args[0][0][-1]["content"]
+        assert "PostgreSQL" in user_msg
+        assert "postgres" in user_msg
 
 
 class TestResultSummarizer:

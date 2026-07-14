@@ -4,17 +4,26 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import AsyncIterator
+from queue import Empty, Queue
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import SchemaEmbeddingError, SqlValidationError, WarehouseQueryError
-from app.graph.chat_graph import build_chat_graph, initial_chat_state, run_chat_graph
+from app.graph.chat_graph import (
+    STAGE_LABELS,
+    build_chat_graph,
+    initial_chat_state,
+    iter_chat_graph,
+    run_chat_graph,
+)
 from app.providers.ai import AIClient, get_ai_client
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
 from app.services.rag_service import RagService
 from app.services.schema_introspection import SchemaIntrospectionService
+from app.services.source_metadata import build_source_metadata
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
 
@@ -30,6 +39,120 @@ class ChatService:
         question: str,
         session_id: uuid.UUID | None = None,
         client: AIClient | None = None,
+    ) -> dict[str, Any]:
+        prepared = await ChatService._prepare(
+            session,
+            data_source_id=data_source_id,
+            question=question,
+            session_id=session_id,
+            client=client,
+        )
+        final = await asyncio.to_thread(
+            run_chat_graph, prepared["graph"], prepared["state"]
+        )
+        return await ChatService._persist_result(
+            session,
+            prepared=prepared,
+            final=final,
+        )
+
+    @staticmethod
+    async def ask_stream(
+        session: AsyncSession,
+        *,
+        data_source_id: uuid.UUID,
+        question: str,
+        session_id: uuid.UUID | None = None,
+        client: AIClient | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Yield SSE-ready events: stage… then result (or error)."""
+        yield ChatService._stage_event("preparing")
+
+        prepared = await ChatService._prepare(
+            session,
+            data_source_id=data_source_id,
+            question=question,
+            session_id=session_id,
+            client=client,
+        )
+        yield ChatService._stage_event("retrieving_context")
+
+        event_queue: Queue[dict[str, Any] | None] = Queue()
+
+        def worker() -> None:
+            try:
+                final_state: dict[str, Any] | None = None
+                for kind, *rest in iter_chat_graph(prepared["graph"], prepared["state"]):
+                    if kind == "stage":
+                        node_name, current = rest
+                        event_queue.put(
+                            ChatService._stage_event(
+                                str(node_name),
+                                attempts=int(current.get("attempts") or 0),
+                                sql=current.get("sql"),
+                            )
+                        )
+                    elif kind == "final":
+                        final_state = rest[0]
+                event_queue.put({"type": "_final", "state": final_state or {}})
+            except Exception as exc:  # noqa: BLE001
+                event_queue.put({"type": "error", "detail": str(exc)})
+            finally:
+                event_queue.put(None)
+
+        loop = asyncio.get_running_loop()
+        worker_future = loop.run_in_executor(None, worker)
+
+        try:
+            while True:
+                item = await asyncio.to_thread(ChatService._queue_get, event_queue)
+                if item is None:
+                    break
+                if item.get("type") == "_final":
+                    result = await ChatService._persist_result(
+                        session,
+                        prepared=prepared,
+                        final=item.get("state") or {},
+                    )
+                    yield {"type": "result", **result}
+                elif item.get("type") == "error":
+                    yield item
+                else:
+                    yield item
+        finally:
+            await worker_future
+
+    @staticmethod
+    def _queue_get(queue: Queue[dict[str, Any] | None]) -> dict[str, Any] | None:
+        while True:
+            try:
+                return queue.get(timeout=0.25)
+            except Empty:
+                continue
+
+    @staticmethod
+    def _stage_event(
+        stage: str,
+        *,
+        attempts: int = 0,
+        sql: str | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "type": "stage",
+            "stage": stage,
+            "label": STAGE_LABELS.get(stage, stage.replace("_", " ").title()),
+            "attempts": attempts,
+            "sql": sql,
+        }
+
+    @staticmethod
+    async def _prepare(
+        session: AsyncSession,
+        *,
+        data_source_id: uuid.UUID,
+        question: str,
+        session_id: uuid.UUID | None,
+        client: AIClient | None,
     ) -> dict[str, Any]:
         ai = client or get_ai_client()
         data_source = await DataSourceService.get_active(session, data_source_id)
@@ -51,6 +174,7 @@ class ChatService:
             question,
             client=ai,
         )
+        context_mode = "rag" if chunks else "empty"
         if not chunks:
             try:
                 tables = await asyncio.to_thread(
@@ -59,11 +183,20 @@ class ChatService:
                 from app.services.schema_chunker import chunk_tables
 
                 chunks = [content for content, _ in chunk_tables(tables)]
+                if chunks:
+                    context_mode = "introspection_fallback"
             except SchemaEmbeddingError:
                 chunks = []
+                context_mode = "empty"
 
         schema_context = RagService.format_context(chunks)
         allowed_tables = ChatService._extract_allowed_tables(chunks, info.schema_name)
+        source_metadata = build_source_metadata(
+            data_source,
+            tables_in_context=allowed_tables,
+            chunks_retrieved=len(chunks),
+            context_mode=context_mode,
+        )
 
         state = initial_chat_state(
             data_source_id=data_source_id,
@@ -73,13 +206,32 @@ class ChatService:
             allowed_tables=allowed_tables,
             session_id=chat_session.session_id,
             history=history,
+            source_metadata=source_metadata,
         )
         graph = build_chat_graph(schema_context=schema_context, client=ai)
-        final = await asyncio.to_thread(run_chat_graph, graph, state)
+        return {
+            "ai": ai,
+            "data_source_id": data_source_id,
+            "question": question,
+            "chat_session": chat_session,
+            "graph": graph,
+            "state": state,
+            "source_metadata": source_metadata,
+        }
 
+    @staticmethod
+    async def _persist_result(
+        session: AsyncSession,
+        *,
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> dict[str, Any]:
         status = final.get("status") or "failed"
         sql = final.get("sql")
         answer = final.get("answer") or "No answer produced."
+        chat_session = prepared["chat_session"]
+        question = prepared["question"]
+        data_source_id = prepared["data_source_id"]
 
         await ChatPersistenceService.add_message(
             session,
@@ -113,6 +265,8 @@ class ChatService:
             "rows": final.get("rows") or [],
             "status": status,
             "attempts": final.get("attempts") or 0,
+            "source_metadata": prepared.get("source_metadata")
+            or final.get("source_metadata"),
         }
 
     @staticmethod
@@ -148,6 +302,7 @@ class ChatService:
             history_by_question.setdefault(record.question, []).append(record)
 
         turns = ChatService._build_turns(messages, history_by_question)
+        source_metadata: dict[str, Any] | None = None
 
         if hydrate_results and chat.data_source_id is not None:
             try:
@@ -155,13 +310,20 @@ class ChatService:
                     session, chat.data_source_id
                 )
                 info = DataSourceService.connection_info_from_record(data_source)
+                source_metadata = build_source_metadata(
+                    data_source,
+                    tables_in_context=[],
+                    chunks_retrieved=0,
+                    context_mode="session_reload",
+                )
                 turns = await asyncio.to_thread(
                     ChatService._hydrate_turn_results,
                     turns,
                     info,
                 )
+                for turn in turns:
+                    turn["source_metadata"] = source_metadata
             except ValueError:
-                # Data source deactivated — still return text + SQL.
                 pass
 
         return {
@@ -172,6 +334,7 @@ class ChatService:
             "updated_at": chat.updated_at,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "turns": turns,
+            "source_metadata": source_metadata,
         }
 
     @staticmethod
@@ -239,7 +402,6 @@ class ChatService:
                     next_turn["columns"] = result.columns
                     next_turn["rows"] = result.rows
                 except (SqlValidationError, WarehouseQueryError, Exception):
-                    # Keep text + SQL even if warehouse refresh fails.
                     pass
             hydrated.append(next_turn)
         return hydrated

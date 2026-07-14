@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.services.schema_introspection import TableInfo
 
 
-def chunk_table(table: TableInfo) -> str:
+def chunk_table(
+    table: TableInfo,
+    *,
+    warehouse_header: str | None = None,
+) -> str:
     """Build a single searchable text chunk for one warehouse table."""
-    lines = [
-        f"Table: {table.qualified_name}",
-        "Columns:",
-    ]
+    lines: list[str] = []
+    if warehouse_header:
+        lines.append(warehouse_header)
+        lines.append("")
+    lines.extend(
+        [
+            f"Table: {table.qualified_name}",
+            "Columns:",
+        ]
+    )
     for col in table.columns:
         flags: list[str] = []
         if col.is_primary_key:
@@ -37,18 +49,32 @@ def chunk_table(table: TableInfo) -> str:
     return "\n".join(lines)
 
 
-def chunk_tables(tables: list[TableInfo]) -> list[tuple[str, dict]]:
+def chunk_tables(
+    tables: list[TableInfo],
+    *,
+    warehouse_header: str | None = None,
+    engine_meta: dict[str, Any] | None = None,
+) -> list[tuple[str, dict]]:
     """
     Return (content, metadata) pairs for embedding storage.
-    metadata includes schema, table, and qualified_name.
+    metadata includes schema, table, qualified_name, and engine dialect when provided.
     """
     chunks: list[tuple[str, dict]] = []
     for table in tables:
-        content = chunk_table(table)
-        metadata = {
+        content = chunk_table(table, warehouse_header=warehouse_header)
+        metadata: dict[str, Any] = {
             "schema": table.schema_name,
             "table": table.table_name,
             "qualified_name": table.qualified_name,
         }
+        if engine_meta:
+            metadata.update(
+                {
+                    "db_type": engine_meta.get("db_type"),
+                    "engine": engine_meta.get("engine"),
+                    "sql_dialect": engine_meta.get("sql_dialect"),
+                    "vendor": engine_meta.get("vendor"),
+                }
+            )
         chunks.append((content, metadata))
     return chunks

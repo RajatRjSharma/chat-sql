@@ -1,4 +1,4 @@
-/** Mirrors backend Pydantic schemas used by the Day 3 UI. */
+/** Mirrors backend Pydantic schemas used by the Meridian UI. */
 
 export type WarehouseConnectRequest = {
   name: string;
@@ -58,6 +58,62 @@ export type ChatResponse = {
   rows: Record<string, unknown>[];
   status: "ok" | "failed" | "running";
   attempts: number;
+  source_metadata?: SourceMetadata | null;
+};
+
+export type SourceMetadata = {
+  source_name: string;
+  data_source_id: string;
+  db_type: string;
+  engine: string;
+  vendor: string;
+  sql_dialect: string;
+  supports_schemas: boolean;
+  identifier_quoting: string;
+  dialect_notes: string;
+  host: string;
+  port: number;
+  database: string;
+  schema_name: string | null;
+  is_readonly: boolean;
+  access_mode: string;
+  tables_in_context: string[];
+  chunks_retrieved: number;
+  context_mode: string;
+  embedding_model: string;
+  embedding_dimensions: number;
+  llm_model: string;
+  llm_model_fallback: string;
+  rag_top_k: number;
+};
+
+export type ChatStreamStage = {
+  type: "stage";
+  stage: string;
+  label: string;
+  attempts: number;
+  sql: string | null;
+};
+
+export type ChatStreamError = {
+  type: "error";
+  detail: string;
+};
+
+export type ChatStreamResult = ChatResponse & { type: "result" };
+
+export type ChatStreamEvent = ChatStreamStage | ChatStreamResult | ChatStreamError;
+
+export type SuggestedQuestion = {
+  question: string;
+  source: "schema" | "history" | "fallback";
+  table: string | null;
+};
+
+export type SuggestedQuestionsResponse = {
+  data_source_id: string;
+  suggestions: SuggestedQuestion[];
+  schema_tables: string[];
 };
 
 export type SessionMessage = {
@@ -73,6 +129,7 @@ export type SessionTurn = {
   rows: Record<string, unknown>[];
   status: ChatResponse["status"];
   attempts: number;
+  source_metadata?: SourceMetadata | null;
 };
 
 export type SessionSummary = {
@@ -92,6 +149,7 @@ export type SessionDetailResponse = {
   updated_at: string | null;
   messages: SessionMessage[];
   turns: SessionTurn[];
+  source_metadata?: SourceMetadata | null;
 };
 
 export type ChatTurn = {
@@ -103,4 +161,5 @@ export type ChatTurn = {
   rows: Record<string, unknown>[];
   status: ChatResponse["status"];
   attempts: number;
+  source_metadata?: SourceMetadata | null;
 };

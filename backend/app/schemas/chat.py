@@ -25,6 +25,7 @@ class ChatResponse(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
     status: Literal["ok", "failed", "running"] = "ok"
     attempts: int = 0
+    source_metadata: Optional[dict[str, Any]] = None
 
 
 class EmbedSchemaRequest(BaseModel):
@@ -52,6 +53,7 @@ class SessionTurn(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
     status: Literal["ok", "failed", "running"] = "ok"
     attempts: int = 0
+    source_metadata: Optional[dict[str, Any]] = None
 
 
 class SessionSummary(BaseModel):
@@ -71,3 +73,25 @@ class SessionDetailResponse(BaseModel):
     updated_at: Optional[datetime] = None
     messages: list[SessionMessage] = Field(default_factory=list)
     turns: list[SessionTurn] = Field(default_factory=list)
+    source_metadata: Optional[dict[str, Any]] = None
+
+
+class SuggestedQuestion(BaseModel):
+    question: str
+    source: Literal["schema", "history", "fallback"] = "schema"
+    table: Optional[str] = None
+
+
+class SuggestedQuestionsResponse(BaseModel):
+    data_source_id: UUID
+    suggestions: list[SuggestedQuestion] = Field(default_factory=list)
+    schema_tables: list[str] = Field(default_factory=list)
+
+
+class ChatStreamStage(BaseModel):
+    """SSE `stage` event payload while LangGraph runs."""
+
+    stage: str
+    label: str
+    attempts: int = 0
+    sql: Optional[str] = None

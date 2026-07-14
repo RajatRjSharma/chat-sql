@@ -7,6 +7,7 @@ import {
   sessionDetailA,
   sessionDetailB,
   sessionSummaries,
+  suggestedQuestionsResponse,
   SESSION_A_ID,
   SESSION_B_ID,
 } from "../fixtures/api";
@@ -21,11 +22,21 @@ async function fulfill(route: Route, body: Json, status = 200) {
   });
 }
 
+function sseBody(frames: { event: string; data: Json }[]) {
+  return frames
+    .map(
+      (frame) =>
+        `event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`,
+    )
+    .join("");
+}
+
 export type MockApiOptions = {
   sources?: Json[];
   connect?: Json;
   embed?: Json;
   chat?: Json | ((payload: unknown) => Json);
+  suggestions?: Json;
   sessions?: Json[];
   sessionDetails?: Record<string, Json>;
   connectStatus?: number;
@@ -41,6 +52,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
   const connect = options.connect ?? connectResponse;
   const embed = options.embed ?? embedResponse;
   const sessions = options.sessions ?? sessionSummaries;
+  const suggestions = options.suggestions ?? suggestedQuestionsResponse;
   const sessionDetails = options.sessionDetails ?? {
     [SESSION_A_ID]: sessionDetailA,
     [SESSION_B_ID]: sessionDetailB,
@@ -66,6 +78,13 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
       return fulfill(route, sources);
     }
 
+    const suggestedMatch = path.match(
+      /^\/api\/data\/sources\/([^/]+)\/suggested-questions$/,
+    );
+    if (method === "GET" && suggestedMatch) {
+      return fulfill(route, suggestions);
+    }
+
     if (method === "POST" && path === "/api/data/connect") {
       if (options.connectStatus && options.connectStatus >= 400) {
         return fulfill(
@@ -81,6 +100,48 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
       return fulfill(route, embed);
     }
 
+    const resolveChatBody = () => {
+      const payload = request.postDataJSON();
+      return typeof chat === "function" ? chat(payload) : chat;
+    };
+
+    if (method === "POST" && path === "/api/chat/stream") {
+      if (options.chatStatus && options.chatStatus >= 400) {
+        return fulfill(
+          route,
+          { detail: "AI provider error: mocked upstream failure" },
+          options.chatStatus,
+        );
+      }
+      const body = resolveChatBody() as Record<string, unknown>;
+      const stream = sseBody([
+        {
+          event: "stage",
+          data: {
+            stage: "generate_sql",
+            label: "Generating SQL",
+            attempts: 0,
+            sql: null,
+          },
+        },
+        {
+          event: "stage",
+          data: {
+            stage: "summarize",
+            label: "Summarizing results",
+            attempts: 1,
+            sql: body.sql ?? null,
+          },
+        },
+        { event: "result", data: body },
+      ]);
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: stream,
+      });
+    }
+
     if (method === "POST" && path === "/api/chat") {
       if (options.chatStatus && options.chatStatus >= 400) {
         return fulfill(
@@ -89,9 +150,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
           options.chatStatus,
         );
       }
-      const payload = request.postDataJSON();
-      const body = typeof chat === "function" ? chat(payload) : chat;
-      return fulfill(route, body);
+      return fulfill(route, resolveChatBody());
     }
 
     if (method === "GET" && path === "/api/chat/sessions") {

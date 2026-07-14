@@ -34,9 +34,21 @@ class TestSchemaChunker:
         assert "customer_id -> sales.customers.customer_id" in text
         assert "Sample rows:" in text
 
+    def test_chunk_table_includes_warehouse_header(self) -> None:
+        text = chunk_table(
+            _sample_table(),
+            warehouse_header="Warehouse: PostgreSQL | Dialect: postgres",
+        )
+        assert text.startswith("Warehouse: PostgreSQL")
+        assert "Table: sales.orders" in text
+
     def test_chunk_tables_metadata(self) -> None:
-        chunks = chunk_tables([_sample_table()])
+        chunks = chunk_tables(
+            [_sample_table()],
+            engine_meta={"db_type": "postgres", "engine": "PostgreSQL", "sql_dialect": "postgres"},
+        )
         assert len(chunks) == 1
         content, metadata = chunks[0]
         assert metadata["qualified_name"] == "sales.orders"
+        assert metadata["engine"] == "PostgreSQL"
         assert "sales.orders" in content

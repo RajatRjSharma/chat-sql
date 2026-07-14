@@ -8,7 +8,7 @@ import { SessionHistory } from "@/components/chat/session-history";
 import { Button } from "@/components/ui/button";
 import { api, ApiError } from "@/lib/api";
 import { SUGGESTED_QUESTIONS } from "@/lib/demo";
-import type { ChatTurn, SessionSummary } from "@/lib/types";
+import type { ChatTurn, SessionSummary, SuggestedQuestion } from "@/lib/types";
 
 type WorkspaceProps = {
   dataSourceId: string;
@@ -29,6 +29,7 @@ function turnsFromDetail(
     rows: Record<string, unknown>[];
     status: ChatTurn["status"];
     attempts: number;
+    source_metadata?: ChatTurn["source_metadata"];
   }[],
 ): ChatTurn[] {
   return turns.map((turn, index) => ({
@@ -40,6 +41,15 @@ function turnsFromDetail(
     rows: turn.rows,
     status: turn.status,
     attempts: turn.attempts,
+    source_metadata: turn.source_metadata ?? null,
+  }));
+}
+
+function fallbackSuggestions(): SuggestedQuestion[] {
+  return SUGGESTED_QUESTIONS.map((question) => ({
+    question,
+    source: "fallback" as const,
+    table: null,
   }));
 }
 
@@ -54,9 +64,14 @@ export function Workspace({
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [pendingStageLabel, setPendingStageLabel] = useState<string | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [suggestions, setSuggestions] = useState<SuggestedQuestion[]>(
+    fallbackSuggestions,
+  );
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hydratedSessionRef = useRef<string | null>(null);
@@ -72,9 +87,29 @@ export function Workspace({
     }
   }, [dataSourceId]);
 
+  const refreshSuggestions = useCallback(async () => {
+    setSuggestionsLoading(true);
+    try {
+      const res = await api.suggestedQuestions(dataSourceId);
+      if (res.suggestions.length > 0) {
+        setSuggestions(res.suggestions);
+      } else {
+        setSuggestions(fallbackSuggestions());
+      }
+    } catch {
+      setSuggestions(fallbackSuggestions());
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [dataSourceId]);
+
   useEffect(() => {
     void refreshSessions();
   }, [refreshSessions]);
+
+  useEffect(() => {
+    void refreshSuggestions();
+  }, [refreshSuggestions]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -117,19 +152,27 @@ export function Workspace({
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [turns, pendingQuestion, loadingSession]);
+  }, [turns, pendingQuestion, pendingStageLabel, loadingSession]);
 
   async function ask(question: string) {
     setError(null);
     setDraft("");
     setPendingQuestion(question);
+    setPendingStageLabel("Preparing session");
 
     try {
-      const res = await api.chat({
-        data_source_id: dataSourceId,
-        question,
-        session_id: sessionId,
-      });
+      const res = await api.chatStream(
+        {
+          data_source_id: dataSourceId,
+          question,
+          session_id: sessionId,
+        },
+        (event) => {
+          if (event.type === "stage") {
+            setPendingStageLabel(event.label);
+          }
+        },
+      );
 
       hydratedSessionRef.current = res.session_id;
       onSessionChange(res.session_id);
@@ -144,13 +187,16 @@ export function Workspace({
           rows: res.rows,
           status: res.status,
           attempts: res.attempts,
+          source_metadata: res.source_metadata ?? null,
         },
       ]);
       void refreshSessions();
+      void refreshSuggestions();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Chat request failed");
     } finally {
       setPendingQuestion(null);
+      setPendingStageLabel(null);
     }
   }
 
@@ -180,6 +226,7 @@ export function Workspace({
 
   const latest = turns.length ? turns[turns.length - 1] : null;
   const busy = pendingQuestion != null || loadingSession;
+  const suggestionTexts = suggestions.map((s) => s.question);
 
   return (
     <div className="flex h-[100dvh] flex-col bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
@@ -234,20 +281,26 @@ export function Workspace({
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted-dark)]">
               Suggested
             </p>
-            <ul className="mt-3 space-y-1.5">
-              {SUGGESTED_QUESTIONS.map((q) => (
-                <li key={q}>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => ask(q)}
-                    className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
-                  >
-                    {q}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {suggestionsLoading ? (
+              <p className="mt-3 text-[12px] text-[var(--text-muted-dark)]">
+                Loading prompts…
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-1.5">
+                {suggestionTexts.map((q) => (
+                  <li key={q}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => ask(q)}
+                      className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
+                    >
+                      {q}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </aside>
 
@@ -258,7 +311,11 @@ export function Workspace({
                 Loading session…
               </div>
             ) : (
-              <MessageList turns={turns} pendingQuestion={pendingQuestion} />
+              <MessageList
+                turns={turns}
+                pendingQuestion={pendingQuestion}
+                pendingStageLabel={pendingStageLabel}
+              />
             )}
           </div>
 
@@ -292,7 +349,7 @@ export function Workspace({
               </div>
             ) : (
               <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-                {SUGGESTED_QUESTIONS.slice(0, 2).map((q) => (
+                {suggestionTexts.slice(0, 2).map((q) => (
                   <button
                     key={q}
                     type="button"
