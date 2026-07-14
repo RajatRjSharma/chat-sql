@@ -41,6 +41,7 @@ def generate_sql_node(
         history=state.get("history") or [],
         previous_sql=state.get("sql"),
         previous_error=state.get("sql_error"),
+        source_metadata=state.get("source_metadata"),
         client=client,
     )
     return {
@@ -53,15 +54,22 @@ def generate_sql_node(
 
 def validate_sql_node(state: ChatGraphState) -> dict[str, Any]:
     allowed = set(state.get("allowed_tables") or [])
+    dialect = (state.get("source_metadata") or {}).get("sql_dialect") or "postgres"
     try:
         cleaned = SqlValidator.validate(
             state.get("sql") or "",
             allowed_schema=state.get("schema_name"),
             allowed_tables=allowed or None,
+            dialect=str(dialect),
         )
         return {"sql": cleaned, "sql_error": None, "status": "running"}
     except SqlValidationError as exc:
         return {"sql_error": str(exc), "status": "running"}
+    except Exception as exc:  # noqa: BLE001 — keep graph retry path alive
+        return {
+            "sql_error": f"Unexpected SQL validation failure: {exc}",
+            "status": "running",
+        }
 
 
 def execute_sql_node(state: ChatGraphState) -> dict[str, Any]:
@@ -98,6 +106,7 @@ def summarize_node(
         sql=state.get("sql") or "",
         columns=columns,
         rows=rows,
+        source_metadata=state.get("source_metadata"),
         client=client,
     )
     return {"answer": answer, "status": "ok"}
@@ -105,9 +114,14 @@ def summarize_node(
 
 def finalize_failure_node(state: ChatGraphState) -> dict[str, Any]:
     error = state.get("sql_error") or "Unable to produce a valid query."
+    # Keep UI readable — strip raw tokenizer internals when possible.
+    short = error
+    if "Parser detail:" in error:
+        short = error.split("Parser detail:", 1)[0].strip()
     answer = (
-        "I couldn't answer that safely after several attempts. "
-        f"Last error: {error}"
+        "I couldn't complete that analysis safely after several attempts. "
+        "Try a more specific question (one table or metric), or ask again. "
+        f"({short})"
     )
     return {"answer": answer, "status": "failed"}
 

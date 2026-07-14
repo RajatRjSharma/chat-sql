@@ -57,6 +57,53 @@ export const chatOkResponse = {
   ],
   status: "ok" as const,
   attempts: 1,
+  source_metadata: {
+    source_name: "Demo Sales Warehouse",
+    data_source_id: DEMO_SOURCE_ID,
+    db_type: "postgres",
+    engine: "PostgreSQL",
+    vendor: "PostgreSQL Global Development Group",
+    sql_dialect: "postgres",
+    supports_schemas: true,
+    identifier_quoting: "double_quote",
+    dialect_notes: "Use schema.table qualification when schema is set.",
+    host: "localhost",
+    port: 5433,
+    database: "bi_warehouse",
+    schema_name: "sales",
+    is_readonly: true,
+    access_mode: "read_only_select",
+    tables_in_context: ["orders", "customers"],
+    chunks_retrieved: 3,
+    context_mode: "rag",
+    embedding_model: "test-embed",
+    embedding_dimensions: 2048,
+    llm_model: "test-llm",
+    llm_model_fallback: "test-llm-fallback",
+    rag_top_k: 5,
+  },
+};
+
+export const suggestedQuestionsResponse = {
+  data_source_id: DEMO_SOURCE_ID,
+  suggestions: [
+    {
+      question: "What is total amount by region in orders?",
+      source: "schema" as const,
+      table: "orders",
+    },
+    {
+      question: "Give me a quick summary of the products table.",
+      source: "schema" as const,
+      table: "products",
+    },
+    {
+      question: "What were total sales by region?",
+      source: "history" as const,
+      table: null,
+    },
+  ],
+  schema_tables: ["orders", "products", "customers"],
 };
 
 export const sessionSummaries = [

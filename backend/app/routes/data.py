@@ -2,12 +2,16 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AIProviderError, SchemaEmbeddingError
 from app.database import get_db
-from app.schemas.chat import EmbedSchemaRequest, EmbedSchemaResponse
+from app.schemas.chat import (
+    EmbedSchemaRequest,
+    EmbedSchemaResponse,
+    SuggestedQuestionsResponse,
+)
 from app.schemas.data_source import (
     DataSourceSummary,
     WarehouseConnectRequest,
@@ -15,6 +19,7 @@ from app.schemas.data_source import (
 )
 from app.services.data_source_service import DataSourceService
 from app.services.schema_embedding_service import SchemaEmbeddingService
+from app.services.suggestion_service import SuggestionService
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -86,3 +91,27 @@ async def get_data_source(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return DataSourceSummary.model_validate(source)
+
+
+@router.get(
+    "/sources/{data_source_id}/suggested-questions",
+    response_model=SuggestedQuestionsResponse,
+)
+async def suggested_questions(
+    data_source_id: UUID,
+    limit: int = Query(6, ge=1, le=12),
+    db: AsyncSession = Depends(get_db),
+) -> SuggestedQuestionsResponse:
+    """
+    Schema-aware suggested prompts for the analyst sidebar.
+
+    Built from embedded table chunks (+ recent successful questions), not an LLM
+    call — stays useful under free-tier rate limits.
+    """
+    try:
+        result = await SuggestionService.suggest_for_data_source(
+            db, data_source_id, limit=limit
+        )
+        return SuggestedQuestionsResponse.model_validate(result)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

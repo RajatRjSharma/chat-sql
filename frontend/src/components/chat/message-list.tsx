@@ -20,9 +20,14 @@ const ResultChart = dynamic(
 type MessageListProps = {
   turns: ChatTurn[];
   pendingQuestion: string | null;
+  pendingStageLabel?: string | null;
 };
 
-export function MessageList({ turns, pendingQuestion }: MessageListProps) {
+export function MessageList({
+  turns,
+  pendingQuestion,
+  pendingStageLabel = null,
+}: MessageListProps) {
   if (!turns.length && !pendingQuestion) {
     return (
       <div className="flex h-full min-h-[280px] flex-col items-center justify-center px-6 text-center animate-fade-in">
@@ -78,12 +83,21 @@ export function MessageList({ turns, pendingQuestion }: MessageListProps) {
               {pendingQuestion}
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-2xl rounded-bl-md border border-[var(--border-card)] bg-[var(--bg-card)] px-4 py-3 text-sm text-[var(--text-secondary)]">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
-            </span>
-            Analyzing…
+          <div className="inline-flex max-w-[95%] flex-col gap-2 rounded-2xl rounded-bl-md border border-[var(--border-card)] bg-[var(--bg-card)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+            <div className="inline-flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+              </span>
+              <span className="text-[var(--text-primary)]">
+                {pendingStageLabel || "Analyzing…"}
+              </span>
+            </div>
+            {pendingStageLabel ? (
+              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+                Live pipeline
+              </p>
+            ) : null}
           </div>
         </article>
       ) : null}

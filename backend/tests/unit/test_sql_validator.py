@@ -61,6 +61,22 @@ class TestSqlValidator:
         with pytest.raises(SqlValidationError, match="Empty"):
             SqlValidator.validate("   ")
 
+    def test_token_error_becomes_validation_error(self) -> None:
+        """Broken quote fragments must retry via SqlValidationError, not crash."""
+        with pytest.raises(SqlValidationError, match="not valid for dialect"):
+            SqlValidator.validate(
+                "'(WHERE status='completed')::text FROM sales.order"
+            )
+
+    def test_accepts_filter_where_clause(self) -> None:
+        sql = SqlValidator.validate(
+            "SELECT COUNT(*) FILTER (WHERE status = 'completed') AS done "
+            "FROM sales.orders",
+            allowed_schema="sales",
+            allowed_tables={"orders"},
+        )
+        assert "FILTER" in sql.upper()
+
     def test_accepts_union(self) -> None:
         sql = SqlValidator.validate(
             "SELECT 1 AS x UNION SELECT 2 AS x",

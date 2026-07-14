@@ -15,6 +15,7 @@ class ChatGraphState(TypedDict, total=False):
     schema_context: str
     allowed_tables: list[str]
     connection_url: str
+    source_metadata: dict[str, Any]
     sql: str | None
     sql_error: str | None
     columns: list[str] | None

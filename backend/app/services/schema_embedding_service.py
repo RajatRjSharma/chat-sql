@@ -13,6 +13,7 @@ from app.providers.ai import AIClient, get_ai_client
 from app.services.data_source_service import DataSourceService
 from app.services.schema_chunker import chunk_tables
 from app.services.schema_introspection import SchemaIntrospectionService
+from app.services.source_metadata import build_source_metadata
 
 
 class SchemaEmbeddingService:
@@ -35,7 +36,27 @@ class SchemaEmbeddingService:
                 f"(schema={info.schema_name or 'default'})."
             )
 
-        chunks = chunk_tables(tables)
+        source_meta = build_source_metadata(
+            data_source,
+            tables_in_context=[t.table_name for t in tables],
+            chunks_retrieved=len(tables),
+            context_mode="embedding",
+        )
+        warehouse_header = (
+            f"Warehouse: {source_meta['engine']} ({source_meta['db_type']}) | "
+            f"Vendor: {source_meta['vendor']} | "
+            f"Dialect: {source_meta['sql_dialect']} | "
+            f"Database: {source_meta['database']} | "
+            f"Schema: {source_meta['schema_name'] or 'default'} | "
+            f"Host: {source_meta['host']}:{source_meta['port']} | "
+            f"Embedding model: {source_meta['embedding_model']}"
+        )
+
+        chunks = chunk_tables(
+            tables,
+            warehouse_header=warehouse_header,
+            engine_meta=source_meta,
+        )
         ai = client or get_ai_client()
         vectors = ai.embed([content for content, _ in chunks])
         if len(vectors) != len(chunks):

@@ -317,3 +317,70 @@ class TestChatSessionRoute:
     def test_get_session_invalid_uuid_returns_422(self, client: TestClient) -> None:
         response = client.get("/api/chat/sessions/not-a-uuid")
         assert response.status_code == 422
+
+
+class TestChatStreamRoute:
+    def test_chat_stream_emits_stage_and_result(self, client: TestClient) -> None:
+        session_id = uuid.uuid4()
+        result_payload = {
+            "session_id": session_id,
+            "data_source_id": DEMO_SOURCE_ID,
+            "question": "sales by region",
+            "answer": "East leads.",
+            "sql": "SELECT 1",
+            "columns": ["region"],
+            "rows": [{"region": "East"}],
+            "status": "ok",
+            "attempts": 1,
+        }
+
+        async def fake_stream(*_args, **_kwargs):
+            yield {
+                "type": "stage",
+                "stage": "generate_sql",
+                "label": "Generating SQL",
+                "attempts": 0,
+                "sql": None,
+            }
+            yield {"type": "result", **result_payload}
+
+        with patch(
+            "app.routes.chat.ChatService.ask_stream",
+            side_effect=fake_stream,
+        ):
+            response = client.post(
+                "/api/chat/stream",
+                json={
+                    "data_source_id": str(DEMO_SOURCE_ID),
+                    "question": "sales by region",
+                },
+            )
+
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        text = response.text
+        assert "event: stage" in text
+        assert "generate_sql" in text
+        assert "event: result" in text
+        assert "East leads." in text
+
+    def test_chat_stream_emits_error_event_on_not_found(self, client: TestClient) -> None:
+        async def fake_stream(*_args, **_kwargs):
+            raise ValueError("Data source not found")
+            yield  # pragma: no cover — makes this an async generator
+
+        with patch(
+            "app.routes.chat.ChatService.ask_stream",
+            side_effect=fake_stream,
+        ):
+            response = client.post(
+                "/api/chat/stream",
+                json={
+                    "data_source_id": str(DEMO_SOURCE_ID),
+                    "question": "sales by region",
+                },
+            )
+
+        assert response.status_code == 200
+        assert "event: error" in response.text
+        assert "not found" in response.text.lower()

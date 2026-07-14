@@ -77,6 +77,7 @@ def initial_chat_state(
     session_id=None,
     history: list[dict[str, str]] | None = None,
     max_attempts: int | None = None,
+    source_metadata: dict | None = None,
 ) -> ChatGraphState:
     return ChatGraphState(
         data_source_id=data_source_id,
@@ -87,6 +88,7 @@ def initial_chat_state(
         schema_context="",
         allowed_tables=allowed_tables,
         connection_url=connection_url,
+        source_metadata=source_metadata or {},
         sql=None,
         sql_error=None,
         columns=None,
@@ -102,3 +104,34 @@ def run_chat_graph(graph, state: ChatGraphState) -> dict[str, Any]:
     """Invoke compiled graph and return final state as a plain dict."""
     result = graph.invoke(state)
     return dict(result)
+
+
+STAGE_LABELS: dict[str, str] = {
+    "preparing": "Preparing session",
+    "retrieving_context": "Retrieving schema context",
+    "retrieve_schema": "Loading schema into the planner",
+    "generate_sql": "Generating SQL",
+    "validate_sql": "Validating SQL",
+    "execute_sql": "Running query",
+    "summarize": "Summarizing results",
+    "finalize_failure": "Could not complete the analysis",
+}
+
+
+def iter_chat_graph(graph, state: ChatGraphState):
+    """
+    Stream LangGraph node updates, then yield the merged final state.
+
+    Yields:
+      ("stage", node_name, merged_state_dict)
+      ("final", merged_state_dict)
+    """
+    current: dict[str, Any] = dict(state)
+    for update in graph.stream(state, stream_mode="updates"):
+        if not isinstance(update, dict):
+            continue
+        for node_name, patch in update.items():
+            if isinstance(patch, dict):
+                current.update(patch)
+            yield "stage", str(node_name), dict(current)
+    yield "final", dict(current)

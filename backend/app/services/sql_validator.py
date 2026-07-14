@@ -6,7 +6,7 @@ import re
 
 import sqlglot
 from sqlglot import exp
-from sqlglot.errors import ParseError
+from sqlglot.errors import ParseError, TokenError
 
 from app.core.exceptions import SqlValidationError
 from app.core.schema import validate_optional_schema
@@ -45,17 +45,28 @@ class SqlValidator:
         *,
         allowed_schema: str | None = None,
         allowed_tables: set[str] | None = None,
+        dialect: str = "postgres",
     ) -> str:
         cleaned = extract_sql(sql)
         if not cleaned:
             raise SqlValidationError("Empty SQL.")
 
         schema = validate_optional_schema(allowed_schema)
+        read_dialect = dialect or "postgres"
 
         try:
-            statements = sqlglot.parse(cleaned, read="postgres")
-        except ParseError as exc:
-            raise SqlValidationError(f"SQL parse error: {exc}") from exc
+            statements = sqlglot.parse(cleaned, read=read_dialect)
+        except (ParseError, TokenError) as exc:
+            raise SqlValidationError(
+                f"Generated SQL is not valid for dialect '{read_dialect}'. "
+                "Fix syntax and return one complete SELECT. "
+                f"Parser detail: {exc}"
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 — never let parser crashes kill retries
+            raise SqlValidationError(
+                "SQL could not be parsed safely. Return a simpler SELECT. "
+                f"Detail: {exc}"
+            ) from exc
 
         if not statements:
             raise SqlValidationError("No SQL statements found.")
@@ -76,7 +87,9 @@ class SqlValidator:
                 )
 
         if schema or allowed_tables:
-            SqlValidator._check_tables(statement, schema=schema, allowed_tables=allowed_tables)
+            SqlValidator._check_tables(
+                statement, schema=schema, allowed_tables=allowed_tables
+            )
 
         return cleaned
 

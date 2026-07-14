@@ -124,3 +124,48 @@ class TestGetDataSource:
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+class TestSuggestedQuestionsRoute:
+    def test_suggested_questions_success(self, client: TestClient) -> None:
+        payload = {
+            "data_source_id": DEMO_SOURCE_ID,
+            "suggestions": [
+                {
+                    "question": "What is total amount by region in orders?",
+                    "source": "schema",
+                    "table": "orders",
+                }
+            ],
+            "schema_tables": ["orders"],
+        }
+        with patch(
+            "app.routes.data.SuggestionService.suggest_for_data_source",
+            new=AsyncMock(return_value=payload),
+        ):
+            response = client.get(
+                f"/api/data/sources/{DEMO_SOURCE_ID}/suggested-questions"
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["data_source_id"] == str(DEMO_SOURCE_ID)
+        assert body["suggestions"][0]["source"] == "schema"
+        assert body["schema_tables"] == ["orders"]
+
+    def test_suggested_questions_not_found(self, client: TestClient) -> None:
+        missing = uuid.uuid4()
+        with patch(
+            "app.routes.data.SuggestionService.suggest_for_data_source",
+            new=AsyncMock(side_effect=ValueError("Data source not found")),
+        ):
+            response = client.get(f"/api/data/sources/{missing}/suggested-questions")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_suggested_questions_limit_validation(self, client: TestClient) -> None:
+        response = client.get(
+            f"/api/data/sources/{DEMO_SOURCE_ID}/suggested-questions?limit=0"
+        )
+        assert response.status_code == 422

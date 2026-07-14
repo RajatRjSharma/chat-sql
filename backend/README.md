@@ -51,8 +51,11 @@ Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 | `GET` | `/health/ai` | AI provider smoke test |
 | `POST` | `/api/data/connect` | Save + verify warehouse connection |
 | `GET` | `/api/data/sources` | List data sources |
+| `GET` | `/api/data/sources/{id}/suggested-questions` | Schema-aware prompt suggestions |
 | `POST` | `/api/data/embed-schema` | Introspect + embed schema chunks |
 | `POST` | `/api/chat` | NL question → SQL → rows → summary |
+| `POST` | `/api/chat/stream` | Same pipeline over SSE (`stage` / `result` / `error`) |
+| `GET` | `/api/chat/sessions` | List sessions for a data source |
 | `GET` | `/api/chat/sessions/{id}` | Session history |
 
 ### Chat body (first message)
@@ -60,11 +63,19 @@ Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 ```json
 {
   "data_source_id": "<uuid from connect>",
-  "message": "What are total sales by region for completed orders?"
+  "question": "What are total sales by region for completed orders?"
 }
 ```
 
 Omit `session_id` on the first request; reuse the returned id for follow-ups.
+
+### Streaming (`POST /api/chat/stream`)
+
+SSE events:
+
+- `stage` — `{ "stage", "label", "attempts", "sql" }`
+- `result` — full chat response payload
+- `error` — `{ "detail": "..." }`
 
 ## Chat pipeline (LangGraph)
 
