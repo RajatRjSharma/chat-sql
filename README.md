@@ -36,9 +36,10 @@ Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-de
 
 1. Open the UI — pick a **saved warehouse** or connect a new one (`GET /api/data/sources` / `POST /api/data/connect`)
 2. Schema indexing runs when needed (`POST /api/data/embed-schema`)
-3. Ask a question in chat (`POST /api/chat` — omit `session_id` on the first message)
-4. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
-5. **Switch warehouse** returns to the connect screen to open another saved source
+3. Ask a question in chat — type or use the **mic** (`POST /api/chat` — omit `session_id` on the first message)
+4. Optional: play the latest summary aloud from the insight panel
+5. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
+6. **Switch warehouse** returns to the connect screen to open another saved source
 
 ### Local demo warehouse
 
