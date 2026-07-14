@@ -17,8 +17,15 @@ Or from the repo root: `make frontend-install` then `make frontend-dev`.
 
 1. Connect warehouse (demo defaults prefilled) or open a saved source
 2. Schema embed runs automatically when needed
-3. Chat → answer + SQL + table + chart (when chartable)
-4. History sidebar loads past sessions; Switch warehouse returns to the picker
+3. Chat (type or **mic**) → answer + SQL + table + chart (when chartable)
+4. Optional **Play** in the insight panel reads the latest summary aloud
+5. History sidebar loads past sessions; Switch warehouse returns to the picker
+
+### Voice notes
+
+- Uses the browser **Web Speech API** (best in Chrome on `localhost` or HTTPS)
+- Grant microphone permission when prompted
+- If unsupported, the mic is hidden and typing still works
 
 ## UI E2E (Playwright, mocked API)
 
