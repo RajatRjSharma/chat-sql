@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON sales.orders(status);
 CREATE INDEX IF NOT EXISTS idx_customers_region ON sales.customers(region);
 CREATE INDEX IF NOT EXISTS idx_products_category ON sales.products(category);
 
+-- Read-only role for analytics chat (SELECT only)
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'bi_readonly') THEN
@@ -42,3 +43,15 @@ GRANT CONNECT ON DATABASE bi_warehouse TO bi_readonly;
 GRANT USAGE ON SCHEMA sales TO bi_readonly;
 GRANT SELECT ON ALL TABLES IN SCHEMA sales TO bi_readonly;
 ALTER DEFAULT PRIVILEGES IN SCHEMA sales GRANT SELECT ON TABLES TO bi_readonly;
+
+-- Writer role for CSV/Excel uploads (CREATE SCHEMA + tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'bi_uploader') THEN
+        CREATE ROLE bi_uploader LOGIN PASSWORD 'uploader_pass';
+    END IF;
+END
+$$;
+
+GRANT CONNECT ON DATABASE bi_warehouse TO bi_uploader;
+GRANT CREATE ON DATABASE bi_warehouse TO bi_uploader;

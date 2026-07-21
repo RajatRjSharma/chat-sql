@@ -34,13 +34,22 @@ Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-de
 
 ## Typical flow
 
-1. Open the UI — pick a **saved warehouse** or connect a new one (`GET /api/data/sources` / `POST /api/data/connect`)
+1. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
 2. Schema indexing runs when needed (`POST /api/data/embed-schema`)
 3. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
 4. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
 5. Optional: play the latest summary aloud from the insight panel
 6. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 7. **Switch warehouse** returns to the connect screen to open another saved source
+
+### CSV / Excel upload
+
+```bash
+# After make warehouse-init (creates bi_uploader + bi_readonly)
+# POST multipart /api/data/upload  →  POST /api/data/embed-schema  →  chat
+```
+
+Upload creates an isolated schema (`u_<id>`), loads the table, registers a read-only data source, then the UI indexes schema for RAG.
 
 ### Local demo warehouse
 

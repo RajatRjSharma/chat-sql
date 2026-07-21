@@ -2,10 +2,11 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AIProviderError, SchemaEmbeddingError
+from app.config import settings
+from app.core.exceptions import AIProviderError, SchemaEmbeddingError, UploadError
 from app.database import get_db
 from app.schemas.chat import (
     EmbedSchemaRequest,
@@ -17,9 +18,11 @@ from app.schemas.data_source import (
     WarehouseConnectRequest,
     WarehouseConnectResponse,
 )
+from app.schemas.upload import UploadResponse
 from app.services.data_source_service import DataSourceService
 from app.services.schema_embedding_service import SchemaEmbeddingService
 from app.services.suggestion_service import SuggestionService
+from app.services.upload_service import UploadService
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -42,6 +45,46 @@ async def connect_warehouse(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Could not connect to warehouse: {exc}",
         ) from exc
+
+
+@router.post("/upload", response_model=UploadResponse)
+async def upload_tabular_file(
+    db: AsyncSession = Depends(get_db),
+    file: UploadFile = File(..., description="CSV or Excel (.xlsx) file"),
+    name: str | None = Form(
+        default=None,
+        description="Optional display name for the data source",
+    ),
+) -> UploadResponse:
+    """
+    Upload CSV/Excel → load into an isolated warehouse schema → register a
+    read-only data source. Call POST /api/data/embed-schema next (same as connect).
+    """
+    filename = file.filename or "upload.csv"
+    try:
+        content = await file.read()
+        if len(content) > settings.upload_max_bytes:
+            raise UploadError(
+                f"File exceeds the {settings.upload_max_bytes // (1024 * 1024)} MB limit."
+            )
+        result = await UploadService.upload(
+            db,
+            filename=filename,
+            content=content,
+            display_name=name,
+        )
+        return UploadResponse.model_validate(result)
+    except UploadError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Upload failed: {exc}",
+        ) from exc
+    finally:
+        await file.close()
 
 
 @router.post("/embed-schema", response_model=EmbedSchemaResponse)

@@ -8,6 +8,7 @@ import {
   sessionDetailB,
   sessionSummaries,
   suggestedQuestionsResponse,
+  uploadResponse,
   SESSION_A_ID,
   SESSION_B_ID,
 } from "../fixtures/api";
@@ -35,11 +36,13 @@ export type MockApiOptions = {
   sources?: Json[];
   connect?: Json;
   embed?: Json;
+  upload?: Json;
   chat?: Json | ((payload: unknown) => Json);
   suggestions?: Json;
   sessions?: Json[];
   sessionDetails?: Record<string, Json>;
   connectStatus?: number;
+  uploadStatus?: number;
   chatStatus?: number;
 };
 
@@ -51,6 +54,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
   const sources = options.sources ?? [];
   const connect = options.connect ?? connectResponse;
   const embed = options.embed ?? embedResponse;
+  const upload = options.upload ?? uploadResponse;
   const sessions = options.sessions ?? sessionSummaries;
   const suggestions = options.suggestions ?? suggestedQuestionsResponse;
   const sessionDetails = options.sessionDetails ?? {
@@ -94,6 +98,17 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
         );
       }
       return fulfill(route, connect);
+    }
+
+    if (method === "POST" && path === "/api/data/upload") {
+      if (options.uploadStatus && options.uploadStatus >= 400) {
+        return fulfill(
+          route,
+          { detail: "Unsupported file type. Upload a .csv or .xlsx file." },
+          options.uploadStatus,
+        );
+      }
+      return fulfill(route, upload);
     }
 
     if (method === "POST" && path === "/api/data/embed-schema") {

@@ -169,3 +169,55 @@ class TestSuggestedQuestionsRoute:
             f"/api/data/sources/{DEMO_SOURCE_ID}/suggested-questions?limit=0"
         )
         assert response.status_code == 422
+
+
+class TestUploadRoute:
+    def test_upload_success(self, client: TestClient) -> None:
+        payload = {
+            "data_source_id": DEMO_SOURCE_ID,
+            "name": "sales (upload)",
+            "host": "localhost",
+            "port": 5433,
+            "database": "bi_warehouse",
+            "schema_name": "u_abc123def456",
+            "table_name": "sales",
+            "rows_loaded": 2,
+            "columns": ["region", "amount"],
+            "file_kind": "csv",
+            "status": "loaded",
+        }
+        with patch(
+            "app.routes.data.UploadService.upload",
+            new=AsyncMock(return_value=payload),
+        ):
+            response = client.post(
+                "/api/data/upload",
+                files={"file": ("sales.csv", b"region,amount\nEast,1\n", "text/csv")},
+                data={"name": "sales"},
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["data_source_id"] == str(DEMO_SOURCE_ID)
+        assert body["table_name"] == "sales"
+        assert body["rows_loaded"] == 2
+        assert body["file_kind"] == "csv"
+
+    def test_upload_validation_error_returns_400(self, client: TestClient) -> None:
+        from app.core.exceptions import UploadError
+
+        with patch(
+            "app.routes.data.UploadService.upload",
+            new=AsyncMock(side_effect=UploadError("Unsupported file type")),
+        ):
+            response = client.post(
+                "/api/data/upload",
+                files={"file": ("notes.txt", b"hello", "text/plain")},
+            )
+
+        assert response.status_code == 400
+        assert "Unsupported" in response.json()["detail"]
+
+    def test_upload_missing_file_returns_422(self, client: TestClient) -> None:
+        response = client.post("/api/data/upload", data={"name": "x"})
+        assert response.status_code == 422

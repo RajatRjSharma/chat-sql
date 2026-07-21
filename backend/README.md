@@ -50,6 +50,7 @@ Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 | `GET` | `/health/warehouse` | Connected warehouse |
 | `GET` | `/health/ai` | AI provider smoke test |
 | `POST` | `/api/data/connect` | Save + verify warehouse connection |
+| `POST` | `/api/data/upload` | CSV/Excel → isolated schema + data source |
 | `GET` | `/api/data/sources` | List data sources |
 | `GET` | `/api/data/sources/{id}/suggested-questions` | Schema-aware prompt suggestions |
 | `POST` | `/api/data/embed-schema` | Introspect + embed schema chunks |

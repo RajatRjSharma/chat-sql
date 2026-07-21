@@ -25,3 +25,7 @@ class SchemaEmbeddingError(AppError):
 
 class ChatPipelineError(AppError):
     """Chat graph pipeline failed after retries or hard error."""
+
+
+class UploadError(AppError):
+    """CSV/Excel upload parsing or load failed."""
