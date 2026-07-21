@@ -51,11 +51,11 @@ class Settings(BaseSettings):
     )
     ai_api_key: SecretStr = Field(alias="AI_API_KEY")
     llm_model: str = Field(
-        default="qwen/qwen3-coder:free",
+        default="openai/gpt-oss-20b:free",
         alias="LLM_MODEL",
     )
     llm_model_fallback: str = Field(
-        default="openrouter/free",
+        default="google/gemma-4-31b-it:free",
         alias="LLM_MODEL_FALLBACK",
     )
     embedding_model: str = Field(
@@ -69,6 +69,23 @@ class Settings(BaseSettings):
     sql_max_attempts: int = Field(default=3, alias="SQL_MAX_ATTEMPTS", ge=1, le=5)
     warehouse_max_rows: int = Field(default=500, alias="WAREHOUSE_MAX_ROWS", ge=1, le=5000)
     chat_history_limit: int = Field(default=5, alias="CHAT_HISTORY_LIMIT", ge=0, le=20)
+
+    # CSV/Excel upload target (server-side write; chat uses query user)
+    upload_wh_host: str = Field(default="localhost", alias="UPLOAD_WH_HOST")
+    upload_wh_port: int = Field(default=5433, alias="UPLOAD_WH_PORT", ge=1, le=65535)
+    upload_wh_database: str = Field(default="bi_warehouse", alias="UPLOAD_WH_DATABASE")
+    upload_wh_user: str = Field(default="bi_uploader", alias="UPLOAD_WH_USER")
+    upload_wh_password: SecretStr = Field(
+        default="uploader_pass", alias="UPLOAD_WH_PASSWORD"
+    )
+    upload_wh_query_user: str = Field(default="bi_readonly", alias="UPLOAD_WH_QUERY_USER")
+    upload_wh_query_password: SecretStr = Field(
+        default="readonly_pass", alias="UPLOAD_WH_QUERY_PASSWORD"
+    )
+    upload_max_bytes: int = Field(
+        default=10 * 1024 * 1024, alias="UPLOAD_MAX_BYTES", ge=1024, le=50 * 1024 * 1024
+    )
+    upload_max_rows: int = Field(default=50_000, alias="UPLOAD_MAX_ROWS", ge=1, le=200_000)
 
     @field_validator("app_db_schema", mode="before")
     @classmethod

@@ -28,6 +28,20 @@ export type EmbedSchemaResponse = {
   status: string;
 };
 
+export type UploadResponse = {
+  data_source_id: string;
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  schema_name: string;
+  table_name: string;
+  rows_loaded: number;
+  columns: string[];
+  file_kind: "csv" | "xlsx";
+  status: string;
+};
+
 export type DataSourceSummary = {
   id: string;
   name: string;

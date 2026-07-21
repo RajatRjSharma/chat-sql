@@ -145,7 +145,7 @@ migrate-revision: ## Create new autogenerate migration (usage: make migrate-revi
 # ---------------------------------------------------------------------------
 
 .PHONY: warehouse-init
-warehouse-init: ## Apply warehouse SQL schema (sales tables + readonly role)
+warehouse-init: ## Apply warehouse SQL schema (sales + readonly + uploader roles)
 	docker exec -i $(WAREHOUSE_DB_CONTAINER) psql -U postgres -d bi_warehouse < $(BACKEND_DIR)/scripts/init_warehouse.sql
 
 .PHONY: warehouse-seed

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConnectForm } from "@/components/connect/connect-form";
 import { SavedSources } from "@/components/connect/saved-sources";
+import { UploadForm } from "@/components/connect/upload-form";
 import { Workspace } from "@/components/workspace";
 import { api, ApiError } from "@/lib/api";
 import {
@@ -166,7 +167,7 @@ export function AnalystApp() {
             </p>
             <ol className="mt-10 space-y-4 text-sm text-[var(--text-muted-dark)]">
               {[
-                "Open a saved warehouse or connect a new one",
+                "Open a saved warehouse, connect one, or upload CSV/Excel",
                 "Browse past sessions for that source",
                 "Ask questions — follow-ups keep session memory",
               ].map((step, i) => (
@@ -207,6 +208,7 @@ export function AnalystApp() {
             ) : null}
 
             <ConnectForm onConnected={handleConnected} />
+            <UploadForm onUploaded={handleConnected} />
           </div>
         </div>
       </div>

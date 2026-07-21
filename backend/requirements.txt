@@ -29,3 +29,4 @@ cryptography==45.0.5
 # Multipart uploads and tabular processing
 python-multipart==0.0.20
 pandas==2.3.0
+openpyxl==3.1.5

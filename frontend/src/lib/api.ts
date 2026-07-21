@@ -7,6 +7,7 @@ import type {
   SessionDetailResponse,
   SessionSummary,
   SuggestedQuestionsResponse,
+  UploadResponse,
   WarehouseConnectRequest,
   WarehouseConnectResponse,
 } from "./types";
@@ -141,6 +142,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ data_source_id: dataSourceId }),
     });
+  },
+
+  async uploadFile(file: File, displayName?: string) {
+    const body = new FormData();
+    body.append("file", file);
+    if (displayName?.trim()) {
+      body.append("name", displayName.trim());
+    }
+
+    const res = await fetch(`${API_URL}/api/data/upload`, {
+      method: "POST",
+      body,
+    });
+
+    if (!res.ok) {
+      throw new ApiError(res.status, await parseDetail(res));
+    }
+    return res.json() as Promise<UploadResponse>;
   },
 
   listSources() {

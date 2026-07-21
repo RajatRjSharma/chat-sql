@@ -43,6 +43,20 @@ export const embedResponse = {
   status: "ok",
 };
 
+export const uploadResponse = {
+  data_source_id: DEMO_SOURCE_ID,
+  name: "sales (upload)",
+  host: "localhost",
+  port: 5433,
+  database: "bi_warehouse",
+  schema_name: "u_demo12345678",
+  table_name: "sales",
+  rows_loaded: 2,
+  columns: ["region", "amount"],
+  file_kind: "csv" as const,
+  status: "loaded",
+};
+
 export const chatOkResponse = {
   session_id: SESSION_A_ID,
   data_source_id: DEMO_SOURCE_ID,

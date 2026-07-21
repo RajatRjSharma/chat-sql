@@ -21,6 +21,15 @@ os.environ.setdefault("APP_DB_PASSWORD", "postgres")
 os.environ.setdefault("APP_DB_SCHEMA", "")
 os.environ.setdefault("CREDENTIALS_SECRET", "test-credentials-secret")
 os.environ.setdefault("AI_API_KEY", "test-ai-key")
+os.environ.setdefault("UPLOAD_WH_HOST", "localhost")
+os.environ.setdefault("UPLOAD_WH_PORT", "5433")
+os.environ.setdefault("UPLOAD_WH_DATABASE", "bi_warehouse")
+os.environ.setdefault("UPLOAD_WH_USER", "bi_uploader")
+os.environ.setdefault("UPLOAD_WH_PASSWORD", "uploader_pass")
+os.environ.setdefault("UPLOAD_WH_QUERY_USER", "bi_readonly")
+os.environ.setdefault("UPLOAD_WH_QUERY_PASSWORD", "readonly_pass")
+os.environ.setdefault("UPLOAD_MAX_BYTES", "10485760")
+os.environ.setdefault("UPLOAD_MAX_ROWS", "50000")
 
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
