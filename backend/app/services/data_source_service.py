@@ -5,15 +5,16 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-import psycopg2
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.schema import read_connection_schema
 from app.models import ChatSession, DataSource, SchemaEmbedding
 from app.schemas.data_source import WarehouseConnectRequest, WarehouseConnectResponse
 from app.security import encrypt_credential
-from app.core.schema import read_connection_schema
+from app.security.ssrf import assert_safe_warehouse_host
 from app.warehouse import WarehouseConnectionInfo, WarehouseCredentials
+from app.warehouse.connect import connect_warehouse
 
 
 class DataSourceService:
@@ -22,8 +23,9 @@ class DataSourceService:
     @staticmethod
     def test_connection(credentials: WarehouseCredentials) -> None:
         """Verify warehouse connectivity and schema access."""
+        assert_safe_warehouse_host(credentials.host)
         info = WarehouseConnectionInfo.from_credentials(credentials)
-        with psycopg2.connect(info.connection_url) as conn:
+        with connect_warehouse(info.connection_url, host=info.host) as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
                 cur.fetchone()
@@ -43,15 +45,20 @@ class DataSourceService:
         session: AsyncSession,
         request: WarehouseConnectRequest,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID | None = None,
     ) -> WarehouseConnectResponse:
         credentials = WarehouseCredentials.from_request(request)
+        assert_safe_warehouse_host(credentials.host)
         DataSourceService.test_connection(credentials)
 
         record_id = data_source_id or uuid.uuid4()
         existing = await session.get(DataSource, record_id)
+        if existing is not None and existing.user_id != user_id:
+            raise ValueError(f"Data source not found: {record_id}")
 
-        data_source = existing or DataSource(id=record_id)
+        data_source = existing or DataSource(id=record_id, user_id=user_id)
+        data_source.user_id = user_id
         data_source.name = credentials.name
         data_source.db_type = credentials.db_type
         data_source.host = credentials.host
@@ -77,23 +84,41 @@ class DataSourceService:
         )
 
     @staticmethod
-    async def get_active(session: AsyncSession, data_source_id: uuid.UUID) -> DataSource:
+    async def get_active(
+        session: AsyncSession,
+        data_source_id: uuid.UUID,
+        *,
+        user_id: uuid.UUID | None = None,
+    ) -> DataSource:
         data_source = await session.get(DataSource, data_source_id)
-        if data_source is None or not data_source.is_active:
+        if (
+            data_source is None
+            or not data_source.is_active
+            or (user_id is not None and data_source.user_id != user_id)
+        ):
             raise ValueError(f"Data source not found: {data_source_id}")
         return data_source
 
     @staticmethod
-    async def list_active(session: AsyncSession) -> list[DataSource]:
+    async def list_active(
+        session: AsyncSession,
+        *,
+        user_id: uuid.UUID,
+    ) -> list[DataSource]:
         result = await session.execute(
             select(DataSource)
             .where(DataSource.is_active.is_(True))
+            .where(DataSource.user_id == user_id)
             .order_by(DataSource.updated_at.desc())
         )
         return list(result.scalars().all())
 
     @staticmethod
-    async def list_active_summaries(session: AsyncSession) -> list[dict[str, Any]]:
+    async def list_active_summaries(
+        session: AsyncSession,
+        *,
+        user_id: uuid.UUID,
+    ) -> list[dict[str, Any]]:
         """Active sources with embedding + session counts for the reconnect UI."""
         chunk_count = (
             select(func.count(SchemaEmbedding.id))
@@ -104,6 +129,7 @@ class DataSourceService:
         session_count = (
             select(func.count(ChatSession.session_id))
             .where(ChatSession.data_source_id == DataSource.id)
+            .where(ChatSession.user_id == user_id)
             .correlate(DataSource)
             .scalar_subquery()
         )
@@ -114,6 +140,7 @@ class DataSourceService:
                 session_count.label("session_count"),
             )
             .where(DataSource.is_active.is_(True))
+            .where(DataSource.user_id == user_id)
             .order_by(DataSource.updated_at.desc())
         )
         summaries: list[dict[str, Any]] = []
@@ -134,6 +161,21 @@ class DataSourceService:
                 }
             )
         return summaries
+
+    @staticmethod
+    async def deactivate(
+        session: AsyncSession,
+        data_source_id: uuid.UUID,
+        *,
+        user_id: uuid.UUID,
+    ) -> None:
+        """Remove a warehouse from the owner's saved list (soft-delete)."""
+        data_source = await DataSourceService.get_active(
+            session, data_source_id, user_id=user_id
+        )
+        data_source.is_active = False
+        session.add(data_source)
+        await session.flush()
 
     @staticmethod
     def connection_info_from_record(data_source: DataSource) -> WarehouseConnectionInfo:

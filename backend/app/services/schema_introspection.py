@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import psycopg2
 from psycopg2.extensions import connection as PgConnection
 
 from app.core.exceptions import SchemaEmbeddingError
 from app.core.schema import read_connection_schema
 from app.warehouse import WarehouseConnectionInfo
+from app.warehouse.connect import connect_warehouse
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +50,7 @@ class SchemaIntrospectionService:
         sample_limit: int = 3,
     ) -> list[TableInfo]:
         try:
-            with psycopg2.connect(info.connection_url) as conn:
+            with connect_warehouse(info.connection_url, host=info.host) as conn:
                 schema = read_connection_schema(conn.cursor(), info.schema_name)
                 tables = SchemaIntrospectionService._list_tables(conn, schema)
                 result: list[TableInfo] = []

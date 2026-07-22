@@ -69,6 +69,23 @@ class Settings(BaseSettings):
     sql_max_attempts: int = Field(default=3, alias="SQL_MAX_ATTEMPTS", ge=1, le=5)
     warehouse_max_rows: int = Field(default=500, alias="WAREHOUSE_MAX_ROWS", ge=1, le=5000)
     chat_history_limit: int = Field(default=5, alias="CHAT_HISTORY_LIMIT", ge=0, le=20)
+    warehouse_connect_timeout_seconds: int = Field(
+        default=10,
+        alias="WAREHOUSE_CONNECT_TIMEOUT_SECONDS",
+        ge=1,
+        le=60,
+    )
+    warehouse_statement_timeout_ms: int = Field(
+        default=15_000,
+        alias="WAREHOUSE_STATEMENT_TIMEOUT_MS",
+        ge=1000,
+        le=120_000,
+    )
+    # None → allow private/loopback only when APP_ENV=local (demo Docker)
+    warehouse_allow_private_hosts: bool | None = Field(
+        default=None,
+        alias="WAREHOUSE_ALLOW_PRIVATE_HOSTS",
+    )
 
     # CSV/Excel upload target (server-side write; chat uses query user)
     upload_wh_host: str = Field(default="localhost", alias="UPLOAD_WH_HOST")
@@ -87,6 +104,66 @@ class Settings(BaseSettings):
     )
     upload_max_rows: int = Field(default=50_000, alias="UPLOAD_MAX_ROWS", ge=1, le=200_000)
 
+    # Auth (JWT + Gmail SMTP OTP — no Google OIDC)
+    jwt_secret: SecretStr = Field(
+        default="dev-local-jwt-secret-change-in-production",
+        alias="JWT_SECRET",
+    )
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(
+        default=30,
+        alias="JWT_EXPIRE_MINUTES",
+        ge=5,
+        le=1440,
+        description="Access token TTL (short-lived; use refresh)",
+    )
+    jwt_refresh_expire_minutes: int = Field(
+        default=60 * 24 * 7,
+        alias="JWT_REFRESH_EXPIRE_MINUTES",
+        ge=60,
+        le=60 * 24 * 30,
+    )
+    jwt_issuer: str = Field(default="meridian", alias="JWT_ISSUER")
+    auth_rate_limit_per_minute: int = Field(
+        default=20,
+        alias="AUTH_RATE_LIMIT_PER_MINUTE",
+        ge=5,
+        le=120,
+    )
+    connect_rate_limit_per_minute: int = Field(
+        default=10,
+        alias="CONNECT_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        le=120,
+    )
+    upload_rate_limit_per_minute: int = Field(
+        default=5,
+        alias="UPLOAD_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        le=60,
+    )
+    chat_rate_limit_per_minute: int = Field(
+        default=30,
+        alias="CHAT_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        le=300,
+    )
+    embed_rate_limit_per_minute: int = Field(
+        default=10,
+        alias="EMBED_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        le=120,
+    )
+
+    smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT", ge=1, le=65535)
+    smtp_user: str = Field(default="", alias="SMTP_USER")
+    smtp_password: SecretStr = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="SMTP_FROM")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    otp_expire_minutes: int = Field(default=10, alias="OTP_EXPIRE_MINUTES", ge=1, le=60)
+    otp_length: int = Field(default=6, alias="OTP_LENGTH", ge=4, le=8)
+
     @field_validator("app_db_schema", mode="before")
     @classmethod
     def normalize_app_db_schema(cls, value: str | None) -> str | None:
@@ -99,6 +176,13 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.app_env == "local"
+
+    @property
+    def allow_private_warehouse_hosts(self) -> bool:
+        """Private/loopback warehouse hosts: on by default only in local."""
+        if self.warehouse_allow_private_hosts is not None:
+            return self.warehouse_allow_private_hosts
+        return self.is_local
 
     @property
     def database_url(self) -> str:

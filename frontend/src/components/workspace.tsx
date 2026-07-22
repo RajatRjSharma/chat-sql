@@ -17,6 +17,8 @@ type WorkspaceProps = {
   sessionId: string | null;
   onSessionChange: (sessionId: string | null) => void;
   onDisconnect: () => void;
+  onLogout: () => void;
+  userLabel: string;
 };
 
 function turnsFromDetail(
@@ -60,6 +62,8 @@ export function Workspace({
   sessionId,
   onSessionChange,
   onDisconnect,
+  onLogout,
+  userLabel,
 }: WorkspaceProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -236,7 +240,7 @@ export function Workspace({
             Meridian
           </p>
           <p className="truncate text-xs text-[var(--text-muted-dark)]">
-            Executive intelligence · {dataSourceName}
+            @{userLabel} · {dataSourceName}
             {sessionId ? (
               <span className="ml-2 font-mono text-[10px] opacity-80">
                 session {sessionId.slice(0, 8)}
@@ -262,6 +266,9 @@ export function Workspace({
           </span>
           <Button variant="secondary" size="sm" onClick={onDisconnect}>
             Switch warehouse
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onLogout}>
+            Log out
           </Button>
         </div>
       </header>

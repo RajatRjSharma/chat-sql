@@ -72,7 +72,8 @@ class TestEmbedSchemaRoute:
                 json={"data_source_id": str(DEMO_SOURCE_ID)},
             )
         assert response.status_code == 502
-        assert "boom" in response.json()["detail"]
+        assert response.json()["detail"] == "Schema embedding failed. Please try again."
+        assert "boom" not in response.json()["detail"]
 
     def test_embed_schema_validation_error_returns_422(self, client: TestClient) -> None:
         response = client.post("/api/data/embed-schema", json={})
@@ -165,8 +166,8 @@ class TestChatRoute:
             )
         assert response.status_code == 502
         detail = response.json()["detail"]
-        assert "AI provider error" in detail
-        assert "429" in detail
+        assert detail == "AI provider is temporarily unavailable. Please try again shortly."
+        assert "429" not in detail
 
     def test_chat_pipeline_error_returns_502(self, client: TestClient) -> None:
         with patch(
@@ -210,7 +211,8 @@ class TestChatRoute:
                 },
             )
         assert response.status_code == 500
-        assert "boom" in response.json()["detail"]
+        assert response.json()["detail"] == "Chat failed. Please try again."
+        assert "boom" not in response.json()["detail"]
 
     def test_chat_validation_error_returns_422(self, client: TestClient) -> None:
         response = client.post(

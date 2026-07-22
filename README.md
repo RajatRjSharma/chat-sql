@@ -16,7 +16,7 @@ Warehouse credentials are provided via the API and stored encrypted. Project dat
 ## Quick start
 
 ```bash
-cp .env.example .env   # set APP_DB_* and AI_API_KEY
+cp .env.example .env   # set APP_DB_*, AI_API_KEY, SMTP_USER, SMTP_PASSWORD, JWT_SECRET
 make up && make wait-db
 make install
 make migrate
@@ -27,6 +27,8 @@ make dev                 # terminal A — API on :8000
 make frontend-dev        # terminal B — UI on :3000
 ```
 
+Auth uses **Gmail SMTP** for OTP (set `SMTP_USER` to your Gmail and `SMTP_PASSWORD` to a [Google App Password](https://myaccount.google.com/apppasswords)). There is no “Sign in with Google”.
+
 - UI: [http://localhost:3000](http://localhost:3000)  
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
@@ -34,10 +36,11 @@ Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-de
 
 ## Typical flow
 
-1. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
-2. Schema indexing runs when needed (`POST /api/data/embed-schema`)
-3. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
-4. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
+1. **Register / sign in** (email + username + password; Gmail SMTP OTP verifies email — no Google Sign-In)
+2. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
+3. Schema indexing runs when needed (`POST /api/data/embed-schema`)
+4. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
+5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
 5. Optional: play the latest summary aloud from the insight panel
 6. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 7. **Switch warehouse** returns to the connect screen to open another saved source

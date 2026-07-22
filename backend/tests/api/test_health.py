@@ -126,6 +126,7 @@ class TestHealthWarehouseEndpoint:
         mock_info.name = "Demo Sales Warehouse"
         mock_info.database = "bi_warehouse"
         mock_info.schema_name = "sales"
+        mock_info.host = "localhost"
         mock_info.connection_url = (
             "postgresql://bi_readonly:readonly_pass@localhost:5433/bi_warehouse"
         )
@@ -141,7 +142,7 @@ class TestHealthWarehouseEndpoint:
                 "app.main.DataSourceService.connection_info_from_record",
                 return_value=mock_info,
             ):
-                with patch("app.main.psycopg2.connect", return_value=mock_conn):
+                with patch("app.main.connect_warehouse", return_value=mock_conn):
                     response = client.get(
                         f"/health/warehouse?data_source_id={DEMO_SOURCE_ID}"
                     )
@@ -155,6 +156,7 @@ class TestHealthWarehouseEndpoint:
 
     def test_health_warehouse_connection_error_returns_503(self, client: TestClient) -> None:
         mock_info = MagicMock()
+        mock_info.host = "localhost"
         mock_info.connection_url = "postgresql://bad"
 
         with patch("app.main.DataSourceService.get_active", return_value=MagicMock()):
@@ -163,7 +165,7 @@ class TestHealthWarehouseEndpoint:
                 return_value=mock_info,
             ):
                 with patch(
-                    "app.main.psycopg2.connect",
+                    "app.main.connect_warehouse",
                     side_effect=RuntimeError("refused"),
                 ):
                     response = client.get(
@@ -174,4 +176,5 @@ class TestHealthWarehouseEndpoint:
         body = response.json()
         assert body["status"] == "error"
         assert body["data_source_id"] == str(DEMO_SOURCE_ID)
-        assert "refused" in body["detail"]
+        assert "refused" not in body["detail"]
+        assert body["detail"] == "Something went wrong. Please try again."

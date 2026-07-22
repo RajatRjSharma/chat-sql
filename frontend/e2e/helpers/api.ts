@@ -3,6 +3,7 @@ import {
   chatOkResponse,
   connectResponse,
   demoSource,
+  demoUser,
   embedResponse,
   sessionDetailA,
   sessionDetailB,
@@ -72,14 +73,87 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
       };
     });
 
+  await page.addInitScript((user) => {
+    try {
+      localStorage.setItem(
+        "meridian.auth.v2",
+        JSON.stringify({
+          accessToken: "e2e-test-token",
+          refreshToken: "e2e-refresh-token",
+          expiresAt: Date.now() + 60 * 60 * 1000,
+          user,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, demoUser);
+
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const method = request.method();
     const url = new URL(request.url());
     const path = url.pathname;
 
+    if (method === "GET" && path === "/api/auth/me") {
+      return fulfill(route, demoUser);
+    }
+    if (method === "POST" && path === "/api/auth/logout") {
+      return fulfill(route, { status: "ok", message: "Logged out" });
+    }
+    if (method === "POST" && path === "/api/auth/login") {
+      return fulfill(route, {
+        access_token: "e2e-test-token",
+        refresh_token: "e2e-refresh-token",
+        token_type: "bearer",
+        expires_in: 1800,
+        user: demoUser,
+      });
+    }
+    if (method === "POST" && path === "/api/auth/register") {
+      return fulfill(
+        route,
+        {
+          status: "otp_sent",
+          email: "analyst@example.com",
+          message: "Verification code sent to your email.",
+        },
+        201,
+      );
+    }
+    if (method === "POST" && path === "/api/auth/verify-otp") {
+      return fulfill(route, {
+        access_token: "e2e-test-token",
+        refresh_token: "e2e-refresh-token",
+        token_type: "bearer",
+        expires_in: 1800,
+        user: demoUser,
+      });
+    }
+    if (method === "POST" && path === "/api/auth/refresh") {
+      return fulfill(route, {
+        access_token: "e2e-test-token",
+        refresh_token: "e2e-refresh-token",
+        token_type: "bearer",
+        expires_in: 1800,
+        user: demoUser,
+      });
+    }
+    if (method === "POST" && path === "/api/auth/resend-otp") {
+      return fulfill(route, {
+        status: "otp_sent",
+        email: "analyst@example.com",
+        message: "A new verification code was sent.",
+      });
+    }
+
     if (method === "GET" && path === "/api/data/sources") {
       return fulfill(route, sources);
+    }
+
+    const deleteMatch = path.match(/^\/api\/data\/sources\/([^/]+)$/);
+    if (method === "DELETE" && deleteMatch) {
+      return route.fulfill({ status: 204, body: "" });
     }
 
     const suggestedMatch = path.match(
@@ -190,6 +264,8 @@ export async function clearWorkspace(page: Page) {
   await page.addInitScript(() => {
     try {
       sessionStorage.removeItem("vda.workspace.v1");
+      localStorage.removeItem("meridian.auth.v1");
+      localStorage.removeItem("meridian.auth.v2");
     } catch {
       /* ignore */
     }

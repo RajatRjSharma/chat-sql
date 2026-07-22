@@ -1,3 +1,11 @@
+import {
+  authHeaders,
+  clearAuthSession,
+  loadAuthSession,
+  saveAuthSession,
+  sessionFromTokenResponse,
+  type AuthUser,
+} from "./auth";
 import type {
   ChatRequest,
   ChatResponse,
@@ -27,6 +35,20 @@ export class ApiError extends Error {
   }
 }
 
+export type RegisterResponse = {
+  status: "otp_sent";
+  email: string;
+  message: string;
+};
+
+export type AuthTokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  user: AuthUser;
+};
+
 async function parseDetail(res: Response): Promise<string> {
   try {
     const body = await res.json();
@@ -42,14 +64,67 @@ async function parseDetail(res: Response): Promise<string> {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function tryRefreshSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const session = loadAuthSession();
+    if (!session?.refreshToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: session.refreshToken }),
+      });
+      if (!res.ok) {
+        clearAuthSession();
+        return false;
+      }
+      const token = (await res.json()) as AuthTokenResponse;
+      saveAuthSession(sessionFromTokenResponse(token));
+      return true;
+    } catch {
+      clearAuthSession();
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  retryOnUnauthorized = true,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+    ...authHeaders(),
+  };
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
+  if (!isFormData && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers,
   });
+
+  if (res.status === 401 && retryOnUnauthorized && !path.startsWith("/api/auth/")) {
+    const refreshed = await tryRefreshSession();
+    if (refreshed) {
+      return request<T>(path, init, false);
+    }
+    clearAuthSession();
+  } else if (res.status === 401 && path.startsWith("/api/auth/")) {
+    // login/register failures — do not wipe an existing session unless /me or refresh
+    if (path === "/api/auth/me" || path === "/api/auth/refresh") {
+      clearAuthSession();
+    }
+  }
 
   if (!res.ok) {
     throw new ApiError(res.status, await parseDetail(res));
@@ -129,7 +204,65 @@ function applyStreamEvent(
   }
 }
 
+function toSession(token: AuthTokenResponse) {
+  return sessionFromTokenResponse(token);
+}
+
 export const api = {
+  register(body: {
+    email: string;
+    username: string;
+    password: string;
+    password_confirm: string;
+  }) {
+    return request<RegisterResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  verifyOtp(body: { email: string; code: string }) {
+    return request<AuthTokenResponse>("/api/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then(toSession);
+  },
+
+  resendOtp(email: string) {
+    return request<RegisterResponse>("/api/auth/resend-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  login(body: { identifier: string; password: string }) {
+    return request<AuthTokenResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then(toSession);
+  },
+
+  refresh(refreshToken: string) {
+    return request<AuthTokenResponse>(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      },
+      false,
+    ).then(toSession);
+  },
+
+  me() {
+    return request<AuthUser>("/api/auth/me");
+  },
+
+  logout() {
+    return request<{ status: string; message: string }>("/api/auth/logout", {
+      method: "POST",
+    });
+  },
+
   connect(body: WarehouseConnectRequest) {
     return request<WarehouseConnectResponse>("/api/data/connect", {
       method: "POST",
@@ -151,19 +284,29 @@ export const api = {
       body.append("name", displayName.trim());
     }
 
-    const res = await fetch(`${API_URL}/api/data/upload`, {
+    return request<UploadResponse>("/api/data/upload", {
       method: "POST",
       body,
     });
-
-    if (!res.ok) {
-      throw new ApiError(res.status, await parseDetail(res));
-    }
-    return res.json() as Promise<UploadResponse>;
   },
 
   listSources() {
     return request<DataSourceSummary[]>("/api/data/sources");
+  },
+
+  async deleteSource(dataSourceId: string) {
+    const res = await fetch(`${API_URL}/api/data/sources/${dataSourceId}`, {
+      method: "DELETE",
+      headers: { ...authHeaders() },
+    });
+
+    if (res.status === 401) {
+      clearAuthSession();
+    }
+    if (res.status === 204 || res.ok) {
+      return;
+    }
+    throw new ApiError(res.status, await parseDetail(res));
   },
 
   suggestedQuestions(dataSourceId: string, limit = 6) {
@@ -191,11 +334,21 @@ export const api = {
   ): Promise<ChatResponse> {
     const res = await fetch(`${API_URL}/api/chat/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
       body: JSON.stringify(body),
       signal,
     });
 
+    if (res.status === 401) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        return api.chatStream(body, onEvent, signal);
+      }
+      clearAuthSession();
+    }
     if (!res.ok) {
       throw new ApiError(res.status, await parseDetail(res));
     }

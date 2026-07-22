@@ -7,18 +7,22 @@ from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AIProviderError, ChatPipelineError, SchemaEmbeddingError
 from app.database import get_db
+from app.deps.auth import get_current_user
+from app.models.user import User
 from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
     SessionDetailResponse,
     SessionSummary,
 )
+from app.security.http_errors import GENERIC_AI, GENERIC_CHAT, safe_public_detail
+from app.security.rate_limit import enforce_chat_rate_limit
 from app.services.chat_service import ChatService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -30,13 +34,16 @@ def _chat_http_exception(exc: Exception) -> HTTPException:
     if isinstance(exc, AIProviderError):
         return HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI provider error: {exc}",
+            detail=GENERIC_AI,
         )
     if isinstance(exc, (ChatPipelineError, SchemaEmbeddingError)):
-        return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        return HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=safe_public_detail(exc, fallback=GENERIC_CHAT),
+        )
     return HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=f"Chat pipeline failed: {exc}",
+        detail=GENERIC_CHAT,
     )
 
 
@@ -47,12 +54,16 @@ def _sse_encode(event: str, payload: dict[str, Any]) -> str:
 @router.post("", response_model=ChatResponse)
 async def ask_question(
     request: ChatRequest,
+    raw: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
     """Ask a natural-language analytics question against a connected warehouse."""
+    enforce_chat_rate_limit(raw, user_id=str(current_user.id))
     try:
         result = await ChatService.ask(
             db,
+            user_id=current_user.id,
             data_source_id=request.data_source_id,
             question=request.question,
             session_id=request.session_id,
@@ -65,7 +76,9 @@ async def ask_question(
 @router.post("/stream")
 async def ask_question_stream(
     request: ChatRequest,
+    raw: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Same pipeline as POST /api/chat, streamed as SSE.
@@ -75,11 +88,13 @@ async def ask_question_stream(
       - `result` — final ChatResponse-shaped payload
       - `error`  — terminal failure (`detail` string)
     """
+    enforce_chat_rate_limit(raw, user_id=str(current_user.id))
 
     async def event_generator() -> AsyncIterator[str]:
         try:
             async for event in ChatService.ask_stream(
                 db,
+                user_id=current_user.id,
                 data_source_id=request.data_source_id,
                 question=request.question,
                 session_id=request.session_id,
@@ -89,10 +104,11 @@ async def ask_question_stream(
                     payload = {k: v for k, v in event.items() if k != "type"}
                     yield _sse_encode("result", payload)
                 elif event_type == "error":
-                    yield _sse_encode(
-                        "error",
-                        {"detail": event.get("detail") or "Chat stream failed"},
+                    detail = safe_public_detail(
+                        Exception(str(event.get("detail") or "")),
+                        fallback=GENERIC_CHAT,
                     )
+                    yield _sse_encode("error", {"detail": detail or GENERIC_CHAT})
                 else:
                     payload = {
                         "stage": event.get("stage"),
@@ -121,11 +137,15 @@ async def list_sessions(
     data_source_id: UUID = Query(..., description="Warehouse data source id"),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[SessionSummary]:
     """List chat sessions for a data source (newest activity first)."""
     try:
         rows = await ChatService.list_sessions(
-            db, data_source_id=data_source_id, limit=limit
+            db,
+            user_id=current_user.id,
+            data_source_id=data_source_id,
+            limit=limit,
         )
         return [SessionSummary.model_validate(row) for row in rows]
     except ValueError as exc:
@@ -136,10 +156,13 @@ async def list_sessions(
 async def get_session(
     session_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> SessionDetailResponse:
     """Load a full session: messages + reconstructed turns (SQL / table / chart data)."""
     try:
-        result = await ChatService.get_session_detail(db, session_id)
+        result = await ChatService.get_session_detail(
+            db, session_id, user_id=current_user.id
+        )
         return SessionDetailResponse.model_validate(result)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

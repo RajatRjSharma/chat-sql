@@ -33,13 +33,28 @@ class TestDataSourceServiceGetActive:
             await DataSourceService.get_active(mock_db_session, DEMO_SOURCE_ID)
 
 
+class TestDataSourceServiceDeactivate:
+    async def test_deactivate_sets_inactive(self, mock_db_session, sample_data_source) -> None:
+        mock_db_session.get.return_value = sample_data_source
+        await DataSourceService.deactivate(
+            mock_db_session,
+            DEMO_SOURCE_ID,
+            user_id=sample_data_source.user_id,
+        )
+        assert sample_data_source.is_active is False
+        mock_db_session.add.assert_called_once_with(sample_data_source)
+        mock_db_session.flush.assert_awaited()
+
+
 class TestDataSourceServiceListActive:
     async def test_returns_active_sources(self, mock_db_session, sample_data_source) -> None:
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [sample_data_source]
         mock_db_session.execute.return_value = mock_result
 
-        sources = await DataSourceService.list_active(mock_db_session)
+        sources = await DataSourceService.list_active(
+            mock_db_session, user_id=sample_data_source.user_id
+        )
         assert sources == [sample_data_source]
 
 
@@ -52,7 +67,11 @@ class TestDataSourceServiceConnect:
         mock_db_session.get.return_value = None
 
         with patch.object(DataSourceService, "test_connection") as mock_test:
-            response = await DataSourceService.connect(mock_db_session, warehouse_connect_request)
+            response = await DataSourceService.connect(
+                mock_db_session,
+                warehouse_connect_request,
+                user_id=uuid.UUID("00000000-0000-4000-8000-0000000000aa"),
+            )
 
         mock_test.assert_called_once()
         mock_db_session.add.assert_called_once()
@@ -77,6 +96,7 @@ class TestDataSourceServiceConnect:
             response = await DataSourceService.connect(
                 mock_db_session,
                 warehouse_connect_request,
+                user_id=sample_data_source.user_id,
                 data_source_id=DEMO_SOURCE_ID,
             )
 
@@ -95,7 +115,9 @@ class TestDataSourceServiceTestConnection:
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        with patch("app.services.data_source_service.psycopg2.connect", return_value=mock_conn):
+        with patch(
+            "app.services.data_source_service.connect_warehouse", return_value=mock_conn
+        ):
             mock_conn.__enter__.return_value = mock_conn
             DataSourceService.test_connection(creds)
 

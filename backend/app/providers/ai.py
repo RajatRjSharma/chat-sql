@@ -5,6 +5,7 @@ Call sites use this module only — never a vendor SDK directly.
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from functools import lru_cache
@@ -17,6 +18,8 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from app.config import settings
 from app.core.exceptions import AIProviderError
+
+logger = logging.getLogger(__name__)
 
 _ROLE_TO_MESSAGE: dict[str, type[BaseMessage]] = {
     "system": SystemMessage,
@@ -169,8 +172,10 @@ class AIClient:
             if error:
                 errors.append(error)
 
-        detail = "; ".join(errors) if errors else "unknown error"
-        raise AIProviderError(f"AI request failed: {detail}")
+        logger.warning("AI complete exhausted models: %s", "; ".join(errors) or "unknown")
+        raise AIProviderError(
+            "AI request failed after primary, fallback, and free-router attempts."
+        )
 
     def _invoke_with_rate_limit_retry(
         self,
@@ -194,9 +199,12 @@ class AIClient:
                 return None, f"{label} returned empty content"
             except Exception as exc:  # noqa: BLE001
                 if attempt == 0 and _is_rate_limited(exc):
-                    time.sleep(_retry_after_seconds(exc))
+                    delay = _retry_after_seconds(exc)
+                    logger.info("AI model %s rate-limited; retrying in %.1fs", label, delay)
+                    time.sleep(delay)
                     continue
-                return None, str(exc)
+                logger.info("AI model %s failed: %s", label, exc)
+                return None, f"{label}: rate-limited or unavailable"
         return None, f"{label} failed"
 
     def _chat_models_for_attempt(

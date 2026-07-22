@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.data_source import DataSource
     from app.models.message import Message
     from app.models.query_history import QueryHistory
+    from app.models.user import User
 
 
 class ChatSession(Base):
@@ -27,6 +28,12 @@ class ChatSession(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(fk_table("users.id"), ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     data_source_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
@@ -48,6 +55,7 @@ class ChatSession(Base):
         nullable=False,
     )
 
+    owner: Mapped["User"] = relationship(back_populates="chat_sessions")
     data_source: Mapped[Optional["DataSource"]] = relationship(back_populates="sessions")
     messages: Mapped[list["Message"]] = relationship(
         back_populates="session",
