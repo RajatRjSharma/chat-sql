@@ -18,7 +18,7 @@ test.describe("Saved warehouses", () => {
     await page.goto("/");
 
     await expect(page.getByText("Saved warehouses")).toBeVisible();
-    await page.getByRole("button", { name: /Demo Sales Warehouse/ }).click();
+    await page.getByRole("button", { name: /^Demo Sales Warehouse/ }).click();
 
     await expect(page.getByRole("button", { name: "Switch warehouse" })).toBeVisible();
     await expect(page.getByText("History")).toBeVisible();
@@ -50,7 +50,7 @@ test.describe("Saved warehouses", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: /Unindexed Warehouse/ }).click();
+    await page.getByRole("button", { name: /^Unindexed Warehouse/ }).click();
 
     await expect(page.getByRole("button", { name: "Switch warehouse" })).toBeVisible();
     expect(embedCalled).toBe(true);
@@ -62,13 +62,13 @@ test.describe("Saved warehouses", () => {
       sessions: [],
     });
     await page.goto("/");
-    await page.getByRole("button", { name: /Demo Sales Warehouse/ }).click();
+    await page.getByRole("button", { name: /^Demo Sales Warehouse/ }).click();
     await expect(page.getByRole("button", { name: "Switch warehouse" })).toBeVisible();
 
     await page.getByRole("button", { name: "Switch warehouse" }).click();
 
     await expect(page.getByText("Saved warehouses")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Demo Sales Warehouse/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Demo Sales Warehouse/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect & index" })).toBeVisible();
   });
 });

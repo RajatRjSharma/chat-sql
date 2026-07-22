@@ -21,6 +21,7 @@ class UploadService:
     async def upload(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         filename: str,
         content: bytes,
         display_name: str | None = None,
@@ -52,6 +53,7 @@ class UploadService:
                 password=settings.upload_wh_query_password.get_secret_value(),
                 is_readonly=True,
             ),
+            user_id=user_id,
         )
 
         return {

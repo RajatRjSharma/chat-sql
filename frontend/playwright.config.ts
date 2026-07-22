@@ -26,10 +26,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --hostname 127.0.0.1 --port ${PORT}`,
+    // Production server avoids Next.js file watchers (EMFILE on macOS under load).
+    command: `npm run build && npx next start --hostname 127.0.0.1 --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
       ...process.env,
       NEXT_PUBLIC_API_URL: "http://127.0.0.1:8000",

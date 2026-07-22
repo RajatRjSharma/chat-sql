@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID
 
-import psycopg2
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,9 +14,12 @@ from app.core.exceptions import AIProviderError
 from app.core.schema import read_connection_schema
 from app.database import AsyncSessionLocal, engine
 from app.providers.ai import get_ai_client
+from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.data import router as data_router
+from app.security.http_errors import GENERIC_INTERNAL
 from app.services.data_source_service import DataSourceService
+from app.warehouse.connect import connect_warehouse
 
 APP_NAME = "Voice-Driven Data Analyst"
 APP_VERSION = "0.1.0"
@@ -51,6 +53,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(data_router)
 app.include_router(chat_router)
 
@@ -112,7 +115,7 @@ async def health_warehouse(
             data_source = await DataSourceService.get_active(session, data_source_id)
             info = DataSourceService.connection_info_from_record(data_source)
 
-        with psycopg2.connect(info.connection_url) as conn:
+        with connect_warehouse(info.connection_url, host=info.host) as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
                 cur.fetchone()
@@ -138,4 +141,7 @@ async def health_warehouse(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
-        return _health_error(str(exc), data_source_id=str(data_source_id))
+        return _health_error(
+            GENERIC_INTERNAL,
+            data_source_id=str(data_source_id),
+        )

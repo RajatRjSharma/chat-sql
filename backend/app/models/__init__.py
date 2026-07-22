@@ -2,16 +2,20 @@
 
 from app.models.base import Base
 from app.models.data_source import DataSource
+from app.models.email_otp import EmailOtp
 from app.models.message import Message
 from app.models.query_history import QueryHistory
 from app.models.schema_embedding import SchemaEmbedding
 from app.models.session import ChatSession
+from app.models.user import User
 
 __all__ = [
     "Base",
     "ChatSession",
     "DataSource",
+    "EmailOtp",
     "Message",
     "QueryHistory",
     "SchemaEmbedding",
+    "User",
 ]

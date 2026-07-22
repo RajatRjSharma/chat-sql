@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.query_history import QueryHistory
     from app.models.schema_embedding import SchemaEmbedding
     from app.models.session import ChatSession
+    from app.models.user import User
 
 
 class DataSource(Base):
@@ -32,6 +33,12 @@ class DataSource(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(fk_table("users.id"), ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     db_type: Mapped[str] = mapped_column(String(50), nullable=False, default="postgres")
@@ -57,6 +64,7 @@ class DataSource(Base):
         nullable=False,
     )
 
+    owner: Mapped["User"] = relationship(back_populates="data_sources")
     sessions: Mapped[list["ChatSession"]] = relationship(back_populates="data_source")
     schema_embeddings: Mapped[list["SchemaEmbedding"]] = relationship(
         back_populates="data_source",

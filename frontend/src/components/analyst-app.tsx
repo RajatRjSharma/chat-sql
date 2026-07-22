@@ -1,11 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AuthGate } from "@/components/auth/auth-gate";
 import { ConnectForm } from "@/components/connect/connect-form";
 import { SavedSources } from "@/components/connect/saved-sources";
 import { UploadForm } from "@/components/connect/upload-form";
 import { Workspace } from "@/components/workspace";
+import { Button } from "@/components/ui/button";
 import { api, ApiError } from "@/lib/api";
+import {
+  clearAuthSession,
+  loadAuthSession,
+  saveAuthSession,
+  type AuthSession,
+} from "@/lib/auth";
 import {
   clearWorkspace,
   loadWorkspace,
@@ -16,10 +24,12 @@ import type { DataSourceSummary } from "@/lib/types";
 
 export function AnalystApp() {
   const [ready, setReady] = useState(false);
+  const [auth, setAuth] = useState<AuthSession | null>(null);
   const [workspace, setWorkspace] = useState<PersistedWorkspace | null>(null);
   const [sources, setSources] = useState<DataSourceSummary[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectError, setSelectError] = useState<string | null>(null);
 
   const refreshSources = useCallback(async () => {
@@ -34,10 +44,58 @@ export function AnalystApp() {
   }, []);
 
   useEffect(() => {
-    setWorkspace(loadWorkspace());
-    setReady(true);
-    void refreshSources();
+    async function boot() {
+      const stored = loadAuthSession();
+      if (stored) {
+        try {
+          const user = await api.me();
+          const session = {
+            accessToken: stored.accessToken,
+            refreshToken: stored.refreshToken,
+            expiresAt: stored.expiresAt,
+            user,
+          };
+          saveAuthSession(session);
+          setAuth(session);
+          setWorkspace(loadWorkspace());
+          await refreshSources();
+        } catch {
+          clearAuthSession();
+          clearWorkspace();
+          setAuth(null);
+          setWorkspace(null);
+          setSourcesLoading(false);
+        }
+      } else {
+        setSourcesLoading(false);
+      }
+      setReady(true);
+    }
+    void boot();
   }, [refreshSources]);
+
+  function handleAuthenticated(session: AuthSession) {
+    saveAuthSession(session);
+    setAuth(session);
+    setWorkspace(null);
+    clearWorkspace();
+    setSourcesLoading(true);
+    void refreshSources();
+  }
+
+  async function handleLogout() {
+    try {
+      await api.logout();
+    } catch {
+      /* ignore — always clear local session */
+    }
+    clearAuthSession();
+    clearWorkspace();
+    setAuth(null);
+    setWorkspace(null);
+    setSources([]);
+    setSelectError(null);
+  }
 
   function openWorkspace(payload: {
     dataSourceId: string;
@@ -90,6 +148,23 @@ export function AnalystApp() {
     }
   }
 
+  async function handleDeleteSaved(source: DataSourceSummary) {
+    setSelectError(null);
+    setDeletingId(source.id);
+    try {
+      await api.deleteSource(source.id);
+      await refreshSources();
+    } catch (err) {
+      setSelectError(
+        err instanceof ApiError
+          ? err.detail
+          : "Could not remove this warehouse",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function handleSessionChange(sessionId: string | null) {
     setWorkspace((prev) => {
       if (!prev) return prev;
@@ -114,6 +189,10 @@ export function AnalystApp() {
     );
   }
 
+  if (!auth) {
+    return <AuthGate onAuthenticated={handleAuthenticated} />;
+  }
+
   if (workspace) {
     return (
       <Workspace
@@ -123,11 +202,13 @@ export function AnalystApp() {
         sessionId={workspace.sessionId}
         onSessionChange={handleSessionChange}
         onDisconnect={handleSwitchWarehouse}
+        onLogout={() => void handleLogout()}
+        userLabel={auth.user.username}
       />
     );
   }
 
-  const busy = selectingId != null;
+  const busy = selectingId != null || deletingId != null;
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
@@ -148,12 +229,12 @@ export function AnalystApp() {
               Meridian
             </p>
             <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-              Voice-Driven Data Analyst
+              Voice-Driven Data Analyst · @{auth.user.username}
             </p>
           </div>
-          <p className="hidden text-xs uppercase tracking-[0.16em] text-[var(--text-muted-dark)] sm:block">
-            Executive console
-          </p>
+          <Button variant="secondary" size="sm" onClick={() => void handleLogout()}>
+            Log out
+          </Button>
         </header>
 
         <div className="mt-14 grid flex-1 items-start gap-12 lg:mt-16 lg:grid-cols-[1.05fr_0.95fr]">
@@ -185,7 +266,9 @@ export function AnalystApp() {
               loading={sourcesLoading}
               busy={busy}
               activeId={selectingId}
+              deletingId={deletingId}
               onSelect={handleSelectSaved}
+              onDelete={handleDeleteSaved}
             />
 
             {selectError ? (

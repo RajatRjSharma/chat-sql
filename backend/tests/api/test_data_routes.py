@@ -47,7 +47,10 @@ class TestConnectWarehouse:
             response = client.post("/api/data/connect", json=WAREHOUSE_CONNECT_PAYLOAD)
 
         assert response.status_code == 502
-        assert "connection refused" in response.json()["detail"]
+        assert response.json()["detail"] == (
+            "Could not connect to the warehouse. Check host, port, and credentials."
+        )
+        assert "connection refused" not in response.json()["detail"]
 
     def test_connect_bad_request_on_value_error(self, client: TestClient) -> None:
         with patch(
@@ -124,6 +127,27 @@ class TestGetDataSource:
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+class TestDeleteDataSource:
+    def test_delete_source_success(self, client: TestClient) -> None:
+        with patch(
+            "app.routes.data.DataSourceService.deactivate",
+            new=AsyncMock(return_value=None),
+        ):
+            response = client.delete(f"/api/data/sources/{DEMO_SOURCE_ID}")
+
+        assert response.status_code == 204
+
+    def test_delete_source_not_found(self, client: TestClient) -> None:
+        missing_id = uuid.uuid4()
+        with patch(
+            "app.routes.data.DataSourceService.deactivate",
+            new=AsyncMock(side_effect=ValueError(f"Data source not found: {missing_id}")),
+        ):
+            response = client.delete(f"/api/data/sources/{missing_id}")
+
+        assert response.status_code == 404
 
 
 class TestSuggestedQuestionsRoute:

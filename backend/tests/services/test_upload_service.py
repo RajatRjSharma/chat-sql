@@ -58,6 +58,7 @@ async def test_upload_service_registers_readonly_source() -> None:
     ):
         result = await UploadService.upload(
             session,
+            user_id=uuid.uuid4(),
             filename="sales.csv",
             content=b"region,amount\nEast,10\n",
         )

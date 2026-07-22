@@ -24,9 +24,12 @@ class SchemaEmbeddingService:
         session: AsyncSession,
         data_source_id: uuid.UUID,
         *,
+        user_id: uuid.UUID | None = None,
         client: AIClient | None = None,
     ) -> int:
-        data_source = await DataSourceService.get_active(session, data_source_id)
+        data_source = await DataSourceService.get_active(
+            session, data_source_id, user_id=user_id
+        )
         info = DataSourceService.connection_info_from_record(data_source)
 
         tables = SchemaIntrospectionService.introspect(info)

@@ -35,6 +35,7 @@ class ChatService:
     async def ask(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID,
         question: str,
         session_id: uuid.UUID | None = None,
@@ -42,6 +43,7 @@ class ChatService:
     ) -> dict[str, Any]:
         prepared = await ChatService._prepare(
             session,
+            user_id=user_id,
             data_source_id=data_source_id,
             question=question,
             session_id=session_id,
@@ -60,6 +62,7 @@ class ChatService:
     async def ask_stream(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID,
         question: str,
         session_id: uuid.UUID | None = None,
@@ -70,6 +73,7 @@ class ChatService:
 
         prepared = await ChatService._prepare(
             session,
+            user_id=user_id,
             data_source_id=data_source_id,
             question=question,
             session_id=session_id,
@@ -149,17 +153,21 @@ class ChatService:
     async def _prepare(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID,
         question: str,
         session_id: uuid.UUID | None,
         client: AIClient | None,
     ) -> dict[str, Any]:
         ai = client or get_ai_client()
-        data_source = await DataSourceService.get_active(session, data_source_id)
+        data_source = await DataSourceService.get_active(
+            session, data_source_id, user_id=user_id
+        )
         info = DataSourceService.connection_info_from_record(data_source)
 
         chat_session = await ChatPersistenceService.get_or_create_session(
             session,
+            user_id=user_id,
             data_source_id=data_source_id,
             session_id=session_id,
             title=question[:80],
@@ -273,13 +281,15 @@ class ChatService:
     async def list_sessions(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        await DataSourceService.get_active(session, data_source_id)
+        await DataSourceService.get_active(session, data_source_id, user_id=user_id)
         return await ChatPersistenceService.list_sessions_for_data_source(
             session,
             data_source_id,
+            user_id=user_id,
             limit=limit,
         )
 
@@ -288,10 +298,13 @@ class ChatService:
         session: AsyncSession,
         session_id: uuid.UUID,
         *,
+        user_id: uuid.UUID,
         hydrate_results: bool = True,
     ) -> dict[str, Any]:
         """Load a session with messages and reconstructed turns (SQL + live results)."""
-        chat = await ChatPersistenceService.get_session_with_messages(session, session_id)
+        chat = await ChatPersistenceService.get_session_with_messages(
+            session, session_id, user_id=user_id
+        )
         if chat is None:
             raise ValueError("Session not found")
 
@@ -307,7 +320,7 @@ class ChatService:
         if hydrate_results and chat.data_source_id is not None:
             try:
                 data_source = await DataSourceService.get_active(
-                    session, chat.data_source_id
+                    session, chat.data_source_id, user_id=user_id
                 )
                 info = DataSourceService.connection_info_from_record(data_source)
                 source_metadata = build_source_metadata(

@@ -32,11 +32,13 @@ def _request_from_args(args: argparse.Namespace) -> WarehouseConnectRequest:
 
 async def seed_data_source(args: argparse.Namespace) -> uuid.UUID:
     request = _request_from_args(args)
+    user_id = uuid.UUID(args.user_id)
 
     async with AsyncSessionLocal() as session:
         response = await DataSourceService.connect(
             session,
             request,
+            user_id=user_id,
             data_source_id=DEMO_SOURCE_ID,
         )
         await session.commit()
@@ -53,6 +55,11 @@ async def seed_data_source(args: argparse.Namespace) -> uuid.UUID:
 async def main() -> None:
     parser = build_warehouse_credentials_parser(
         "Register user warehouse credentials in app.data_sources",
+    )
+    parser.add_argument(
+        "--user-id",
+        required=True,
+        help="Owner user UUID (register via /api/auth first)",
     )
     args = parser.parse_args()
     await seed_data_source(args)

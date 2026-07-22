@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import psycopg2
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 
@@ -13,6 +12,7 @@ from app.core.db_url import build_postgres_url
 from app.core.exceptions import UploadError
 from app.core.schema import validate_schema_identifier
 from app.services.file_parser import ParsedTable
+from app.warehouse.connect import connect_warehouse
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +84,10 @@ class TableLoader:
         ]
 
         try:
-            with psycopg2.connect(TableLoader.writer_url()) as conn:
+            with connect_warehouse(
+                TableLoader.writer_url(),
+                host=settings.upload_wh_host,
+            ) as conn:
                 conn.autocommit = False
                 with conn.cursor() as cur:
                     cur.execute(create_schema)
@@ -99,7 +102,7 @@ class TableLoader:
         except UploadError:
             raise
         except Exception as exc:  # noqa: BLE001
-            raise UploadError(f"Could not load data into warehouse: {exc}") from exc
+            raise UploadError("Could not load data into warehouse.") from exc
 
         return LoadResult(
             schema_name=schema,

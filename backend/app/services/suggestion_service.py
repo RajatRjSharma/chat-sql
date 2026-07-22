@@ -209,9 +209,10 @@ class SuggestionService:
         session: AsyncSession,
         data_source_id: uuid.UUID,
         *,
+        user_id: uuid.UUID | None = None,
         limit: int = 6,
     ) -> dict[str, Any]:
-        await DataSourceService.get_active(session, data_source_id)
+        await DataSourceService.get_active(session, data_source_id, user_id=user_id)
 
         result = await session.execute(
             select(SchemaEmbedding.content, SchemaEmbedding.metadata_)

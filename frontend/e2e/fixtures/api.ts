@@ -5,6 +5,15 @@ export const DEMO_SOURCE_B_ID = "22222222-2222-4222-8222-222222222222";
 export const SESSION_A_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 export const SESSION_B_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
+export const demoUser = {
+  id: "aaaaaaaa-0000-4000-8000-0000000000aa",
+  email: "analyst@example.com",
+  username: "analyst",
+  role: "analyst",
+  email_verified: true,
+  created_at: "2026-07-14T00:00:00.000Z",
+};
+
 export const demoSource = {
   id: DEMO_SOURCE_ID,
   name: "Demo Sales Warehouse",

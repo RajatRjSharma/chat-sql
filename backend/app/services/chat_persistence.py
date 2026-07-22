@@ -21,18 +21,20 @@ class ChatPersistenceService:
     async def get_or_create_session(
         session: AsyncSession,
         *,
+        user_id: uuid.UUID,
         data_source_id: uuid.UUID,
         session_id: uuid.UUID | None = None,
         title: str | None = None,
     ) -> ChatSession:
         if session_id is not None:
             existing = await session.get(ChatSession, session_id)
-            if existing is None:
+            if existing is None or existing.user_id != user_id:
                 raise ValueError(f"Chat session not found: {session_id}")
             return existing
 
         chat = ChatSession(
             session_id=uuid.uuid4(),
+            user_id=user_id,
             data_source_id=data_source_id,
             title=(title or "Analytics chat")[:255],
             context_cache={},
@@ -102,8 +104,10 @@ class ChatPersistenceService:
     async def get_session_with_messages(
         session: AsyncSession,
         session_id: uuid.UUID,
+        *,
+        user_id: uuid.UUID | None = None,
     ) -> ChatSession | None:
-        result = await session.execute(
+        stmt = (
             select(ChatSession)
             .where(ChatSession.session_id == session_id)
             .options(
@@ -111,6 +115,9 @@ class ChatPersistenceService:
                 selectinload(ChatSession.query_history),
             )
         )
+        if user_id is not None:
+            stmt = stmt.where(ChatSession.user_id == user_id)
+        result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -118,6 +125,7 @@ class ChatPersistenceService:
         session: AsyncSession,
         data_source_id: uuid.UUID,
         *,
+        user_id: uuid.UUID,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Return session summaries newest-first for a warehouse connection."""
@@ -137,6 +145,7 @@ class ChatPersistenceService:
                 msg_count.label("message_count"),
             )
             .where(ChatSession.data_source_id == data_source_id)
+            .where(ChatSession.user_id == user_id)
             .order_by(ChatSession.updated_at.desc())
             .limit(limit)
         )

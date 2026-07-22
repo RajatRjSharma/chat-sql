@@ -7,12 +7,12 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from app.config import settings
 from app.core.exceptions import WarehouseQueryError
 from app.warehouse import WarehouseConnectionInfo
+from app.warehouse.connect import connect_warehouse
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +47,7 @@ class WarehouseExecutor:
     ) -> QueryResult:
         limit = max_rows or settings.warehouse_max_rows
         try:
-            with psycopg2.connect(info.connection_url) as conn:
+            with connect_warehouse(info.connection_url, host=info.host) as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute(sql)
                     if cur.description is None:
@@ -62,4 +62,4 @@ class WarehouseExecutor:
         except WarehouseQueryError:
             raise
         except Exception as exc:
-            raise WarehouseQueryError(f"Warehouse query failed: {exc}") from exc
+            raise WarehouseQueryError("Warehouse query failed or timed out.") from exc
