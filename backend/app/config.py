@@ -163,6 +163,8 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
     otp_expire_minutes: int = Field(default=10, alias="OTP_EXPIRE_MINUTES", ge=1, le=60)
     otp_length: int = Field(default=6, alias="OTP_LENGTH", ge=4, le=8)
+    # When false, register marks the user verified and skips SMTP (e.g. Render free tier).
+    email_otp_enabled: bool = Field(default=True, alias="EMAIL_OTP_ENABLED")
 
     @field_validator("app_db_schema", mode="before")
     @classmethod

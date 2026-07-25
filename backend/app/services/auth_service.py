@@ -46,22 +46,32 @@ class AuthService:
             raise ValueError("Username is already taken")
 
         plain = request.password.get_secret_value()
+        otp_enabled = settings.email_otp_enabled
         user = User(
             email=request.email,
             username=request.username,
             password_hash=hash_password(plain),
             role="analyst",
             is_active=True,
-            email_verified=False,
+            email_verified=not otp_enabled,
         )
         session.add(user)
         await session.flush()
+
+        if not otp_enabled:
+            return RegisterResponse(
+                status="verified",
+                email=user.email,
+                message="Account created. You can log in.",
+            )
 
         await AuthService._issue_and_send_otp(session, user)
         return RegisterResponse(email=user.email)
 
     @staticmethod
     async def resend_otp(session: AsyncSession, email: str) -> RegisterResponse:
+        if not settings.email_otp_enabled:
+            raise ValueError("Email verification is currently disabled. You can log in.")
         user = await AuthService._get_user_by_email(session, email)
         if user.email_verified:
             raise ValueError("Email is already verified. You can log in.")
@@ -108,7 +118,7 @@ class AuthService:
             raise ValueError("Invalid credentials")
         if not user.is_active:
             raise ValueError("Account is disabled")
-        if not user.email_verified:
+        if settings.email_otp_enabled and not user.email_verified:
             raise ValueError("Email not verified. Check your inbox for the OTP code.")
         return AuthService._token_response(user)
 
@@ -117,7 +127,7 @@ class AuthService:
         payload = decode_token(refresh_token, expected_type="refresh")
         user_id = UUID(str(payload["sub"]))
         user = await AuthService.get_user(session, user_id)
-        if not user.email_verified:
+        if settings.email_otp_enabled and not user.email_verified:
             raise ValueError("Email not verified")
         return AuthService._token_response(user)
 

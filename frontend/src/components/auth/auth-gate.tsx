@@ -84,6 +84,12 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
         password_confirm: passwordConfirm,
       });
       clearSecrets();
+      if (result.status === "verified") {
+        setIdentifier(result.email);
+        setMode("login");
+        setInfo(result.message);
+        return;
+      }
       setOtpEmail(result.email);
       setMode("otp");
       setInfo(result.message);
@@ -213,7 +219,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
                   Create account
                 </h1>
                 <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-                  Strong password + email OTP verification
+                  Strong password required
                 </p>
               </div>
               <div className="space-y-2">
@@ -271,7 +277,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={busy} size="lg">
-                {busy ? "Sending code…" : "Register & send OTP"}
+                {busy ? "Creating account…" : "Create account"}
               </Button>
               <p className="text-center text-sm text-[var(--text-muted-dark)]">
                 Already have an account?{" "}
