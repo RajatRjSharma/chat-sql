@@ -70,4 +70,6 @@ async def test_upload_service_registers_readonly_source() -> None:
     request = connect_mock.await_args.args[1]
     assert request.is_readonly is True
     assert request.schema_name == "u_abcdef123456"
-    assert request.username == "bi_readonly"
+    assert request.host == "localhost"
+    assert request.database == "bi_app"
+    assert request.username == "postgres"

@@ -87,7 +87,8 @@ class Settings(BaseSettings):
         alias="WAREHOUSE_ALLOW_PRIVATE_HOSTS",
     )
 
-    # CSV/Excel upload target (server-side write; chat uses query user)
+    # CSV/Excel upload target (legacy — uploads now use APP_DB_*).
+    # Kept so existing env files do not break; unused by the upload path.
     upload_wh_host: str = Field(default="localhost", alias="UPLOAD_WH_HOST")
     upload_wh_port: int = Field(default=5433, alias="UPLOAD_WH_PORT", ge=1, le=65535)
     upload_wh_database: str = Field(default="bi_warehouse", alias="UPLOAD_WH_DATABASE")

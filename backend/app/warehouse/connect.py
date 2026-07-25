@@ -41,5 +41,7 @@ def connect_warehouse(
         connect_timeout=settings.warehouse_connect_timeout_seconds,
         options=merged_options,
         application_name="meridian",
+        # Cloud Postgres (Render/Supabase) requires TLS; local Docker does not.
+        **({"sslmode": "require"} if not settings.is_local else {}),
         **kwargs,
     )
