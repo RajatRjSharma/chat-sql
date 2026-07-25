@@ -40,6 +40,34 @@ class TestAuthRegister:
         assert body["status"] == "otp_sent"
         assert body["email"] == "new@example.com"
 
+    def test_register_verified_when_otp_disabled(
+        self, unauthenticated_client: TestClient
+    ) -> None:
+        with patch(
+            "app.routes.auth.AuthService.register",
+            new=AsyncMock(
+                return_value=RegisterResponse(
+                    status="verified",
+                    email="new@example.com",
+                    message="Account created. You can log in.",
+                )
+            ),
+        ):
+            response = unauthenticated_client.post(
+                "/api/auth/register",
+                json={
+                    "email": "new@example.com",
+                    "username": "newuser",
+                    "password": STRONG_PASSWORD,
+                    "password_confirm": STRONG_PASSWORD,
+                },
+            )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["status"] == "verified"
+        assert body["message"] == "Account created. You can log in."
+
     def test_register_requires_confirm_match(self, unauthenticated_client: TestClient) -> None:
         response = unauthenticated_client.post(
             "/api/auth/register",
@@ -214,3 +242,78 @@ class TestAuthServiceOtp:
         assert response.access_token == "jwt-access"
         assert response.refresh_token == "jwt-refresh"
         assert response.expires_in == 1800
+
+    async def test_register_skips_otp_when_disabled(
+        self, mock_db_session, sample_user: User
+    ) -> None:
+        from app.services.auth_service import AuthService
+
+        empty = MagicMock()
+        empty.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=empty)
+        mock_db_session.add = MagicMock()
+        mock_db_session.flush = AsyncMock()
+
+        request = RegisterRequest(
+            email="fresh@example.com",
+            username="freshuser",
+            password=SecretStr(STRONG_PASSWORD),
+            password_confirm=SecretStr(STRONG_PASSWORD),
+        )
+
+        with (
+            patch("app.services.auth_service.settings") as mock_settings,
+            patch("app.services.auth_service.hash_password", return_value="hashed"),
+            patch(
+                "app.services.auth_service.AuthService._issue_and_send_otp",
+                new=AsyncMock(),
+            ) as send_otp,
+        ):
+            mock_settings.email_otp_enabled = False
+            response = await AuthService.register(mock_db_session, request)
+
+        assert response.status == "verified"
+        assert response.email == "fresh@example.com"
+        assert response.message == "Account created. You can log in."
+        send_otp.assert_not_awaited()
+        added_user = mock_db_session.add.call_args[0][0]
+        assert added_user.email_verified is True
+
+    async def test_resend_otp_rejects_when_disabled(self, mock_db_session) -> None:
+        from app.services.auth_service import AuthService
+
+        with patch("app.services.auth_service.settings") as mock_settings:
+            mock_settings.email_otp_enabled = False
+            with pytest.raises(ValueError, match="currently disabled"):
+                await AuthService.resend_otp(mock_db_session, "a@example.com")
+
+    async def test_login_allows_unverified_when_otp_disabled(
+        self, mock_db_session, sample_user: User
+    ) -> None:
+        from app.schemas.auth import LoginRequest
+        from app.services.auth_service import AuthService
+
+        sample_user.email_verified = False
+        sample_user.password_hash = hash_password(STRONG_PASSWORD)
+        user_result = MagicMock()
+        user_result.scalar_one_or_none.return_value = sample_user
+        mock_db_session.execute = AsyncMock(return_value=user_result)
+
+        with (
+            patch("app.services.auth_service.settings") as mock_settings,
+            patch(
+                "app.services.auth_service.create_access_token",
+                return_value=("jwt-access", 1800),
+            ),
+            patch(
+                "app.services.auth_service.create_refresh_token",
+                return_value=("jwt-refresh", 604800),
+            ),
+        ):
+            mock_settings.email_otp_enabled = False
+            response = await AuthService.login(
+                mock_db_session,
+                LoginRequest(identifier=sample_user.email, password=SecretStr(STRONG_PASSWORD)),
+            )
+
+        assert response.access_token == "jwt-access"

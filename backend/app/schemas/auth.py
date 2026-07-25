@@ -106,7 +106,7 @@ class AuthTokenResponse(BaseModel):
 
 
 class RegisterResponse(BaseModel):
-    status: Literal["otp_sent"] = "otp_sent"
+    status: Literal["otp_sent", "verified"] = "otp_sent"
     email: str
     message: str = "Verification code sent to your email."
 

@@ -36,7 +36,7 @@ export class ApiError extends Error {
 }
 
 export type RegisterResponse = {
-  status: "otp_sent";
+  status: "otp_sent" | "verified";
   email: string;
   message: string;
 };
