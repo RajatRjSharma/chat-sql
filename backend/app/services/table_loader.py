@@ -1,4 +1,4 @@
-"""Load parsed tables into the warehouse under an isolated schema."""
+"""Load parsed tables into the app database under an isolated schema."""
 
 from __future__ import annotations
 
@@ -24,17 +24,17 @@ class LoadResult:
 
 
 class TableLoader:
-    """CREATE SCHEMA/TABLE + bulk insert + grant SELECT to the query role."""
+    """CREATE SCHEMA/TABLE + bulk insert into the project (app) database."""
 
     @staticmethod
     def writer_url() -> str:
         # psycopg2 expects postgresql:// (no SQLAlchemy driver suffix)
         return build_postgres_url(
-            host=settings.upload_wh_host,
-            port=settings.upload_wh_port,
-            database=settings.upload_wh_database,
-            username=settings.upload_wh_user,
-            password=settings.upload_wh_password.get_secret_value(),
+            host=settings.app_db_host,
+            port=settings.app_db_port,
+            database=settings.app_db_name,
+            username=settings.app_db_user,
+            password=settings.app_db_password.get_secret_value(),
             driver=None,
         )
 
@@ -42,7 +42,6 @@ class TableLoader:
     def load(*, schema_name: str, parsed: ParsedTable) -> LoadResult:
         schema = validate_schema_identifier(schema_name)
         table = validate_schema_identifier(parsed.table_name)
-        query_user = validate_schema_identifier(settings.upload_wh_query_user)
 
         col_defs = sql.SQL(", ").join(
             sql.SQL("{} {}").format(sql.Identifier(col.name), sql.SQL(col.pg_type))
@@ -63,15 +62,6 @@ class TableLoader:
             sql.Identifier(table),
             col_defs,
         )
-        grant_usage = sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
-            sql.Identifier(schema), sql.Identifier(query_user)
-        )
-        grant_select = sql.SQL(
-            "GRANT SELECT ON ALL TABLES IN SCHEMA {} TO {}"
-        ).format(sql.Identifier(schema), sql.Identifier(query_user))
-        default_privs = sql.SQL(
-            "ALTER DEFAULT PRIVILEGES IN SCHEMA {} GRANT SELECT ON TABLES TO {}"
-        ).format(sql.Identifier(schema), sql.Identifier(query_user))
 
         insert_sql = sql.SQL("INSERT INTO {}.{} ({}) VALUES %s").format(
             sql.Identifier(schema),
@@ -86,7 +76,7 @@ class TableLoader:
         try:
             with connect_warehouse(
                 TableLoader.writer_url(),
-                host=settings.upload_wh_host,
+                host=settings.app_db_host,
             ) as conn:
                 conn.autocommit = False
                 with conn.cursor() as cur:
@@ -95,9 +85,6 @@ class TableLoader:
                     cur.execute(create_table)
                     if values:
                         execute_values(cur, insert_sql.as_string(cur), values, page_size=1000)
-                    cur.execute(grant_usage)
-                    cur.execute(grant_select)
-                    cur.execute(default_privs)
                 conn.commit()
         except UploadError:
             raise

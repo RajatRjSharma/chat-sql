@@ -34,7 +34,9 @@ def _is_hard_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bo
 
 
 def _is_private_or_loopback(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    return bool(ip.is_private or ip.is_loopback or ip.is_site_local)
+    # is_site_local is IPv6-only and was removed from IPv4Address in Python 3.14+.
+    site_local = getattr(ip, "is_site_local", False)
+    return bool(ip.is_private or ip.is_loopback or site_local)
 
 
 def _is_loopback_hostname(host: str) -> bool:
@@ -97,6 +99,14 @@ def assert_safe_warehouse_host(host: str) -> None:
         literal = ipaddress.ip_address(cleaned)
     except ValueError:
         literal = None
+
+    # Project DB is already trusted for ORM — uploads + chat reuse it. Metadata and
+    # link-local targets stay blocked even if one is misconfigured as APP_DB_HOST.
+    app_host = (settings.app_db_host or "").strip().lower().rstrip(".")
+    if app_host and cleaned == app_host:
+        if literal is not None and _is_hard_blocked_ip(literal):
+            raise ValueError("Warehouse host is not allowed.")
+        return
 
     if literal is not None:
         _assert_ip_allowed(literal, allow_private=allow_private)

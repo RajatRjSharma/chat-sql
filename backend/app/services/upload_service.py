@@ -1,4 +1,4 @@
-"""Orchestrate CSV/Excel upload → warehouse table → registered data source."""
+"""Orchestrate CSV/Excel upload → app-DB table → registered data source."""
 
 from __future__ import annotations
 
@@ -40,17 +40,18 @@ class UploadService:
         if not source_name.lower().endswith("upload"):
             source_name = f"{source_name} (upload)"
 
+        # Uploads land in the project DB — no separate warehouse required.
         connected = await DataSourceService.connect(
             session,
             WarehouseConnectRequest(
                 name=source_name[:100],
                 db_type="postgres",
-                host=settings.upload_wh_host,
-                port=settings.upload_wh_port,
-                database=settings.upload_wh_database,
+                host=settings.app_db_host,
+                port=settings.app_db_port,
+                database=settings.app_db_name,
                 schema_name=load.schema_name,
-                username=settings.upload_wh_query_user,
-                password=settings.upload_wh_query_password.get_secret_value(),
+                username=settings.app_db_user,
+                password=settings.app_db_password.get_secret_value(),
                 is_readonly=True,
             ),
             user_id=user_id,
