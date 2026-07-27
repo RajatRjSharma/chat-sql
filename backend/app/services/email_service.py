@@ -28,12 +28,12 @@ class EmailService:
 
         from_addr = settings.smtp_from or settings.smtp_user
         message = EmailMessage()
-        message["Subject"] = "Meridian verification code"
+        message["Subject"] = "Voice-Driven Data Analyst verification code"
         message["From"] = from_addr
         message["To"] = to_email
         message.set_content(
             f"Hi {username},\n\n"
-            f"Your Meridian verification code is: {code}\n\n"
+            f"Your Voice-Driven Data Analyst verification code is: {code}\n\n"
             f"It expires in {settings.otp_expire_minutes} minutes.\n"
             "If you did not create an account, ignore this email.\n"
         )

@@ -202,7 +202,7 @@ def build_questions_from_tables(
 
 
 class SuggestionService:
-    """Schema-aware suggested questions for the Meridian sidebar."""
+    """Schema-aware suggested questions for the Voice-Driven Data Analyst sidebar."""
 
     @staticmethod
     async def suggest_for_data_source(

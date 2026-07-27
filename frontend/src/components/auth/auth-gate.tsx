@@ -144,13 +144,13 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-[#1d4ed8]/12 blur-3xl"
+        className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-[var(--accent-light)]/15 blur-3xl"
       />
 
       <div className="relative mx-auto flex min-h-[100dvh] max-w-lg flex-col justify-center px-5 py-12">
         <header className="mb-10 animate-fade-in">
-          <p className="font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
-            Meridian
+          <p className="max-w-[16ch] font-[family-name:var(--font-display)] text-2xl leading-tight tracking-tight md:max-w-none md:text-3xl">
+            Voice-Driven Data Analyst
           </p>
           <p className="mt-2 text-sm text-[var(--text-muted-dark)]">
             Sign in to analyze your warehouses

@@ -219,17 +219,17 @@ export function AnalystApp() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#1d4ed8]/10 blur-3xl"
+        className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[var(--accent-light)]/15 blur-3xl"
       />
 
       <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-5 py-8 md:px-10 md:py-12">
         <header className="flex items-center justify-between animate-fade-in">
           <div>
-            <p className="font-[family-name:var(--font-display)] text-2xl tracking-tight md:text-3xl">
-              Meridian
+            <p className="max-w-[18ch] font-[family-name:var(--font-display)] text-xl leading-tight tracking-tight md:max-w-none md:text-2xl">
+              Voice-Driven Data Analyst
             </p>
             <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-              Voice-Driven Data Analyst · @{auth.user.username}
+              @{auth.user.username}
             </p>
           </div>
           <Button variant="secondary" size="sm" onClick={() => void handleLogout()}>
@@ -240,7 +240,7 @@ export function AnalystApp() {
         <div className="mt-14 grid flex-1 items-start gap-12 lg:mt-16 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="animate-rise">
             <h1 className="max-w-xl font-[family-name:var(--font-display)] text-4xl leading-[1.05] tracking-tight md:text-5xl lg:text-[3.4rem]">
-              Meridian
+              Ask your warehouse.
             </h1>
             <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--text-muted-dark)]">
               Ask business questions. Get validated SQL, charts, and executive-ready
