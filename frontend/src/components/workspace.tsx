@@ -236,8 +236,8 @@ export function Workspace({
     <div className="flex h-[100dvh] flex-col bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 px-5 py-3.5 md:px-7">
         <div className="min-w-0">
-          <p className="font-[family-name:var(--font-display)] text-lg tracking-tight md:text-xl">
-            Meridian
+          <p className="truncate font-[family-name:var(--font-display)] text-base leading-tight tracking-tight md:text-lg">
+            Voice-Driven Data Analyst
           </p>
           <p className="truncate text-xs text-[var(--text-muted-dark)]">
             @{userLabel} · {dataSourceName}

@@ -27,7 +27,7 @@ def test_connect_warehouse_passes_timeouts_and_ssrf() -> None:
     kwargs = mock_connect.call_args.kwargs
     assert kwargs["connect_timeout"] == 7
     assert "statement_timeout=12000" in kwargs["options"]
-    assert kwargs["application_name"] == "meridian"
+    assert kwargs["application_name"] == "voice-driven-data-analyst"
 
 
 def test_connect_warehouse_omits_ssl_locally() -> None:

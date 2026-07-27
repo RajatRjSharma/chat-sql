@@ -16,13 +16,14 @@ export type AuthSession = {
   user: AuthUser;
 };
 
-const STORAGE_KEY = "meridian.auth.v2";
+const STORAGE_KEY = "vdda.auth.v1";
 
 export function loadAuthSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
   try {
-    // Migrate away from v1 (access-only) sessions.
+    // Clear legacy Meridian keys if present.
     localStorage.removeItem("meridian.auth.v1");
+    localStorage.removeItem("meridian.auth.v2");
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
@@ -43,6 +44,7 @@ export function clearAuthSession(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem("meridian.auth.v1");
+    localStorage.removeItem("meridian.auth.v2");
   } catch {
     /* ignore */
   }

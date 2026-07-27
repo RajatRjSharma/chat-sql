@@ -1,4 +1,4 @@
-# Meridian — frontend
+# Voice-Driven Data Analyst — frontend
 
 Next.js App Router UI for Voice-Driven Data Analyst.
 

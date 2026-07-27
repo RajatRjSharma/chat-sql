@@ -77,7 +77,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-shell-elevated)]/80 p-8 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)] backdrop-blur-sm animate-rise">
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-[#1d4ed8]/20 blur-3xl"
+        className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-[var(--accent-light)]/20 blur-3xl"
       />
       <div className="relative">
         <p className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--text-on-dark)]">

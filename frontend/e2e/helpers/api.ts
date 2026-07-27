@@ -48,7 +48,7 @@ export type MockApiOptions = {
 };
 
 /**
- * Stub FastAPI routes used by the Meridian UI.
+ * Stub FastAPI routes used by the Voice-Driven Data Analyst UI.
  * Paths match NEXT_PUBLIC_API_URL (http://127.0.0.1:8000).
  */
 export async function mockApi(page: Page, options: MockApiOptions = {}) {
@@ -76,7 +76,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
   await page.addInitScript((user) => {
     try {
       localStorage.setItem(
-        "meridian.auth.v2",
+        "vdda.auth.v1",
         JSON.stringify({
           accessToken: "e2e-test-token",
           refreshToken: "e2e-refresh-token",
@@ -266,6 +266,7 @@ export async function clearWorkspace(page: Page) {
       sessionStorage.removeItem("vda.workspace.v1");
       localStorage.removeItem("meridian.auth.v1");
       localStorage.removeItem("meridian.auth.v2");
+      localStorage.removeItem("vdda.auth.v1");
     } catch {
       /* ignore */
     }

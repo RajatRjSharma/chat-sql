@@ -21,7 +21,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meridian — Voice-Driven Data Analyst",
+  title: "Voice-Driven Data Analyst",
   description:
     "Ask business questions. Get validated SQL, charts, and executive-ready answers from your warehouse.",
   manifest: "/site.webmanifest",

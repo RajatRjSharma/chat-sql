@@ -1,4 +1,4 @@
-/** Shared mock payloads for Meridian UI E2E (API is stubbed). */
+/** Shared mock payloads for Voice-Driven Data Analyst UI E2E (API is stubbed). */
 
 export const DEMO_SOURCE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_SOURCE_B_ID = "22222222-2222-4222-8222-222222222222";

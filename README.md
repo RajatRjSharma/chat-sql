@@ -82,7 +82,7 @@ make destroy       # remove DB containers and volumes
 ├── docker-compose.yml
 ├── .env.example
 ├── backend/          # FastAPI application — see backend/README.md
-└── frontend/         # Next.js UI (Meridian)
+└── frontend/         # Next.js UI (Voice-Driven Data Analyst)
 ```
 
 If you move or rename this repository, run `make install` again — it recreates a broken or relocated virtualenv automatically.

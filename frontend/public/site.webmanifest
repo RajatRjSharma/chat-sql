@@ -1,6 +1,6 @@
 {
-  "name": "Meridian",
-  "short_name": "Meridian",
+  "name": "Voice-Driven Data Analyst",
+  "short_name": "VDDA",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#4292E0",
+  "background_color": "#0b0f17",
   "display": "standalone"
 }

@@ -124,7 +124,7 @@ class Settings(BaseSettings):
         ge=60,
         le=60 * 24 * 30,
     )
-    jwt_issuer: str = Field(default="meridian", alias="JWT_ISSUER")
+    jwt_issuer: str = Field(default="voice-driven-data-analyst", alias="JWT_ISSUER")
     auth_rate_limit_per_minute: int = Field(
         default=20,
         alias="AUTH_RATE_LIMIT_PER_MINUTE",

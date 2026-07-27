@@ -1,4 +1,4 @@
-/** Mirrors backend Pydantic schemas used by the Meridian UI. */
+/** Mirrors backend Pydantic schemas used by the Voice-Driven Data Analyst UI. */
 
 export type WarehouseConnectRequest = {
   name: string;

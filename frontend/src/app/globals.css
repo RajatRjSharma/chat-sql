@@ -17,19 +17,20 @@
   --text-on-dark: #f1f5f9;
   --text-muted-dark: #94a3b8;
 
-  --accent: #0d9488;
-  --accent-hover: #0f766e;
-  --accent-soft: #ccfbf1;
+  --accent: #4292e0;
+  --accent-hover: #2f7bc9;
+  --accent-soft: #d6ebfc;
+  --accent-light: #77bcf7;
   --accent-fg: #ffffff;
 
   --success: #059669;
   --warning: #d97706;
   --error: #dc2626;
 
-  --chart-1: #0d9488;
-  --chart-2: #2563eb;
+  --chart-1: #4292e0;
+  --chart-2: #77bcf7;
   --chart-3: #b45309;
-  --chart-4: #0e7490;
+  --chart-4: #2563a8;
 }
 
 @layer base {
