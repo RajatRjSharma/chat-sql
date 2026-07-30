@@ -211,7 +211,7 @@ export function AnalystApp() {
   const busy = selectingId != null || deletingId != null;
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 mesh-grid opacity-40" />
       <div
         aria-hidden
@@ -222,31 +222,36 @@ export function AnalystApp() {
         className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[var(--accent-light)]/15 blur-3xl"
       />
 
-      <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-5 py-8 md:px-10 md:py-12">
-        <header className="flex items-center justify-between animate-fade-in">
-          <div>
-            <p className="max-w-[18ch] font-[family-name:var(--font-display)] text-xl leading-tight tracking-tight md:max-w-none md:text-2xl">
+      <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-4 py-6 sm:px-5 sm:py-8 md:px-10 md:py-12">
+        <header className="flex items-start justify-between gap-3 animate-fade-in sm:items-center">
+          <div className="min-w-0">
+            <p className="max-w-[14ch] font-[family-name:var(--font-display)] text-lg leading-tight tracking-tight sm:max-w-[18ch] sm:text-xl md:max-w-none md:text-2xl">
               Voice-Driven Data Analyst
             </p>
-            <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
+            <p className="mt-1 truncate text-sm text-[var(--text-muted-dark)]">
               @{auth.user.username}
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => void handleLogout()}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            onClick={() => void handleLogout()}
+          >
             Log out
           </Button>
         </header>
 
-        <div className="mt-14 grid flex-1 items-start gap-12 lg:mt-16 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="animate-rise">
-            <h1 className="max-w-xl font-[family-name:var(--font-display)] text-4xl leading-[1.05] tracking-tight md:text-5xl lg:text-[3.4rem]">
+        <div className="mt-8 grid flex-1 items-start gap-8 sm:mt-10 sm:gap-12 lg:mt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          <section className="min-w-0 animate-rise">
+            <h1 className="max-w-xl font-[family-name:var(--font-display)] text-3xl leading-[1.05] tracking-tight sm:text-4xl md:text-5xl lg:text-[3.4rem]">
               Ask your warehouse.
             </h1>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--text-muted-dark)]">
+            <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--text-muted-dark)] sm:mt-5 sm:text-lg">
               Ask business questions. Get validated SQL, charts, and executive-ready
               answers from your warehouse.
             </p>
-            <ol className="mt-10 space-y-4 text-sm text-[var(--text-muted-dark)]">
+            <ol className="mt-8 space-y-4 text-sm text-[var(--text-muted-dark)] sm:mt-10">
               {[
                 "Open a saved warehouse, connect one, or upload CSV/Excel",
                 "Browse past sessions for that source",
@@ -254,13 +259,13 @@ export function AnalystApp() {
               ].map((step, i) => (
                 <li key={step} className="flex gap-3">
                   <span className="font-mono text-[var(--accent)]">0{i + 1}</span>
-                  <span>{step}</span>
+                  <span className="min-w-0">{step}</span>
                 </li>
               ))}
             </ol>
           </section>
 
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             <SavedSources
               sources={sources}
               loading={sourcesLoading}
@@ -274,14 +279,14 @@ export function AnalystApp() {
             {selectError ? (
               <p
                 role="alert"
-                className="rounded-md border border-[var(--error)]/30 bg-[var(--error)]/10 px-3 py-2 text-sm text-[#fecaca]"
+                className="break-words rounded-md border border-[var(--error)]/30 bg-[var(--error)]/10 px-3 py-2 text-sm text-[#fecaca]"
               >
                 {selectError}
               </p>
             ) : null}
 
             {busy ? (
-              <p className="text-xs text-[var(--text-muted-dark)] animate-fade-in">
+              <p className="break-words text-xs text-[var(--text-muted-dark)] animate-fade-in">
                 Opening warehouse
                 {sources.find((s) => s.id === selectingId)?.name
                   ? ` · ${sources.find((s) => s.id === selectingId)?.name}`

@@ -97,16 +97,16 @@ export function Composer({
         aria-label="Analytics question"
         className="border-0 bg-transparent px-2 py-1 shadow-none focus:ring-0"
       />
-      <div className="mt-2 flex items-center justify-between gap-3 px-1">
-        <div className="min-w-0">
-          <p className="text-[11px] text-[var(--text-secondary)]">{hint}</p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 sm:flex-nowrap sm:gap-3">
+        <div className="min-w-0 order-2 w-full sm:order-1 sm:w-auto">
+          <p className="truncate text-[11px] text-[var(--text-secondary)]">{hint}</p>
           {error ? (
             <p role="alert" className="mt-1 text-[11px] text-[var(--error)]">
               {error}
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="order-1 ml-auto flex shrink-0 items-center gap-2 sm:order-2 sm:ml-0">
           {supported ? (
             <Button
               type="button"

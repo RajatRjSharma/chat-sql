@@ -96,7 +96,8 @@ test.describe("Voice input", () => {
     await page.getByLabel("Analytics question").fill("What were total sales by region?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
 
-    // Chat bubble + insight panel each expose a Play control.
+    // Chat bubble + desktop insight panel each expose a Play control.
+    await expect(page.getByText("Evidence panel")).toBeVisible();
     await expect(page.getByLabel("Play answer aloud")).toHaveCount(2);
   });
 });

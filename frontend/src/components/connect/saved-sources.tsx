@@ -89,7 +89,7 @@ export function SavedSources({
                   <span className="block font-[family-name:var(--font-display)] text-[15px] tracking-tight text-[var(--text-on-dark)]">
                     {source.name}
                   </span>
-                  <span className="mt-1 block font-mono text-[11px] text-[var(--text-muted-dark)]">
+                  <span className="mt-1 block truncate font-mono text-[11px] text-[var(--text-muted-dark)]">
                     {location}
                   </span>
                   <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted-dark)]">

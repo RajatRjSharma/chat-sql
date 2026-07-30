@@ -1,13 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
-import { InsightPanel } from "@/components/chat/insight-panel";
+import {
+  InsightPanel,
+  MobileInsightDrawer,
+} from "@/components/chat/insight-panel";
 import { prefetchSpeakText } from "@/lib/speak-playback";
 import { MessageList } from "@/components/chat/message-list";
 import { SessionHistory } from "@/components/chat/session-history";
 import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { SUGGESTED_QUESTIONS } from "@/lib/demo";
 import type { ChatTurn, SessionSummary, SuggestedQuestion } from "@/lib/types";
 
@@ -78,8 +84,10 @@ export function Workspace({
   );
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hydratedSessionRef = useRef<string | null>(null);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -159,11 +167,22 @@ export function Workspace({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [turns, pendingQuestion, pendingStageLabel, loadingSession]);
 
+  useEffect(() => {
+    function onResize() {
+      if (window.matchMedia("(min-width: 640px)").matches) {
+        setMenuOpen(false);
+      }
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   async function ask(question: string) {
     setError(null);
     setDraft("");
     setPendingQuestion(question);
     setPendingStageLabel("Preparing session");
+    setMenuOpen(false);
 
     try {
       const res = await api.chatStream(
@@ -184,7 +203,6 @@ export function Workspace({
       setTurns((prev) => {
         const turnId = `${res.session_id}-${prev.length}-${Date.now()}`;
         if (res.status === "ok" && res.answer?.trim()) {
-          // Warm the stream so Play starts sooner; do not autoplay.
           prefetchSpeakText(res.answer);
         }
         return [
@@ -237,6 +255,7 @@ export function Workspace({
     setTurns([]);
     setDraft("");
     setError(null);
+    setMenuOpen(false);
     onSessionChange(null);
   }
 
@@ -245,48 +264,101 @@ export function Workspace({
   const suggestionTexts = suggestions.map((s) => s.question);
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 px-5 py-3.5 md:px-7">
-        <div className="min-w-0">
-          <p className="truncate font-[family-name:var(--font-display)] text-base leading-tight tracking-tight md:text-lg">
-            Voice-Driven Data Analyst
-          </p>
-          <p className="truncate text-xs text-[var(--text-muted-dark)]">
-            @{userLabel} · {dataSourceName}
-            {sessionId ? (
-              <span className="ml-2 font-mono text-[10px] opacity-80">
-                session {sessionId.slice(0, 8)}
-              </span>
-            ) : (
-              <span className="ml-2 text-[10px] opacity-80">new chat</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="lg:hidden"
-            disabled={busy}
-            onClick={handleNewChat}
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
+      <header className="relative z-20 shrink-0 border-b border-white/8">
+        <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5 sm:py-3.5 md:px-7">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-[family-name:var(--font-display)] text-[15px] leading-tight tracking-tight sm:text-base md:text-lg">
+              <span className="sm:hidden">VD Analyst</span>
+              <span className="hidden sm:inline">Voice-Driven Data Analyst</span>
+            </p>
+            <p className="truncate text-[11px] text-[var(--text-muted-dark)] sm:text-xs">
+              @{userLabel} · {dataSourceName}
+              {sessionId ? (
+                <span className="ml-1.5 hidden font-mono text-[10px] opacity-80 sm:ml-2 sm:inline">
+                  session {sessionId.slice(0, 8)}
+                </span>
+              ) : (
+                <span className="ml-1.5 text-[10px] opacity-80 sm:ml-2">new chat</span>
+              )}
+            </p>
+          </div>
+
+          <div className="hidden items-center gap-2 sm:flex">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="lg:hidden"
+              disabled={busy}
+              onClick={handleNewChat}
+            >
+              New chat
+            </Button>
+            <span className="hidden items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[11px] text-[var(--text-muted-dark)] md:inline-flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              Live
+            </span>
+            <Button variant="secondary" size="sm" onClick={onDisconnect}>
+              <span className="md:hidden">Switch</span>
+              <span className="hidden md:inline">Switch warehouse</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onLogout}>
+              Log out
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--text-on-dark)] hover:bg-white/[0.04] sm:hidden"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            New chat
-          </Button>
-          <span className="hidden items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[11px] text-[var(--text-muted-dark)] sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Live
-          </span>
-          <Button variant="secondary" size="sm" onClick={onDisconnect}>
-            Switch warehouse
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onLogout}>
-            Log out
-          </Button>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
+
+        {menuOpen ? (
+          <div className="border-t border-white/8 bg-[var(--bg-shell-elevated)] px-3 py-3 sm:hidden animate-fade-in">
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full justify-start"
+                disabled={busy}
+                onClick={handleNewChat}
+              >
+                New chat
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDisconnect();
+                }}
+              >
+                Switch warehouse
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-[var(--text-on-dark)]"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onLogout();
+                }}
+              >
+                Log out
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
-        <aside className="hidden min-h-0 flex-col border-r border-white/8 bg-[var(--bg-shell)] p-5 lg:flex">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_minmax(280px,320px)]">
+        <aside className="hidden min-h-0 min-w-0 flex-col border-r border-white/8 bg-[var(--bg-shell)] p-5 lg:flex">
           <SessionHistory
             sessions={sessions}
             activeSessionId={sessionId}
@@ -296,7 +368,7 @@ export function Workspace({
             onNewChat={handleNewChat}
           />
 
-          <div className="mt-6 border-t border-white/8 pt-5">
+          <div className="mt-6 min-h-0 border-t border-white/8 pt-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted-dark)]">
               Suggested
             </p>
@@ -305,7 +377,7 @@ export function Workspace({
                 Loading prompts…
               </p>
             ) : (
-              <ul className="mt-3 space-y-1.5">
+              <ul className="mt-3 max-h-[40vh] space-y-1.5 overflow-y-auto overscroll-contain">
                 {suggestionTexts.map((q) => (
                   <li key={q}>
                     <button
@@ -323,8 +395,11 @@ export function Workspace({
           </div>
         </aside>
 
-        <main className="flex min-h-0 flex-col bg-[var(--bg-surface)] text-[var(--text-primary)]">
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        <main className="flex min-h-0 min-w-0 flex-col bg-[var(--bg-surface)] text-[var(--text-primary)]">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-4 sm:px-4 sm:py-6 md:px-8"
+          >
             {loadingSession && turns.length === 0 ? (
               <div className="flex min-h-[240px] items-center justify-center text-sm text-[var(--text-secondary)]">
                 Loading session…
@@ -338,18 +413,32 @@ export function Workspace({
             )}
           </div>
 
-          <div className="shrink-0 space-y-3 border-t border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-4 md:px-8">
+          <div
+            className={cn(
+              "shrink-0 space-y-3 border-t border-[var(--border-card)] bg-[var(--bg-surface)]",
+              "px-3 py-3 sm:px-4 sm:py-4 md:px-8",
+              "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+            )}
+          >
             {error ? (
               <p
                 role="alert"
-                className="rounded-md border border-[var(--error)]/25 bg-[var(--error)]/5 px-3 py-2 text-sm text-[var(--error)]"
+                className="break-words rounded-md border border-[var(--error)]/25 bg-[var(--error)]/5 px-3 py-2 text-sm text-[var(--error)]"
               >
                 {error}
               </p>
             ) : null}
 
+            {!isDesktop ? (
+              <MobileInsightDrawer
+                latest={latest}
+                dataSourceName={dataSourceName}
+                chunksEmbedded={chunksEmbedded}
+              />
+            ) : null}
+
             {sessions.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
                 {sessions.slice(0, 6).map((session) => (
                   <button
                     key={session.session_id}
@@ -358,8 +447,8 @@ export function Workspace({
                     onClick={() => handleSelectSession(session.session_id)}
                     className={
                       session.session_id === sessionId
-                        ? "shrink-0 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-xs text-[var(--accent-hover)] disabled:opacity-40"
-                        : "shrink-0 rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)] disabled:opacity-40"
+                        ? "shrink-0 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--accent-hover)] disabled:opacity-40"
+                        : "shrink-0 rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)] disabled:opacity-40"
                     }
                   >
                     {(session.title || "Session").slice(0, 28)}
@@ -367,14 +456,14 @@ export function Workspace({
                 ))}
               </div>
             ) : (
-              <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-                {suggestionTexts.slice(0, 2).map((q) => (
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+                {suggestionTexts.slice(0, 3).map((q) => (
                   <button
                     key={q}
                     type="button"
                     disabled={busy}
                     onClick={() => ask(q)}
-                    className="shrink-0 rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)] disabled:opacity-40"
+                    className="max-w-[220px] shrink-0 truncate rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)] disabled:opacity-40"
                   >
                     {q}
                   </button>
@@ -391,13 +480,15 @@ export function Workspace({
           </div>
         </main>
 
-        <div className="hidden min-h-0 lg:block">
-          <InsightPanel
-            latest={latest}
-            dataSourceName={dataSourceName}
-            chunksEmbedded={chunksEmbedded}
-          />
-        </div>
+        {isDesktop ? (
+          <div className="min-h-0 min-w-0">
+            <InsightPanel
+              latest={latest}
+              dataSourceName={dataSourceName}
+              chunksEmbedded={chunksEmbedded}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -26,7 +26,8 @@ test.describe("Upload CSV / Excel", () => {
     await expect(page.getByText("Ask anything about the warehouse")).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("sales (upload)", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Evidence panel")).toBeVisible();
+    await expect(page.getByText("sales (upload)", { exact: true })).toBeVisible();
   });
 
   test("shows upload error and stays on connect screen", async ({ page }) => {

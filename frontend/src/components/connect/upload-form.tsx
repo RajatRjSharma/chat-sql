@@ -74,7 +74,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
   const busy = phase === "uploading" || phase === "embedding";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-shell-elevated)]/80 p-8 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)] backdrop-blur-sm animate-rise">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-shell-elevated)]/80 p-5 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)] backdrop-blur-sm animate-rise sm:p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-[var(--accent-light)]/20 blur-3xl"
@@ -162,7 +162,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
               type="button"
               size="lg"
               disabled={busy || !file}
-              className="min-w-[180px]"
+              className="w-full min-w-0 sm:w-auto sm:min-w-[180px]"
               onClick={() => void handleUpload()}
             >
               {busy ? "Working…" : "Upload & index"}
