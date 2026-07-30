@@ -4,57 +4,75 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 
 **Stack:** Next.js · FastAPI · SQLAlchemy · Alembic · LangGraph · LangChain · PostgreSQL (+ pgvector) · Recharts
 
+**Repo:** [github.com/RajatRjSharma/chat-sql](https://github.com/RajatRjSharma/chat-sql)
+
 ## Architecture
 
-| Database | Port | Role |
-|----------|------|------|
-| `bi_app` | 5432 | Sessions, messages, RAG embeddings, encrypted data sources |
-| `bi_warehouse` | 5433 | Demo analytics data (`sales` schema) |
+| Database | Port (local) | Role |
+|----------|----------------|------|
+| `bi_app` | 5432 | Users, sessions, messages, RAG embeddings, encrypted data sources, **CSV upload tables** (`u_<id>` schemas) |
+| `bi_warehouse` | 5433 | Optional local demo analytics data (`sales` schema) for **Connect** demos |
 
-Warehouse credentials are provided via the API and stored encrypted. Project database credentials are configured in `.env`.
+- **Connect:** user supplies external warehouse credentials at runtime (stored encrypted in `bi_app`).
+- **Upload:** CSV/Excel is parsed and loaded into an isolated schema on the **project database** (`APP_DB_*`). No second warehouse service is required.
+- Project DB credentials live in `.env` (`APP_DB_*`).
 
-## Quick start
+## Quick start (local)
 
 ```bash
-cp .env.example .env   # set APP_DB_*, AI_API_KEY, SMTP_USER, SMTP_PASSWORD, JWT_SECRET
+cp .env.example .env   # set APP_DB_*, AI_API_KEY, JWT_SECRET, CREDENTIALS_SECRET
 make up && make wait-db
 make install
 make migrate
-make warehouse-init
-make warehouse-seed
+make warehouse-init      # optional — only for local demo warehouse (Connect flow)
+make warehouse-seed      # optional — demo sales data
 make frontend-install
 make dev                 # terminal A — API on :8000
 make frontend-dev        # terminal B — UI on :3000
 ```
 
-Auth uses **Gmail SMTP** for OTP (set `SMTP_USER` to your Gmail and `SMTP_PASSWORD` to a [Google App Password](https://myaccount.google.com/apppasswords)). There is no “Sign in with Google”.
-
-- UI: [http://localhost:3000](http://localhost:3000)  
+- UI: [http://localhost:3000](http://localhost:3000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-default API URL (`NEXT_PUBLIC_API_URL`).
 
+## Authentication
+
+Register with **email + username + password** (no Google Sign-In).
+
+| Mode | `EMAIL_OTP_ENABLED` | Behaviour |
+|------|---------------------|-----------|
+| **Local (default)** | `true` | After register, verify email via OTP sent through Gmail SMTP (`SMTP_USER`, `SMTP_PASSWORD` app password). |
+| **Production (e.g. Render)** | `false` | Register marks the user verified immediately; user signs in without OTP. Use this when the host blocks outbound SMTP (Render free tier). |
+
+When OTP is enabled, set `SMTP_USER` to your Gmail address and `SMTP_PASSWORD` to a [Google App Password](https://myaccount.google.com/apppasswords). Optional: `SMTP_FROM=Voice-Driven Data Analyst <you@gmail.com>`.
+
+JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
+
 ## Typical flow
 
-1. **Register / sign in** (email + username + password; Gmail SMTP OTP verifies email — no Google Sign-In)
+1. **Register / sign in**
 2. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
 3. Schema indexing runs when needed (`POST /api/data/embed-schema`)
 4. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
 5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
-5. Optional: play the latest summary aloud from the insight panel
-6. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
-7. **Switch warehouse** returns to the connect screen to open another saved source
+6. Optional: play the latest summary aloud from the insight panel
+7. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
+8. **Switch warehouse** returns to the connect screen to open another saved source
 
 ### CSV / Excel upload
 
-```bash
-# After make warehouse-init (creates bi_uploader + bi_readonly)
-# POST multipart /api/data/upload  →  POST /api/data/embed-schema  →  chat
+```text
+POST /api/data/upload  →  POST /api/data/embed-schema  →  chat
 ```
 
-Upload creates an isolated schema (`u_<id>`), loads the table, registers a read-only data source, then the UI indexes schema for RAG.
+- Upload uses **`APP_DB_*`** only: creates schema `u_<id>`, loads the table, registers a read-only data source.
+- Limits (defaults): **10 MB**, **50,000 rows**, `.csv` / `.xlsx` (first sheet only). See `UPLOAD_MAX_BYTES`, `UPLOAD_MAX_ROWS`.
+- `UPLOAD_WH_*` in `.env.example` is **legacy / unused** — safe to omit.
 
-### Local demo warehouse
+You do **not** need `make warehouse-init` for uploads; you only need migrations (`make migrate`) on the app database.
+
+### Local demo warehouse (Connect only)
 
 | Field | Value |
 |-------|-------|
@@ -64,6 +82,47 @@ Upload creates an isolated schema (`u_<id>`), loads the table, registers a read-
 | schema | `sales` |
 | username | `bi_readonly` |
 | password | `readonly_pass` |
+
+Requires `make warehouse-init` and `make warehouse-seed`.
+
+## Deployment (Render + Vercel)
+
+| Service | Host | Root directory |
+|---------|------|----------------|
+| API | [Render](https://render.com) | `backend` |
+| UI | [Vercel](https://vercel.com) | `frontend` |
+
+### Render (backend)
+
+- **Health check:** `/health`
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Run migrations once (local against Render Postgres): `alembic upgrade head` with `APP_DB_*` pointing at Render.
+- Enable **pgvector** on the Render Postgres instance if embeddings fail.
+
+**Important environment variables:**
+
+| Variable | Notes |
+|----------|--------|
+| `APP_ENV` | `production` |
+| `APP_DB_*` | Render Postgres connection |
+| `CORS_ORIGINS` | Your Vercel URL (e.g. `https://your-app.vercel.app`) |
+| `AI_API_KEY` | OpenRouter (or compatible) key |
+| `JWT_SECRET` | Long random secret |
+| `JWT_ISSUER` | `voice-driven-data-analyst` |
+| `CREDENTIALS_SECRET` | Encrypts stored warehouse passwords |
+| `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
+| `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
+
+Use Python **3.12** on Render (matches local; avoids 3.14 compatibility issues).
+
+### Vercel (frontend)
+
+| Variable | Notes |
+|----------|--------|
+| `NEXT_PUBLIC_API_URL` | Render API URL (e.g. `https://your-api.onrender.com`) |
+
+Set **Root Directory** to `frontend`. Leave **Output Directory** empty (default Next.js).
 
 ## Useful commands
 
