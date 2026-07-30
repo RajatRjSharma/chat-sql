@@ -181,23 +181,27 @@ export function Workspace({
 
       hydratedSessionRef.current = res.session_id;
       onSessionChange(res.session_id);
-      setTurns((prev) => [
-        ...prev,
-        {
-          id: `${res.session_id}-${prev.length}-${Date.now()}`,
-          question: res.question,
-          answer: res.answer,
-          sql: res.sql,
-          columns: res.columns,
-          rows: res.rows,
-          status: res.status,
-          attempts: res.attempts,
-          source_metadata: res.source_metadata ?? null,
-        },
-      ]);
-      if (res.status === "ok" && res.answer?.trim()) {
-        prefetchSpeakText(res.answer);
-      }
+      setTurns((prev) => {
+        const turnId = `${res.session_id}-${prev.length}-${Date.now()}`;
+        if (res.status === "ok" && res.answer?.trim()) {
+          // Prefetch + auto-start when first audio chunk is ready (cuts click delay).
+          prefetchSpeakText(res.answer, { autoplaySpeakId: `turn-${turnId}` });
+        }
+        return [
+          ...prev,
+          {
+            id: turnId,
+            question: res.question,
+            answer: res.answer,
+            sql: res.sql,
+            columns: res.columns,
+            rows: res.rows,
+            status: res.status,
+            attempts: res.attempts,
+            source_metadata: res.source_metadata ?? null,
+          },
+        ];
+      });
       void refreshSessions();
       void refreshSuggestions();
     } catch (err) {

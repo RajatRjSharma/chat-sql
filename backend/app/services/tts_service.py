@@ -7,8 +7,10 @@ import logging
 import re
 import threading
 import wave
+from collections import OrderedDict
 from collections.abc import Iterator
 from pathlib import Path
+import hashlib
 
 from app.config import settings
 
@@ -30,6 +32,9 @@ class TtsService:
     _voice_path: Path | None = None
     _load_error: str | None = None
     _syn_config = None
+    # prepared_text -> list of wav bytes (avoids re-synthesis on prefetch+play)
+    _wav_cache: OrderedDict[str, list[bytes]] = OrderedDict()
+    _WAV_CACHE_MAX = 24
 
     @classmethod
     def reset_for_tests(cls) -> None:
@@ -38,6 +43,7 @@ class TtsService:
             cls._voice_path = None
             cls._load_error = None
             cls._syn_config = None
+            cls._wav_cache.clear()
 
     @classmethod
     def is_available(cls) -> bool:
@@ -318,12 +324,46 @@ class TtsService:
         return out.getvalue()
 
     @classmethod
+    def _cache_key(cls, cleaned: str) -> str:
+        return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def _cache_get(cls, cleaned: str) -> list[bytes] | None:
+        key = cls._cache_key(cleaned)
+        with cls._lock:
+            wavs = cls._wav_cache.get(key)
+            if wavs is None:
+                return None
+            cls._wav_cache.move_to_end(key)
+            return list(wavs)
+
+    @classmethod
+    def _cache_put(cls, cleaned: str, wavs: list[bytes]) -> None:
+        key = cls._cache_key(cleaned)
+        with cls._lock:
+            cls._wav_cache[key] = list(wavs)
+            cls._wav_cache.move_to_end(key)
+            while len(cls._wav_cache) > cls._WAV_CACHE_MAX:
+                cls._wav_cache.popitem(last=False)
+
+    @classmethod
     def synthesize_sentences(cls, text: str) -> Iterator[tuple[int, int, bytes]]:
         """
         Yield (index, total, wav_bytes) for every chunk so the full paragraph
-        is spoken progressively.
+        is spoken progressively. Results are cached so Play after prefetch is free.
         """
-        sentences = cls.split_sentences(text)
+        cleaned = cls.prepare_text(text)
+        if not cleaned:
+            raise ValueError("Text is empty")
+
+        cached = cls._cache_get(cleaned)
+        if cached is not None:
+            total = len(cached)
+            for index, wav in enumerate(cached):
+                yield index, total, wav
+            return
+
+        sentences = cls.split_sentences(cleaned)
         if not sentences:
             raise ValueError("Text is empty")
 
@@ -332,5 +372,9 @@ class TtsService:
             raise TtsUnavailableError(cls._load_error or "TTS unavailable")
 
         total = len(sentences)
+        wavs: list[bytes] = []
         for index, sentence in enumerate(sentences):
-            yield index, total, cls._wav_from_text(sentence, voice)
+            wav = cls._wav_from_text(sentence, voice)
+            wavs.append(wav)
+            yield index, total, wav
+        cls._cache_put(cleaned, wavs)

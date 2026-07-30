@@ -76,8 +76,13 @@ async def speak(
     )
 
 
-def _sentence_ndjson_sync(text: str) -> Iterator[bytes]:
+def _sentence_ndjson_sync(text: str, *, total_hint: int) -> Iterator[bytes]:
     """Yield NDJSON lines as each sentence WAV is ready."""
+    # Flush connection early so the client sees bytes before ONNX finishes.
+    yield (
+        json.dumps({"phase": "start", "n": total_hint}, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
+
     for index, total, wav in TtsService.synthesize_sentences(text):
         payload = {
             "i": index,
@@ -87,7 +92,7 @@ def _sentence_ndjson_sync(text: str) -> Iterator[bytes]:
         yield (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
 
 
-async def _sentence_ndjson(text: str) -> AsyncIterator[bytes]:
+async def _sentence_ndjson(text: str, *, total_hint: int) -> AsyncIterator[bytes]:
     """
     Run Piper sentence synthesis on a worker thread and forward lines ASAP.
     Uses a queue so the HTTP response starts after the first sentence, not the last.
@@ -97,7 +102,7 @@ async def _sentence_ndjson(text: str) -> AsyncIterator[bytes]:
 
     def worker() -> None:
         try:
-            for chunk in _sentence_ndjson_sync(text):
+            for chunk in _sentence_ndjson_sync(text, total_hint=total_hint):
                 loop.call_soon_threadsafe(queue.put_nowait, chunk)
         except Exception as exc:  # noqa: BLE001
             err = {"error": str(exc)[:200]}
@@ -126,8 +131,8 @@ async def speak_stream(
     """
     Stream sentence-level WAV chunks as NDJSON (one JSON object per line).
 
-    Each line: {"i":0,"n":3,"audio":"<base64-wav>"}
-    Lets the client play the first sentence while later ones synthesize.
+    Each audio line: {"i":0,"n":3,"audio":"<base64-wav>"}
+    First line may be {"phase":"start","n":3} to flush the connection early.
     """
     enforce_tts_rate_limit(request, user_id=str(current_user.id))
 
@@ -145,7 +150,7 @@ async def speak_stream(
         )
 
     return StreamingResponse(
-        _sentence_ndjson(body.text),
+        _sentence_ndjson(body.text, total_hint=len(sentences)),
         media_type="application/x-ndjson",
         headers={
             "Cache-Control": "no-store",
