@@ -29,6 +29,70 @@ def _executed_sql(cursor: MagicMock) -> str:
     return " ".join(str(call.args[0]) for call in cursor.execute.call_args_list)
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("u_abcdef123456", True),
+        ("u_ABCDEF123456", False),
+        ("sales", False),
+        ("u_short", False),
+        ("u_abcdef1234567", False),
+        ("public", False),
+        (None, False),
+        ("", False),
+    ],
+)
+def test_is_upload_schema(name: str | None, expected: bool) -> None:
+    assert TableLoader.is_upload_schema(name) is expected
+
+
+def test_drop_upload_schema_executes_cascade() -> None:
+    cursor = MagicMock()
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = cursor
+
+    with (
+        patch(
+            "app.services.table_loader.TableLoader.writer_url",
+            return_value="postgresql://u:p@localhost:5432/bi_app",
+        ),
+        patch(
+            "app.services.table_loader.connect_warehouse",
+            return_value=conn,
+        ) as mock_connect,
+        patch("app.services.table_loader.settings") as mock_settings,
+    ):
+        conn.__enter__.return_value = conn
+        mock_settings.app_db_host = "localhost"
+        TableLoader.drop_upload_schema("u_abcdef123456")
+
+    assert conn.autocommit is True
+    mock_connect.assert_called_once()
+    assert cursor.execute.call_count == 1
+    sql_arg = cursor.execute.call_args.args[0]
+    assert "DROP SCHEMA" in str(sql_arg)
+
+
+def test_drop_upload_schema_refuses_warehouse_schema() -> None:
+    with pytest.raises(ValueError, match="Refusing"):
+        TableLoader.drop_upload_schema("sales")
+
+
+def test_drop_upload_schema_wraps_driver_errors() -> None:
+    with (
+        patch(
+            "app.services.table_loader.TableLoader.writer_url",
+            return_value="postgresql://u:p@localhost:5432/bi_app",
+        ),
+        patch(
+            "app.services.table_loader.connect_warehouse",
+            side_effect=RuntimeError("boom"),
+        ),
+    ):
+        with pytest.raises(UploadError, match="Could not drop upload schema"):
+            TableLoader.drop_upload_schema("u_abcdef123456")
+
+
 def test_writer_url_targets_app_db() -> None:
     """Uploads must not depend on a separate UPLOAD_WH_* warehouse."""
     with patch("app.services.table_loader.settings") as mock_settings:

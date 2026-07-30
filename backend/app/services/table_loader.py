@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from psycopg2 import sql
@@ -13,6 +14,9 @@ from app.core.exceptions import UploadError
 from app.core.schema import validate_schema_identifier
 from app.services.file_parser import ParsedTable
 from app.warehouse.connect import connect_warehouse
+
+# Must stay in sync with UploadService (`u_` + uuid4().hex[:12]).
+_UPLOAD_SCHEMA_RE = re.compile(r"^u_[a-f0-9]{12}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +31,13 @@ class TableLoader:
     """CREATE SCHEMA/TABLE + bulk insert into the project (app) database."""
 
     @staticmethod
+    def is_upload_schema(schema_name: str | None) -> bool:
+        """True only for isolated CSV/Excel upload schemas (never warehouses)."""
+        if not schema_name:
+            return False
+        return _UPLOAD_SCHEMA_RE.fullmatch(schema_name) is not None
+
+    @staticmethod
     def writer_url() -> str:
         # psycopg2 expects postgresql:// (no SQLAlchemy driver suffix)
         return build_postgres_url(
@@ -37,6 +48,35 @@ class TableLoader:
             password=settings.app_db_password.get_secret_value(),
             driver=None,
         )
+
+    @staticmethod
+    def drop_upload_schema(schema_name: str) -> None:
+        """
+        DROP SCHEMA … CASCADE for an upload schema on the app DB.
+
+        Raises:
+            ValueError: name is not a recognised upload schema id.
+            UploadError: driver / connectivity failure (message is client-safe).
+        """
+        if not TableLoader.is_upload_schema(schema_name):
+            raise ValueError(f"Refusing to drop non-upload schema: {schema_name!r}")
+
+        schema = validate_schema_identifier(schema_name)
+        drop = sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+            sql.Identifier(schema)
+        )
+        try:
+            with connect_warehouse(
+                TableLoader.writer_url(),
+                host=settings.app_db_host,
+            ) as conn:
+                conn.autocommit = True
+                with conn.cursor() as cur:
+                    cur.execute(drop)
+        except UploadError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — map driver errors to UploadError
+            raise UploadError("Could not drop upload schema.") from exc
 
     @staticmethod
     def load(*, schema_name: str, parsed: ParsedTable) -> LoadResult:
@@ -84,7 +124,9 @@ class TableLoader:
                     cur.execute(drop_table)
                     cur.execute(create_table)
                     if values:
-                        execute_values(cur, insert_sql.as_string(cur), values, page_size=1000)
+                        execute_values(
+                            cur, insert_sql.as_string(cur), values, page_size=1000
+                        )
                 conn.commit()
         except UploadError:
             raise

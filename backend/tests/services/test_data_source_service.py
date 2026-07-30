@@ -36,14 +36,50 @@ class TestDataSourceServiceGetActive:
 class TestDataSourceServiceDeactivate:
     async def test_deactivate_sets_inactive(self, mock_db_session, sample_data_source) -> None:
         mock_db_session.get.return_value = sample_data_source
-        await DataSourceService.deactivate(
-            mock_db_session,
-            DEMO_SOURCE_ID,
-            user_id=sample_data_source.user_id,
-        )
+        with patch(
+            "app.services.data_source_service.TableLoader.drop_upload_schema"
+        ) as mock_drop:
+            await DataSourceService.deactivate(
+                mock_db_session,
+                DEMO_SOURCE_ID,
+                user_id=sample_data_source.user_id,
+            )
         assert sample_data_source.is_active is False
         mock_db_session.add.assert_called_once_with(sample_data_source)
         mock_db_session.flush.assert_awaited()
+        mock_drop.assert_not_called()
+
+    async def test_deactivate_drops_upload_schema(
+        self, mock_db_session, sample_data_source
+    ) -> None:
+        sample_data_source.schema_name = "u_abcdef123456"
+        mock_db_session.get.return_value = sample_data_source
+        with patch(
+            "app.services.data_source_service.TableLoader.drop_upload_schema"
+        ) as mock_drop:
+            await DataSourceService.deactivate(
+                mock_db_session,
+                DEMO_SOURCE_ID,
+                user_id=sample_data_source.user_id,
+            )
+        mock_drop.assert_called_once_with("u_abcdef123456")
+        assert sample_data_source.is_active is False
+
+    async def test_deactivate_keeps_soft_delete_if_drop_fails(
+        self, mock_db_session, sample_data_source
+    ) -> None:
+        sample_data_source.schema_name = "u_abcdef123456"
+        mock_db_session.get.return_value = sample_data_source
+        with patch(
+            "app.services.data_source_service.TableLoader.drop_upload_schema",
+            side_effect=RuntimeError("db down"),
+        ):
+            await DataSourceService.deactivate(
+                mock_db_session,
+                DEMO_SOURCE_ID,
+                user_id=sample_data_source.user_id,
+            )
+        assert sample_data_source.is_active is False
 
 
 class TestDataSourceServiceListActive:

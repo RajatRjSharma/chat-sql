@@ -1,6 +1,6 @@
 # Voice-Driven Data Analyst
 
-Conversational BI assistant: ask questions in natural language, get validated SQL against a connected warehouse, plus a plain-language answer, table, and chart.
+Conversational BI assistant: ask questions in natural language, get validated SQL against a connected warehouse, plus a plain-language answer, table, and chart (bar / line / pie with a type picker).
 
 **Stack:** Next.js · FastAPI · SQLAlchemy · Alembic · LangGraph · LangChain · PostgreSQL (+ pgvector) · Recharts
 
@@ -16,7 +16,7 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 | `bi_warehouse` | 5433 | Optional local demo analytics data (`sales` schema) for **Connect** demos |
 
 - **Connect:** user supplies external warehouse credentials at runtime (stored encrypted in `bi_app`).
-- **Upload:** CSV/Excel is parsed and loaded into an isolated schema on the **project database** (`APP_DB_*`). No second warehouse service is required.
+- **Upload:** CSV/Excel is parsed and loaded into an isolated schema on the **project database** (`APP_DB_*`). Removing the source drops that `u_*` schema. No second warehouse service is required.
 - Project DB credentials live in `.env` (`APP_DB_*`).
 
 ## Quick start (local)
@@ -98,6 +98,7 @@ POST /api/data/upload  →  POST /api/data/embed-schema  →  chat
 ```
 
 - Upload uses **`APP_DB_*`** only: creates schema `u_<id>`, loads the table, registers a read-only data source.
+- Removing an upload (deactivate) soft-deletes the data source **and** runs `DROP SCHEMA u_<id> CASCADE` on the app DB so tables do not accumulate. Warehouse schemas (`sales`, etc.) are never dropped.
 - Limits (defaults): **10 MB**, **50,000 rows**, `.csv` / `.xlsx` (first sheet only). See `UPLOAD_MAX_BYTES`, `UPLOAD_MAX_ROWS`.
 - `UPLOAD_WH_*` in `.env.example` is **legacy / unused** — safe to omit.
 
@@ -151,7 +152,6 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `TTS_MAX_CHARS` | `180` |
 | `TTS_FIRST_CHUNK_CHARS` | `48` |
 | `TTS_LENGTH_SCALE` | `0.78` |
-| `TTS_LENGTH_SCALE` | `0.85` |
 | `TTS_ONNX_THREADS` | `1` |
 
 Use Python **3.12** on Render (`backend/runtime.txt` + dashboard). Avoid 3.14.
