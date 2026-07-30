@@ -4,7 +4,7 @@ FastAPI service for the Voice-Driven Data Analyst. Handles warehouse connections
 
 ## Requirements
 
-- Python 3.11+
+- Python **3.12** (pinned for Render via `runtime.txt`; local `.python-version` is `3.12.10`)
 - Docker (for Postgres)
 - AI provider API key
 
