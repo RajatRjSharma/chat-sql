@@ -104,13 +104,22 @@ backend/
 │   ├── providers/        # AI client
 │   ├── graph/            # LangGraph nodes + state
 │   ├── services/         # RAG, SQL, warehouse, chat
-│   ├── routes/           # /api/data, /api/chat
+│   ├── routes/           # /api/data, /api/chat, /api/voice
 │   ├── models/           # SQLAlchemy ORM
 │   └── security/         # credential encryption
+├── models/piper/         # Bundled offline Piper voice (en_US-amy-low)
 ├── alembic/              # migrations
 ├── scripts/              # warehouse init/seed/check
 └── tests/
 ```
+
+## Offline TTS
+
+```bash
+make tts-models   # download/refresh en_US-amy-low into models/piper/
+```
+
+`POST /api/voice/speak` synthesizes WAV with Piper. No network calls at speak time.
 
 ## Tests
 

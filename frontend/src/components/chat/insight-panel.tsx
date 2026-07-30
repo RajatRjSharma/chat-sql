@@ -1,15 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Volume2, VolumeX } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { SpeakButton } from "@/components/chat/speak-button";
 import { deriveChart } from "@/lib/chart";
-import {
-  isSpeechSynthesisSupported,
-  speakText,
-  stopSpeaking,
-} from "@/lib/speech";
 import type { ChatTurn, SourceMetadata } from "@/lib/types";
 
 const ResultChart = dynamic(
@@ -98,43 +91,10 @@ export function InsightPanel({
   dataSourceName,
   chunksEmbedded,
 }: InsightPanelProps) {
-  const [ttsSupported, setTtsSupported] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-
   const chartable =
     latest && latest.status === "ok"
       ? deriveChart(latest.columns, latest.rows).kind !== "none"
       : false;
-
-  useEffect(() => {
-    setTtsSupported(isSpeechSynthesisSupported());
-  }, []);
-
-  useEffect(() => {
-    stopSpeaking();
-    setSpeaking(false);
-  }, [latest?.id, latest?.answer]);
-
-  useEffect(() => {
-    return () => stopSpeaking();
-  }, []);
-
-  function handleToggleSpeak() {
-    if (!latest?.answer) return;
-    if (speaking) {
-      stopSpeaking();
-      setSpeaking(false);
-      return;
-    }
-    speakText(latest.answer);
-    setSpeaking(true);
-    const check = window.setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
-        setSpeaking(false);
-        window.clearInterval(check);
-      }
-    }, 250);
-  }
 
   return (
     <aside className="flex h-full flex-col border-l border-[var(--border-card)] bg-[var(--bg-surface)]">
@@ -165,22 +125,10 @@ export function InsightPanel({
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
                 Latest summary
               </p>
-              {ttsSupported ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={handleToggleSpeak}
-                  aria-label={speaking ? "Stop reading answer" : "Play answer aloud"}
-                >
-                  {speaking ? (
-                    <VolumeX className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-              ) : null}
+              <SpeakButton
+                text={latest.answer}
+                speakId={`insight-${latest.id}`}
+              />
             </div>
             <p className="mt-2 text-sm leading-relaxed text-[var(--text-primary)]">
               {latest.answer}

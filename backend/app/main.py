@@ -17,8 +17,10 @@ from app.providers.ai import get_ai_client
 from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.data import router as data_router
+from app.routes.voice import router as voice_router
 from app.security.http_errors import GENERIC_INTERNAL
 from app.services.data_source_service import DataSourceService
+from app.services.tts_service import TtsService
 from app.warehouse.connect import connect_warehouse
 
 APP_NAME = "Voice-Driven Data Analyst"
@@ -34,6 +36,8 @@ def _health_error(detail: str, *, status_code: int = 503, **extra: Any) -> JSONR
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Application lifespan hooks for startup and shutdown."""
+    if settings.tts_enabled:
+        TtsService.preload()
     yield
     await engine.dispose()
 
@@ -56,6 +60,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(data_router)
 app.include_router(chat_router)
+app.include_router(voice_router)
 
 
 @app.get("/health", tags=["health"])

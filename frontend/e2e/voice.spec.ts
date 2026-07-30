@@ -91,25 +91,12 @@ test.describe("Voice input", () => {
       sources: [demoSource],
       sessions: [],
     });
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "speechSynthesis", {
-        configurable: true,
-        value: {
-          speaking: false,
-          cancel() {
-            this.speaking = false;
-          },
-          speak() {
-            this.speaking = true;
-          },
-        },
-      });
-    });
 
     await page.goto("/");
     await page.getByLabel("Analytics question").fill("What were total sales by region?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
 
-    await expect(page.getByLabel("Play answer aloud")).toBeVisible();
+    // Chat bubble + insight panel each expose a Play control.
+    await expect(page.getByLabel("Play answer aloud")).toHaveCount(2);
   });
 });

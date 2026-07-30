@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ResultTable } from "@/components/chat/result-table";
+import { SpeakButton } from "@/components/chat/speak-button";
 import { SqlDisclosure } from "@/components/chat/sql-disclosure";
 import type { ChatTurn } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -61,7 +62,18 @@ export function MessageList({
                   : "border-[var(--border-card)] bg-[var(--bg-card)] text-[var(--text-primary)] shadow-[0_1px_0_rgba(15,23,42,0.04)]",
               )}
             >
-              {turn.answer}
+              {turn.status === "ok" && turn.answer ? (
+                <div className="flex items-start gap-2">
+                  <p className="min-w-0 flex-1">{turn.answer}</p>
+                  <SpeakButton
+                    text={turn.answer}
+                    speakId={`turn-${turn.id}`}
+                    className="shrink-0 -mr-1 -mt-0.5"
+                  />
+                </div>
+              ) : (
+                turn.answer
+              )}
             </div>
 
             {turn.status === "ok" && turn.rows.length > 0 ? (

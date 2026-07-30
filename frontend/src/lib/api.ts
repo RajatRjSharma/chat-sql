@@ -406,6 +406,32 @@ export const api = {
   health() {
     return request<{ status: string }>("/health");
   },
+
+  /**
+   * Offline Piper TTS — returns audio/wav bytes (auth required).
+   */
+  async speak(text: string): Promise<Blob> {
+    const res = await fetch(`${API_URL}/api/voice/speak`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (res.status === 401) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        return api.speak(text);
+      }
+      clearAuthSession();
+    }
+    if (!res.ok) {
+      throw new ApiError(res.status, await parseDetail(res));
+    }
+    return res.blob();
+  },
 };
 
 export { API_URL };

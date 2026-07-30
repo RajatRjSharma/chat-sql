@@ -256,6 +256,31 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
       return fulfill(route, detail);
     }
 
+    if (method === "POST" && path === "/api/voice/speak") {
+      // Minimal valid-enough WAV header stub for playback UI tests.
+      const wav = new Uint8Array([
+        0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45,
+        0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+        0x40, 0x1f, 0x00, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x01, 0x00, 0x08, 0x00,
+        0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      return route.fulfill({
+        status: 200,
+        contentType: "audio/wav",
+        body: Buffer.from(wav),
+      });
+    }
+
+    if (method === "GET" && path === "/api/voice/status") {
+      return fulfill(route, {
+        enabled: true,
+        available: true,
+        voice_path: "models/piper/en_US-amy-low.onnx",
+        voice_present: true,
+        error: "",
+      });
+    }
+
     return fulfill(route, { detail: `Unmocked ${method} ${path}` }, 404);
   });
 }

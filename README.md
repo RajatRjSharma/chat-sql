@@ -58,9 +58,22 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 3. Schema indexing runs when needed (`POST /api/data/embed-schema`)
 4. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
 5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
-6. Optional: play the latest summary aloud from the insight panel
+6. **Play** any answer summary (chat bubble or insight panel) via offline Piper TTS (`POST /api/voice/speak`)
 7. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 8. **Switch warehouse** returns to the connect screen to open another saved source
+
+### Offline text-to-speech
+
+Summaries are spoken with **Piper** on the API (local ONNX, no cloud TTS at request time). The English voice `en_US-amy-low` is committed under `backend/models/piper/` and used for local, Docker, and production.
+
+| Env | Default | Notes |
+|-----|---------|-------|
+| `TTS_ENABLED` | `true` | Set `false` to disable speak endpoints |
+| `TTS_VOICE_PATH` | `models/piper/en_US-amy-low.onnx` | Relative to `backend/` |
+| `TTS_MAX_CHARS` | `600` | Truncate long answers before synthesis |
+| `TTS_RATE_LIMIT_PER_MINUTE` | `10` | Per IP / user |
+
+Refresh the bundled voice: `make tts-models`. Mic input still uses the browser Web Speech API (STT).
 
 ### CSV / Excel upload
 
@@ -118,6 +131,7 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `CREDENTIALS_SECRET` | Encrypts stored warehouse passwords |
 | `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
+| `TTS_ENABLED` | `true` (bundled Piper voice ships in the repo; disable if free-tier RAM OOMs) |
 
 Use Python **3.12** on Render (`backend/runtime.txt` + dashboard). Avoid 3.14.
 
