@@ -106,9 +106,10 @@ class TestVoiceSpeakRoute:
         assert response.status_code == 200
         assert "ndjson" in response.headers["content-type"]
         lines = [ln for ln in response.text.strip().split("\n") if ln.strip()]
-        assert len(lines) == 2
-        first = json.loads(lines[0])
-        second = json.loads(lines[1])
+        assert len(lines) == 3
+        assert json.loads(lines[0])["phase"] == "start"
+        first = json.loads(lines[1])
+        second = json.loads(lines[2])
         assert first["i"] == 0 and first["n"] == 2
         assert second["i"] == 1 and second["n"] == 2
         assert base64.b64decode(first["audio"]) == wav_a
@@ -148,9 +149,9 @@ class TestTtsServicePrepareText:
         assert "while the most recent" in joined
         assert "$348.66" in joined
         assert "…" not in joined
-        assert len(parts[0]) <= 90
+        assert len(parts[0]) <= 48
         for part in parts[1:]:
-            assert len(part) <= 220
+            assert len(part) <= 180
 
     def test_split_sentences(self) -> None:
         parts = TtsService.split_sentences(

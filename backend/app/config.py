@@ -170,7 +170,7 @@ class Settings(BaseSettings):
         description="Path to Piper .onnx voice, relative to backend/ or absolute",
     )
     tts_max_chars: int = Field(
-        default=220,
+        default=180,
         alias="TTS_MAX_CHARS",
         ge=40,
         le=2000,
@@ -180,14 +180,14 @@ class Settings(BaseSettings):
         ),
     )
     tts_first_chunk_chars: int = Field(
-        default=90,
+        default=48,
         alias="TTS_FIRST_CHUNK_CHARS",
-        ge=40,
+        ge=24,
         le=500,
-        description="Shorter first chunk so audio starts sooner on small CPUs",
+        description="Very short first chunk so audio starts sooner on small CPUs",
     )
     tts_length_scale: float = Field(
-        default=0.85,
+        default=0.78,
         alias="TTS_LENGTH_SCALE",
         ge=0.5,
         le=2.0,
@@ -202,9 +202,9 @@ class Settings(BaseSettings):
     )
     tts_warmup_enabled: bool = Field(default=True, alias="TTS_WARMUP_ENABLED")
     tts_warmup_text: str = Field(
-        default="Ready.",
+        default="Sales totals look strong this quarter overall.",
         alias="TTS_WARMUP_TEXT",
-        max_length=80,
+        max_length=120,
     )
 
     smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
