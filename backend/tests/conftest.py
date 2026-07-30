@@ -36,6 +36,8 @@ os.environ.setdefault("UPLOAD_WH_QUERY_USER", "bi_readonly")
 os.environ.setdefault("UPLOAD_WH_QUERY_PASSWORD", "readonly_pass")
 os.environ.setdefault("UPLOAD_MAX_BYTES", "10485760")
 os.environ.setdefault("UPLOAD_MAX_ROWS", "50000")
+# Avoid loading the ~60MB Piper model during the general test suite.
+os.environ.setdefault("TTS_ENABLED", "false")
 
 from app.database import get_db  # noqa: E402
 from app.deps.auth import get_current_user  # noqa: E402

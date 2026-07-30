@@ -108,6 +108,19 @@ install: venv ## Create venv if needed, then install backend dependencies
 install-dev: install ## Install backend + dev dependencies
 	$(PYTHON) -m pip install -r $(BACKEND_DIR)/requirements-dev.txt
 
+.PHONY: tts-models
+tts-models: ## Download / refresh bundled Piper en_US-amy-low voice (~60MB)
+	@mkdir -p $(BACKEND_DIR)/models/piper
+	@echo "Downloading en_US-amy-low (offline TTS voice)…"
+	curl -L --fail -o $(BACKEND_DIR)/models/piper/en_US-amy-low.onnx \
+		"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/amy/low/en_US-amy-low.onnx"
+	curl -L --fail -o $(BACKEND_DIR)/models/piper/en_US-amy-low.onnx.json \
+		"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/amy/low/en_US-amy-low.onnx.json"
+	curl -L --fail -o $(BACKEND_DIR)/models/piper/MODEL_CARD \
+		"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/amy/low/MODEL_CARD"
+	@ls -lh $(BACKEND_DIR)/models/piper/en_US-amy-low.onnx
+	@echo "Voice ready at $(BACKEND_DIR)/models/piper/ (same file for local + prod)."
+
 .PHONY: test
 test: ## Run backend test suite
 	$(RUN_PY) -m pytest tests -v

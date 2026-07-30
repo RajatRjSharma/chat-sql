@@ -155,6 +155,26 @@ class Settings(BaseSettings):
         ge=1,
         le=120,
     )
+    tts_rate_limit_per_minute: int = Field(
+        default=10,
+        alias="TTS_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        le=60,
+    )
+
+    # Offline Piper TTS (bundled voice under backend/models/piper/)
+    tts_enabled: bool = Field(default=True, alias="TTS_ENABLED")
+    tts_voice_path: str = Field(
+        default="models/piper/en_US-amy-low.onnx",
+        alias="TTS_VOICE_PATH",
+        description="Path to Piper .onnx voice, relative to backend/ or absolute",
+    )
+    tts_max_chars: int = Field(
+        default=600,
+        alias="TTS_MAX_CHARS",
+        ge=40,
+        le=4000,
+    )
 
     smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
     smtp_port: int = Field(default=587, alias="SMTP_PORT", ge=1, le=65535)
@@ -203,6 +223,15 @@ class Settings(BaseSettings):
     def alembic_database_url(self) -> str:
         """Sync driver URL for Alembic migrations."""
         return to_sync_url(self.database_url)
+
+    @property
+    def resolved_tts_voice_path(self) -> Path:
+        """Absolute path to the Piper ONNX voice file."""
+        path = Path(self.tts_voice_path)
+        if path.is_absolute():
+            return path
+        backend_root = Path(__file__).resolve().parents[1]
+        return (backend_root / path).resolve()
 
 
 @lru_cache

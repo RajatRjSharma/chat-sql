@@ -107,3 +107,12 @@ def enforce_embed_rate_limit(request: Request, *, user_id: str) -> None:
         limit=settings.embed_rate_limit_per_minute,
         identity=user_id,
     )
+
+
+def enforce_tts_rate_limit(request: Request, *, user_id: str) -> None:
+    enforce_rate_limit(
+        request,
+        scope="voice:speak",
+        limit=settings.tts_rate_limit_per_minute,
+        identity=user_id,
+    )
