@@ -184,8 +184,8 @@ export function Workspace({
       setTurns((prev) => {
         const turnId = `${res.session_id}-${prev.length}-${Date.now()}`;
         if (res.status === "ok" && res.answer?.trim()) {
-          // Prefetch + auto-start when first audio chunk is ready (cuts click delay).
-          prefetchSpeakText(res.answer, { autoplaySpeakId: `turn-${turnId}` });
+          // Warm the stream so Play starts sooner; do not autoplay.
+          prefetchSpeakText(res.answer);
         }
         return [
           ...prev,

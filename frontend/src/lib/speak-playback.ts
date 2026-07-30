@@ -81,18 +81,13 @@ export function stopSpeakPlayback(): void {
 }
 
 /**
- * Start synthesizing when a chat answer arrives.
- * If autoplaySpeakId is set, playback starts as soon as the first WAV chunk is ready
- * (removes the click→wait gap when the user hits Play a moment later, and can
- * auto-start if desired from the caller).
+ * Start synthesizing when a chat answer arrives so Play has less wait.
+ * Does not start playback — the user must press Speak.
  */
-export function prefetchSpeakText(
-  text: string,
-  options?: { autoplaySpeakId?: string },
-): void {
+export function prefetchSpeakText(text: string): void {
   const trimmed = text.trim();
   if (!trimmed) return;
-  if (prefetch?.text === trimmed && !options?.autoplaySpeakId) return;
+  if (prefetch?.text === trimmed) return;
 
   const state: PrefetchState = {
     text: trimmed,
@@ -101,21 +96,11 @@ export function prefetchSpeakText(
     error: null,
   };
   prefetch = state;
-  let autoplayStarted = false;
 
   void api
     .speakStream(trimmed, (blob) => {
       if (prefetch !== state) return;
       state.blobs.push(blob);
-      if (
-        options?.autoplaySpeakId &&
-        !autoplayStarted &&
-        state.blobs.length === 1 &&
-        getPlayingSpeakId() == null
-      ) {
-        autoplayStarted = true;
-        void playSpeakText(trimmed, options.autoplaySpeakId);
-      }
     })
     .then(() => {
       if (prefetch === state) state.done = true;
