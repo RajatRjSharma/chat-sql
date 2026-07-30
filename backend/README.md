@@ -36,6 +36,11 @@ Copy from `.env.example` at repo root. Important keys:
 | `AI_API_KEY` / `AI_BASE_URL` | AI provider endpoint and credentials |
 | `LLM_MODEL` / `LLM_MODEL_FALLBACK` | Primary and fallback chat models |
 | `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | Schema embeddings |
+| `EMAIL_OTP_ENABLED` | `true` locally (SMTP OTP); `false` on Render when SMTP is blocked |
+| `SMTP_*` | Required only when `EMAIL_OTP_ENABLED=true` |
+| `UPLOAD_MAX_BYTES` / `UPLOAD_MAX_ROWS` | CSV/Excel limits |
+
+CSV uploads write to **`APP_DB_*`** (isolated `u_<id>` schemas). `UPLOAD_WH_*` is legacy and unused.
 
 Warehouse credentials are **not** in `.env` — pass them to `POST /api/data/connect`.
 
