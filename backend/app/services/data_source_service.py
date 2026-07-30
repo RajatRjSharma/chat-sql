@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -13,8 +14,11 @@ from app.models import ChatSession, DataSource, SchemaEmbedding
 from app.schemas.data_source import WarehouseConnectRequest, WarehouseConnectResponse
 from app.security import encrypt_credential
 from app.security.ssrf import assert_safe_warehouse_host
+from app.services.table_loader import TableLoader
 from app.warehouse import WarehouseConnectionInfo, WarehouseCredentials
 from app.warehouse.connect import connect_warehouse
+
+logger = logging.getLogger(__name__)
 
 
 class DataSourceService:
@@ -169,13 +173,37 @@ class DataSourceService:
         *,
         user_id: uuid.UUID,
     ) -> None:
-        """Remove a warehouse from the owner's saved list (soft-delete)."""
+        """
+        Soft-delete a data source.
+
+        For CSV/Excel uploads, also best-effort DROP the isolated `u_*`
+        schema on the app database. Soft-delete always wins: a failed DROP
+        is logged and does not re-activate the source. Warehouse schemas are
+        never dropped.
+        """
         data_source = await DataSourceService.get_active(
             session, data_source_id, user_id=user_id
         )
+        schema_to_drop = (
+            data_source.schema_name
+            if TableLoader.is_upload_schema(data_source.schema_name)
+            else None
+        )
+
         data_source.is_active = False
         session.add(data_source)
         await session.flush()
+
+        if not schema_to_drop:
+            return
+
+        try:
+            TableLoader.drop_upload_schema(schema_to_drop)
+        except Exception:  # noqa: BLE001 — cleanup must not undo soft-delete
+            logger.exception(
+                "Failed to drop upload schema %s after deactivate",
+                schema_to_drop,
+            )
 
     @staticmethod
     def connection_info_from_record(data_source: DataSource) -> WarehouseConnectionInfo:

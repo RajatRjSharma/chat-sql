@@ -28,4 +28,4 @@ class ChatPipelineError(AppError):
 
 
 class UploadError(AppError):
-    """CSV/Excel upload parsing or load failed."""
+    """CSV/Excel upload parsing, load, or schema cleanup failed."""
