@@ -122,7 +122,9 @@ make tts-models   # download/refresh en_US-amy-low into models/piper/
 - `POST /api/voice/speak` — full WAV (simple clients)
 - `POST /api/voice/speak-stream` — NDJSON sentence WAVs (UI Play button; lower time-to-first-audio)
 
-No network calls at speak time. On Render free tier, enable the keep-alive workflow secret `KEEPALIVE_HEALTH_URL` so the dyno (and loaded Piper model) stay warm.
+Tuned for small hosts: `TTS_MAX_CHARS` (per-chunk size — full answers are chunked, not truncated), `TTS_LENGTH_SCALE` (<1 = faster), `TTS_ONNX_THREADS=1`, and a one-shot warmup after preload. No network calls at speak time.
+
+On Render free tier, enable the keep-alive workflow secret `KEEPALIVE_HEALTH_URL` so the dyno (and loaded Piper model) stay warm.
 
 ## Tests
 

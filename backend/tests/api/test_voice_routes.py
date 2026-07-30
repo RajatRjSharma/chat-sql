@@ -65,6 +65,9 @@ class TestVoiceSpeakRoute:
                 "voice_path": "/tmp/voice.onnx",
                 "voice_present": False,
                 "error": "TTS is disabled",
+                "max_chars": 220,
+                "length_scale": 0.85,
+                "onnx_threads": 1,
             },
         ):
             response = client.get("/api/voice/status")
@@ -72,6 +75,7 @@ class TestVoiceSpeakRoute:
         body = response.json()
         assert body["enabled"] is False
         assert body["available"] is False
+        assert body["length_scale"] == 0.85
 
     def test_speak_stream_returns_ndjson_sentences(self, client: TestClient) -> None:
         wav_a = b"RIFF_A"
@@ -111,19 +115,40 @@ class TestVoiceSpeakRoute:
 
 
 class TestTtsServicePrepareText:
-    def test_strips_and_truncates(self) -> None:
-        text = TtsService.prepare_text("  **Hello**  world  ", max_chars=20)
+    def test_strips_markdown(self) -> None:
+        text = TtsService.prepare_text("  **Hello**  world  ")
         assert "Hello" in text
         assert "**" not in text
 
     def test_empty(self) -> None:
         assert TtsService.prepare_text("   ") == ""
 
-    def test_truncation_adds_ellipsis(self) -> None:
-        long = "a" * 100
-        out = TtsService.prepare_text(long, max_chars=20)
-        assert len(out) <= 20
-        assert out.endswith("…")
+    def test_prepare_keeps_full_paragraph(self) -> None:
+        text = (
+            "In the PostgreSQL sales schema, the orders table contains 800 orders "
+            "totaling $278,924.15, with an average order value of $348.66. "
+            "The earliest order dates back to January 1 2024, while the most "
+            "recent is June 23 2025. Of these, 466 orders have been completed "
+            "and 169 have been cancelled."
+        )
+        assert TtsService.prepare_text(text) == " ".join(text.split())
+
+    def test_split_covers_full_paragraph(self) -> None:
+        text = (
+            "In the PostgreSQL sales schema, the orders table contains 800 orders "
+            "totaling $278,924.15, with an average order value of $348.66. "
+            "The earliest order dates back to January 1 2024, while the most "
+            "recent is June 23 2025. Of these, 466 orders have been completed "
+            "and 169 have been cancelled."
+        )
+        parts = TtsService.split_sentences(text)
+        joined = " ".join(parts)
+        assert "cancelled" in joined
+        assert "while the most recent" in joined
+        assert "$348.66" in joined
+        assert "…" not in joined
+        for part in parts:
+            assert len(part) <= 220
 
     def test_split_sentences(self) -> None:
         parts = TtsService.split_sentences(
