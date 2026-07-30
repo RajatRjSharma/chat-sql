@@ -66,6 +66,7 @@ class TestVoiceSpeakRoute:
                 "voice_present": False,
                 "error": "TTS is disabled",
                 "max_chars": 220,
+                "first_chunk_chars": 90,
                 "length_scale": 0.85,
                 "onnx_threads": 1,
             },
@@ -147,7 +148,8 @@ class TestTtsServicePrepareText:
         assert "while the most recent" in joined
         assert "$348.66" in joined
         assert "…" not in joined
-        for part in parts:
+        assert len(parts[0]) <= 90
+        for part in parts[1:]:
             assert len(part) <= 220
 
     def test_split_sentences(self) -> None:

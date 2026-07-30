@@ -66,6 +66,7 @@ class TtsService:
             "voice_present": path.is_file(),
             "error": cls._load_error or "",
             "max_chars": settings.tts_max_chars,
+            "first_chunk_chars": settings.tts_first_chunk_chars,
             "length_scale": settings.tts_length_scale,
             "onnx_threads": settings.tts_onnx_threads,
         }
@@ -262,6 +263,13 @@ class TtsService:
         chunks: list[str] = []
         for part in merged:
             chunks.extend(cls._split_oversized(part, limit))
+
+        # Prefer a short first chunk so time-to-first-audio is lower on small CPUs.
+        first_cap = min(settings.tts_first_chunk_chars, limit)
+        if chunks and len(chunks[0]) > first_cap:
+            head = cls._split_oversized(chunks[0], first_cap)
+            chunks = head + chunks[1:]
+
         return chunks or [cleaned]
 
     @classmethod

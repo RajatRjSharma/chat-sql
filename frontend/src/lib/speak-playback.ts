@@ -1,6 +1,6 @@
 /**
  * Server TTS playback via Piper sentence stream (/api/voice/speak-stream).
- * Plays the first sentence as soon as it arrives; queues the rest.
+ * Prefetch when an answer arrives so Play can start with buffered audio.
  * Browser TTS only if the API fails (not for slowness).
  */
 
@@ -13,6 +13,13 @@ import {
 
 type Listener = (playingId: string | null) => void;
 
+type PrefetchState = {
+  text: string;
+  blobs: Blob[];
+  done: boolean;
+  error: unknown;
+};
+
 let currentAudio: HTMLAudioElement | null = null;
 let currentObjectUrl: string | null = null;
 let currentId: string | null = null;
@@ -21,6 +28,7 @@ const listeners = new Set<Listener>();
 
 const pendingBlobs: Blob[] = [];
 let drainRunning = false;
+let prefetch: PrefetchState | null = null;
 
 function notify(playingId: string | null) {
   currentId = playingId;
@@ -48,6 +56,10 @@ function clearQueue() {
   drainRunning = false;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function subscribeSpeakPlayback(listener: Listener): () => void {
   listeners.add(listener);
   listener(currentId);
@@ -66,6 +78,38 @@ export function stopSpeakPlayback(): void {
   clearQueue();
   releaseAudio();
   notify(null);
+}
+
+/**
+ * Start synthesizing in the background when a chat answer arrives.
+ * Play can then begin with already-buffered WAV chunks.
+ */
+export function prefetchSpeakText(text: string): void {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  if (prefetch?.text === trimmed) return;
+
+  const state: PrefetchState = {
+    text: trimmed,
+    blobs: [],
+    done: false,
+    error: null,
+  };
+  prefetch = state;
+
+  void api
+    .speakStream(trimmed, (blob) => {
+      if (prefetch !== state) return;
+      state.blobs.push(blob);
+    })
+    .then(() => {
+      if (prefetch === state) state.done = true;
+    })
+    .catch((err) => {
+      if (prefetch !== state) return;
+      state.error = err;
+      state.done = true;
+    });
 }
 
 function playBrowserFallback(text: string, id: string): void {
@@ -140,6 +184,43 @@ function enqueueBlob(blob: Blob, generation: number, id: string): void {
   });
 }
 
+async function waitForPlaybackDrain(generation: number): Promise<void> {
+  while (
+    generation === playGeneration &&
+    (drainRunning || pendingBlobs.length > 0 || currentAudio)
+  ) {
+    await sleep(80);
+  }
+}
+
+async function playFromPrefetch(
+  state: PrefetchState,
+  generation: number,
+  id: string,
+): Promise<void> {
+  let idx = 0;
+  let received = 0;
+
+  while (generation === playGeneration && (!state.done || idx < state.blobs.length)) {
+    if (idx < state.blobs.length) {
+      enqueueBlob(state.blobs[idx], generation, id);
+      idx += 1;
+      received += 1;
+      continue;
+    }
+    await sleep(40);
+  }
+
+  if (generation !== playGeneration) return;
+
+  if (received === 0) {
+    if (state.error) throw state.error;
+    throw new ApiError(502, "TTS stream returned no audio");
+  }
+
+  await waitForPlaybackDrain(generation);
+}
+
 /**
  * Play text aloud via Piper sentence stream. Browser TTS only on API failure.
  */
@@ -152,6 +233,11 @@ export async function playSpeakText(text: string, id: string): Promise<void> {
   notify(id);
 
   try {
+    if (prefetch?.text === trimmed) {
+      await playFromPrefetch(prefetch, generation, id);
+      return;
+    }
+
     let received = 0;
     await api.speakStream(trimmed, (blob) => {
       received += 1;
@@ -164,13 +250,7 @@ export async function playSpeakText(text: string, id: string): Promise<void> {
       throw new ApiError(502, "TTS stream returned no audio");
     }
 
-    // Wait until the queue finishes playing (drain may still be running).
-    while (
-      generation === playGeneration &&
-      (drainRunning || pendingBlobs.length > 0 || currentAudio)
-    ) {
-      await new Promise((r) => window.setTimeout(r, 100));
-    }
+    await waitForPlaybackDrain(generation);
   } catch (err) {
     if (generation !== playGeneration) return;
     clearQueue();
@@ -179,7 +259,6 @@ export async function playSpeakText(text: string, id: string): Promise<void> {
       notify(null);
       throw err;
     }
-    // Fail-only browser fallback — not used for slowness.
     playBrowserFallback(trimmed, id);
   }
 }

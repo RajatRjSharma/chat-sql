@@ -175,9 +175,16 @@ class Settings(BaseSettings):
         ge=40,
         le=2000,
         description=(
-            "Max characters per synthesis chunk. The full answer is still spoken; "
-            "long text is split into multiple chunks (not truncated)."
+            "Max characters per synthesis chunk after the first. "
+            "Full answer is still spoken via multiple chunks."
         ),
+    )
+    tts_first_chunk_chars: int = Field(
+        default=90,
+        alias="TTS_FIRST_CHUNK_CHARS",
+        ge=40,
+        le=500,
+        description="Shorter first chunk so audio starts sooner on small CPUs",
     )
     tts_length_scale: float = Field(
         default=0.85,
