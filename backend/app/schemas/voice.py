@@ -13,3 +13,6 @@ class TtsStatusResponse(BaseModel):
     voice_path: str
     voice_present: bool
     error: str = ""
+    max_chars: int = 220
+    length_scale: float = 0.85
+    onnx_threads: int = 1

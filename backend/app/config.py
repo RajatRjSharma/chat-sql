@@ -170,10 +170,34 @@ class Settings(BaseSettings):
         description="Path to Piper .onnx voice, relative to backend/ or absolute",
     )
     tts_max_chars: int = Field(
-        default=600,
+        default=220,
         alias="TTS_MAX_CHARS",
         ge=40,
-        le=4000,
+        le=2000,
+        description=(
+            "Max characters per synthesis chunk. The full answer is still spoken; "
+            "long text is split into multiple chunks (not truncated)."
+        ),
+    )
+    tts_length_scale: float = Field(
+        default=0.85,
+        alias="TTS_LENGTH_SCALE",
+        ge=0.5,
+        le=2.0,
+        description="Piper speaking rate; <1 = faster/shorter audio (less CPU)",
+    )
+    tts_onnx_threads: int = Field(
+        default=1,
+        alias="TTS_ONNX_THREADS",
+        ge=1,
+        le=8,
+        description="ONNX Runtime intra-op threads (1 is best on tiny CPUs)",
+    )
+    tts_warmup_enabled: bool = Field(default=True, alias="TTS_WARMUP_ENABLED")
+    tts_warmup_text: str = Field(
+        default="Ready.",
+        alias="TTS_WARMUP_TEXT",
+        max_length=80,
     )
 
     smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
