@@ -22,9 +22,8 @@ test.describe("Saved warehouses", () => {
 
     await expect(page.getByRole("button", { name: "Switch warehouse" })).toBeVisible();
     await expect(page.getByText("History")).toBeVisible();
-    await expect(
-      page.getByText("Demo Sales Warehouse", { exact: true }).first(),
-    ).toBeVisible();
+    await expect(page.getByText("Evidence panel")).toBeVisible();
+    await expect(page.getByText("Demo Sales Warehouse", { exact: true })).toBeVisible();
   });
 
   test("re-embeds when selected source has zero chunks", async ({ page }) => {

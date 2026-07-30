@@ -136,7 +136,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
   }
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 mesh-grid opacity-40" />
       <div
         aria-hidden

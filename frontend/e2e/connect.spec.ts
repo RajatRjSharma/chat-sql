@@ -17,9 +17,8 @@ test.describe("Connect warehouse", () => {
 
     await expect(page.getByRole("button", { name: "Switch warehouse" })).toBeVisible();
     await expect(page.getByText("Ask anything about the warehouse")).toBeVisible();
-    await expect(
-      page.getByText("Demo Sales Warehouse", { exact: true }).first(),
-    ).toBeVisible();
+    await expect(page.getByText("Evidence panel")).toBeVisible();
+    await expect(page.getByText("Demo Sales Warehouse", { exact: true })).toBeVisible();
   });
 
   test("shows connect error and stays on connect screen", async ({ page }) => {

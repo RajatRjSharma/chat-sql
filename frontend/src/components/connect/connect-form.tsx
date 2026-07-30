@@ -60,7 +60,7 @@ export function ConnectForm({ onConnected }: ConnectFormProps) {
   const busy = phase === "connecting" || phase === "embedding";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-shell-elevated)]/80 p-8 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)] backdrop-blur-sm animate-rise">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-shell-elevated)]/80 p-5 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)] backdrop-blur-sm animate-rise sm:p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[var(--accent)]/15 blur-3xl"
@@ -168,7 +168,7 @@ export function ConnectForm({ onConnected }: ConnectFormProps) {
               {phase === "idle" && "Read-only role recommended."}
               {phase === "done" && "Ready."}
             </p>
-            <Button type="submit" size="lg" disabled={busy} className="min-w-[180px]">
+            <Button type="submit" size="lg" disabled={busy} className="w-full min-w-0 sm:w-auto sm:min-w-[180px]">
               {busy ? "Working…" : "Connect & index"}
             </Button>
           </div>

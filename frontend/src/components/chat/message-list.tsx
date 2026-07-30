@@ -13,7 +13,7 @@ const ResultChart = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[180px] animate-pulse rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)]" />
+      <div className="h-[220px] w-full min-w-0 animate-pulse rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)]" />
     ),
   },
 );
@@ -31,8 +31,8 @@ export function MessageList({
 }: MessageListProps) {
   if (!turns.length && !pendingQuestion) {
     return (
-      <div className="flex h-full min-h-[280px] flex-col items-center justify-center px-6 text-center animate-fade-in">
-        <p className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--text-primary)]">
+      <div className="flex h-full min-h-[280px] flex-col items-center justify-center px-4 text-center animate-fade-in sm:min-h-[280px] sm:px-6">
+        <p className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--text-primary)] sm:text-3xl">
           Ask anything about the warehouse
         </p>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -44,19 +44,19 @@ export function MessageList({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {turns.map((turn) => (
-        <article key={turn.id} className="space-y-4 animate-rise">
+        <article key={turn.id} className="min-w-0 space-y-3 sm:space-y-4 animate-rise">
           <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[var(--bg-user)] px-4 py-3 text-[15px] leading-relaxed text-[var(--text-primary)]">
+            <div className="max-w-[min(100%,36rem)] break-words rounded-2xl rounded-br-md bg-[var(--bg-user)] px-3 py-2.5 text-[14px] leading-relaxed text-[var(--text-primary)] sm:max-w-[85%] sm:px-4 sm:py-3 sm:text-[15px]">
               {turn.question}
             </div>
           </div>
 
-          <div className="max-w-[95%] space-y-3">
+          <div className="w-full min-w-0 max-w-full space-y-3 sm:max-w-[95%]">
             <div
               className={cn(
-                "rounded-2xl rounded-bl-md border px-4 py-3 text-[15px] leading-relaxed",
+                "rounded-2xl rounded-bl-md border px-3 py-2.5 text-[14px] leading-relaxed sm:px-4 sm:py-3 sm:text-[15px]",
                 turn.status === "failed"
                   ? "border-[var(--error)]/25 bg-[var(--error)]/5 text-[var(--error)]"
                   : "border-[var(--border-card)] bg-[var(--bg-card)] text-[var(--text-primary)] shadow-[0_1px_0_rgba(15,23,42,0.04)]",
@@ -64,7 +64,7 @@ export function MessageList({
             >
               {turn.status === "ok" && turn.answer ? (
                 <div className="flex items-start gap-2">
-                  <p className="min-w-0 flex-1">{turn.answer}</p>
+                  <p className="min-w-0 flex-1 break-words">{turn.answer}</p>
                   <SpeakButton
                     text={turn.answer}
                     speakId={`turn-${turn.id}`}
@@ -72,13 +72,15 @@ export function MessageList({
                   />
                 </div>
               ) : (
-                turn.answer
+                <span className="break-words">{turn.answer}</span>
               )}
             </div>
 
             {turn.status === "ok" && turn.rows.length > 0 ? (
               <>
-                <ResultChart columns={turn.columns} rows={turn.rows} compact />
+                <div className="w-full min-w-0">
+                  <ResultChart columns={turn.columns} rows={turn.rows} compact />
+                </div>
                 <ResultTable columns={turn.columns} rows={turn.rows} />
               </>
             ) : null}
@@ -89,13 +91,13 @@ export function MessageList({
       ))}
 
       {pendingQuestion ? (
-        <article className="space-y-4 animate-rise">
+        <article className="min-w-0 space-y-3 sm:space-y-4 animate-rise">
           <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[var(--bg-user)] px-4 py-3 text-[15px] leading-relaxed text-[var(--text-primary)]">
+            <div className="max-w-[min(100%,36rem)] break-words rounded-2xl rounded-br-md bg-[var(--bg-user)] px-3 py-2.5 text-[14px] leading-relaxed text-[var(--text-primary)] sm:max-w-[85%] sm:px-4 sm:py-3 sm:text-[15px]">
               {pendingQuestion}
             </div>
           </div>
-          <div className="inline-flex max-w-[95%] flex-col gap-2 rounded-2xl rounded-bl-md border border-[var(--border-card)] bg-[var(--bg-card)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+          <div className="inline-flex max-w-full flex-col gap-2 rounded-2xl rounded-bl-md border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2.5 text-sm text-[var(--text-secondary)] sm:max-w-[95%] sm:px-4 sm:py-3">
             <div className="inline-flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
