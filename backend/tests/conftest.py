@@ -118,9 +118,15 @@ def sample_data_source(sample_user: User) -> DataSource:
 
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
+    """AsyncSession stand-in: awaitable methods are AsyncMock; sync ones are MagicMock."""
     session = AsyncMock()
+    # AsyncSession.add is synchronous — AsyncMock here triggers "never awaited" warnings.
+    session.add = MagicMock()
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
+    session.flush = AsyncMock()
+    session.get = AsyncMock()
+    session.execute = AsyncMock()
     return session
 
 
