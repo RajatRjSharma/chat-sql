@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Composer } from "@/components/chat/composer";
 import { InsightPanel } from "@/components/chat/insight-panel";
+import { prefetchSpeakText } from "@/lib/speak-playback";
 import { MessageList } from "@/components/chat/message-list";
 import { SessionHistory } from "@/components/chat/session-history";
 import { Button } from "@/components/ui/button";
@@ -194,6 +195,9 @@ export function Workspace({
           source_metadata: res.source_metadata ?? null,
         },
       ]);
+      if (res.status === "ok" && res.answer?.trim()) {
+        prefetchSpeakText(res.answer);
+      }
       void refreshSessions();
       void refreshSuggestions();
     } catch (err) {
@@ -213,6 +217,10 @@ export function Workspace({
       setTurns(turnsFromDetail(detail.session_id, detail.turns));
       hydratedSessionRef.current = detail.session_id;
       onSessionChange(detail.session_id);
+      const last = detail.turns[detail.turns.length - 1];
+      if (last?.answer?.trim() && last.status !== "failed") {
+        prefetchSpeakText(last.answer);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Could not load session");
     } finally {

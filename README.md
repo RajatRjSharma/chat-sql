@@ -66,13 +66,14 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
 Summaries are spoken with **Piper** on the API (local ONNX, no cloud TTS at request time). The English voice `en_US-amy-low` is committed under `backend/models/piper/` and used for local, Docker, and production.
 
-Play uses **`POST /api/voice/speak-stream`**: the API splits the full summary into chunks and streams each WAV as NDJSON so the UI plays continuously through the whole paragraph (nothing is dropped for length).
+Play uses **`POST /api/voice/speak-stream`**: chunks stream as NDJSON. The first chunk is kept short for faster start; the UI also **prefetches** TTS when an answer arrives so Play often has audio ready.
 
 | Env | Default | Notes |
 |-----|---------|-------|
 | `TTS_ENABLED` | `true` | Set `false` to disable speak endpoints |
 | `TTS_VOICE_PATH` | `models/piper/en_US-amy-low.onnx` | Relative to `backend/` |
-| `TTS_MAX_CHARS` | `220` | **Per-chunk** size only — full paragraph is still spoken (split into chunks). Lower = faster first audio on Render. |
+| `TTS_MAX_CHARS` | `220` | **Per-chunk** size after the first — full paragraph still spoken. |
+| `TTS_FIRST_CHUNK_CHARS` | `90` | Short first chunk so audio starts sooner on Render. |
 | `TTS_LENGTH_SCALE` | `0.85` | `<1` = faster/shorter speech (less CPU) |
 | `TTS_ONNX_THREADS` | `1` | Best on tiny CPUs (avoid thread oversubscription) |
 | `TTS_WARMUP_ENABLED` | `true` | One-shot synthesize after model load |
@@ -147,7 +148,8 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
 | `TTS_ENABLED` | `true` (bundled Piper voice ships in the repo; disable if free-tier RAM OOMs) |
-| `TTS_MAX_CHARS` | `220` (per chunk; full text is streamed in multiple chunks) |
+| `TTS_MAX_CHARS` | `220` (later chunks) |
+| `TTS_FIRST_CHUNK_CHARS` | `90` (faster time-to-first-audio) |
 | `TTS_LENGTH_SCALE` | `0.85` |
 | `TTS_ONNX_THREADS` | `1` |
 
