@@ -432,6 +432,97 @@ export const api = {
     }
     return res.blob();
   },
+
+  /**
+   * Sentence-streamed Piper TTS. Calls onChunk as each sentence WAV arrives.
+   */
+  async speakStream(
+    text: string,
+    onChunk: (blob: Blob) => void,
+  ): Promise<void> {
+    const res = await fetch(`${API_URL}/api/voice/speak-stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (res.status === 401) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        return api.speakStream(text, onChunk);
+      }
+      clearAuthSession();
+    }
+    if (!res.ok) {
+      throw new ApiError(res.status, await parseDetail(res));
+    }
+    if (!res.body) {
+      throw new ApiError(502, "TTS stream returned an empty body");
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let payload: { i?: number; n?: number; audio?: string; error?: string };
+        try {
+          payload = JSON.parse(trimmed) as {
+            i?: number;
+            n?: number;
+            audio?: string;
+            error?: string;
+          };
+        } catch {
+          continue;
+        }
+        if (payload.error) {
+          throw new ApiError(502, payload.error);
+        }
+        if (!payload.audio) continue;
+        const binary = atob(payload.audio);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        onChunk(new Blob([bytes], { type: "audio/wav" }));
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const payload = JSON.parse(buffer.trim()) as {
+          audio?: string;
+          error?: string;
+        };
+        if (payload.error) {
+          throw new ApiError(502, payload.error);
+        }
+        if (payload.audio) {
+          const binary = atob(payload.audio);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          onChunk(new Blob([bytes], { type: "audio/wav" }));
+        }
+      } catch (err) {
+        if (err instanceof ApiError) throw err;
+      }
+    }
+  },
 };
 
 export { API_URL };

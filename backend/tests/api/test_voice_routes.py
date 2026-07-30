@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -71,6 +73,42 @@ class TestVoiceSpeakRoute:
         assert body["enabled"] is False
         assert body["available"] is False
 
+    def test_speak_stream_returns_ndjson_sentences(self, client: TestClient) -> None:
+        wav_a = b"RIFF_A"
+        wav_b = b"RIFF_B"
+
+        def fake_sentences(text: str):
+            yield 0, 2, wav_a
+            yield 1, 2, wav_b
+
+        with (
+            patch.object(TtsService, "is_available", return_value=True),
+            patch.object(
+                TtsService,
+                "split_sentences",
+                return_value=["One.", "Two."],
+            ),
+            patch.object(
+                TtsService,
+                "synthesize_sentences",
+                side_effect=fake_sentences,
+            ),
+        ):
+            response = client.post(
+                "/api/voice/speak-stream",
+                json={"text": "One. Two."},
+            )
+        assert response.status_code == 200
+        assert "ndjson" in response.headers["content-type"]
+        lines = [ln for ln in response.text.strip().split("\n") if ln.strip()]
+        assert len(lines) == 2
+        first = json.loads(lines[0])
+        second = json.loads(lines[1])
+        assert first["i"] == 0 and first["n"] == 2
+        assert second["i"] == 1 and second["n"] == 2
+        assert base64.b64decode(first["audio"]) == wav_a
+        assert base64.b64decode(second["audio"]) == wav_b
+
 
 class TestTtsServicePrepareText:
     def test_strips_and_truncates(self) -> None:
@@ -86,3 +124,11 @@ class TestTtsServicePrepareText:
         out = TtsService.prepare_text(long, max_chars=20)
         assert len(out) <= 20
         assert out.endswith("…")
+
+    def test_split_sentences(self) -> None:
+        parts = TtsService.split_sentences(
+            "West led sales. East was second. North trailed."
+        )
+        assert len(parts) == 3
+        assert parts[0].endswith(".")
+        assert "East" in parts[1]

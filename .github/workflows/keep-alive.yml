@@ -1,0 +1,36 @@
+# Keep Render free-tier API warm so Piper TTS stays loaded.
+# Set repository secret KEEPALIVE_HEALTH_URL to the full health URL, e.g.:
+#   https://your-api.onrender.com/health
+name: Keep-alive
+
+on:
+  schedule:
+    # Every 12 minutes — under Render's ~15m idle sleep window
+    - cron: "*/12 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping API /health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Warm backend
+        env:
+          KEEPALIVE_HEALTH_URL: ${{ secrets.KEEPALIVE_HEALTH_URL }}
+        run: |
+          if [ -z "$KEEPALIVE_HEALTH_URL" ]; then
+            echo "Secret KEEPALIVE_HEALTH_URL is not set — skipping ping."
+            exit 0
+          fi
+          echo "GET $KEEPALIVE_HEALTH_URL"
+          curl -fsS --max-time 90 "$KEEPALIVE_HEALTH_URL"
+          echo
+          echo "Keep-alive OK"

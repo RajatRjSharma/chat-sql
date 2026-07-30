@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import logging
+from collections.abc import AsyncIterator, Iterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
 from app.deps.auth import get_current_user
 from app.models.user import User
@@ -35,8 +38,8 @@ async def speak(
     current_user: User = Depends(get_current_user),
 ) -> Response:
     """
-    Synthesize WAV audio from text using the bundled Piper voice.
-    Fully offline at request time — no external TTS APIs.
+    Synthesize a single WAV from the full text (legacy / simple clients).
+    Prefer POST /api/voice/speak-stream for lower time-to-first-audio.
     """
     enforce_tts_rate_limit(request, user_id=str(current_user.id))
 
@@ -70,4 +73,83 @@ async def speak(
         content=audio,
         media_type="audio/wav",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+def _sentence_ndjson_sync(text: str) -> Iterator[bytes]:
+    """Yield NDJSON lines as each sentence WAV is ready."""
+    for index, total, wav in TtsService.synthesize_sentences(text):
+        payload = {
+            "i": index,
+            "n": total,
+            "audio": base64.b64encode(wav).decode("ascii"),
+        }
+        yield (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+
+
+async def _sentence_ndjson(text: str) -> AsyncIterator[bytes]:
+    """
+    Run Piper sentence synthesis on a worker thread and forward lines ASAP.
+    Uses a queue so the HTTP response starts after the first sentence, not the last.
+    """
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+
+    def worker() -> None:
+        try:
+            for chunk in _sentence_ndjson_sync(text):
+                loop.call_soon_threadsafe(queue.put_nowait, chunk)
+        except Exception as exc:  # noqa: BLE001
+            err = {"error": str(exc)[:200]}
+            line = (json.dumps(err, separators=(",", ":")) + "\n").encode("utf-8")
+            loop.call_soon_threadsafe(queue.put_nowait, line)
+        finally:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    worker_task = asyncio.create_task(asyncio.to_thread(worker))
+    try:
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield item
+    finally:
+        await worker_task
+
+
+@router.post("/speak-stream")
+async def speak_stream(
+    body: SpeakRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """
+    Stream sentence-level WAV chunks as NDJSON (one JSON object per line).
+
+    Each line: {"i":0,"n":3,"audio":"<base64-wav>"}
+    Lets the client play the first sentence while later ones synthesize.
+    """
+    enforce_tts_rate_limit(request, user_id=str(current_user.id))
+
+    if not TtsService.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Text-to-speech is unavailable on this server.",
+        )
+
+    sentences = TtsService.split_sentences(body.text)
+    if not sentences:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Text is empty",
+        )
+
+    return StreamingResponse(
+        _sentence_ndjson(body.text),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+            "X-TTS-Sentences": str(len(sentences)),
+        },
     )
