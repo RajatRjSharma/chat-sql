@@ -66,14 +66,25 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
 Summaries are spoken with **Piper** on the API (local ONNX, no cloud TTS at request time). The English voice `en_US-amy-low` is committed under `backend/models/piper/` and used for local, Docker, and production.
 
+Play uses **`POST /api/voice/speak-stream`**: the API splits the summary into sentences and streams each WAV as NDJSON so the UI can start audio after the first sentence (instead of waiting for the full answer).
+
 | Env | Default | Notes |
 |-----|---------|-------|
 | `TTS_ENABLED` | `true` | Set `false` to disable speak endpoints |
 | `TTS_VOICE_PATH` | `models/piper/en_US-amy-low.onnx` | Relative to `backend/` |
-| `TTS_MAX_CHARS` | `600` | Truncate long answers before synthesis |
+| `TTS_MAX_CHARS` | `600` | Truncate long answers before synthesis (consider `250–300` on Render free) |
 | `TTS_RATE_LIMIT_PER_MINUTE` | `10` | Per IP / user |
 
-Refresh the bundled voice: `make tts-models`. Mic input still uses the browser Web Speech API (STT).
+Refresh the bundled voice: `make tts-models`. Mic input still uses the browser Web Speech API (STT). Browser TTS is only used if the speak API fails.
+
+### Keep Render awake (free tier)
+
+Render free instances sleep after ~15 minutes idle, which makes the first TTS call very slow. Add a GitHub Actions keep-alive:
+
+1. Repo **Settings → Secrets → Actions** → add `KEEPALIVE_HEALTH_URL` = `https://your-api.onrender.com/health`
+2. Workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings every 12 minutes (and on manual dispatch)
+
+Without the secret, the workflow no-ops safely.
 
 ### CSV / Excel upload
 

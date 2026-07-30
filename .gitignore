@@ -38,3 +38,8 @@ frontend/playwright/.cache/
 # Logs
 *.log
 logs/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml

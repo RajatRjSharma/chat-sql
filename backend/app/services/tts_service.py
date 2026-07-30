@@ -7,11 +7,14 @@ import logging
 import re
 import threading
 import wave
+from collections.abc import Iterator
 from pathlib import Path
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 class TtsUnavailableError(RuntimeError):
@@ -117,6 +120,31 @@ class TtsService:
         return text
 
     @classmethod
+    def split_sentences(cls, raw: str) -> list[str]:
+        """Normalize text then split into speakable sentence chunks."""
+        cleaned = cls.prepare_text(raw)
+        if not cleaned:
+            return []
+        parts = [p.strip() for p in _SENTENCE_SPLIT.split(cleaned) if p.strip()]
+        if not parts:
+            return [cleaned]
+        # Merge tiny fragments into the previous sentence (e.g. abbreviations).
+        merged: list[str] = []
+        for part in parts:
+            if merged and len(part) < 12 and part[-1:] not in ".!?":
+                merged[-1] = f"{merged[-1]} {part}"
+            else:
+                merged.append(part)
+        return merged or [cleaned]
+
+    @classmethod
+    def _wav_from_text(cls, text: str, voice) -> bytes:
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wav_file:
+            voice.synthesize_wav(text, wav_file)
+        return buf.getvalue()
+
+    @classmethod
     def synthesize(cls, text: str) -> bytes:
         cleaned = cls.prepare_text(text)
         if not cleaned:
@@ -126,7 +154,22 @@ class TtsService:
         if voice is None:
             raise TtsUnavailableError(cls._load_error or "TTS unavailable")
 
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as wav_file:
-            voice.synthesize_wav(cleaned, wav_file)
-        return buf.getvalue()
+        return cls._wav_from_text(cleaned, voice)
+
+    @classmethod
+    def synthesize_sentences(cls, text: str) -> Iterator[tuple[int, int, bytes]]:
+        """
+        Yield (index, total, wav_bytes) per sentence so callers can stream
+        audio before the full summary is synthesized.
+        """
+        sentences = cls.split_sentences(text)
+        if not sentences:
+            raise ValueError("Text is empty")
+
+        voice = cls._ensure_voice()
+        if voice is None:
+            raise TtsUnavailableError(cls._load_error or "TTS unavailable")
+
+        total = len(sentences)
+        for index, sentence in enumerate(sentences):
+            yield index, total, cls._wav_from_text(sentence, voice)

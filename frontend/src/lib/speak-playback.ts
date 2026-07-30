@@ -1,6 +1,7 @@
 /**
- * Server TTS playback (Piper via /api/voice/speak) with optional browser fallback.
- * Only one utterance plays at a time across the app.
+ * Server TTS playback via Piper sentence stream (/api/voice/speak-stream).
+ * Plays the first sentence as soon as it arrives; queues the rest.
+ * Browser TTS only if the API fails (not for slowness).
  */
 
 import { ApiError, api } from "@/lib/api";
@@ -17,6 +18,9 @@ let currentObjectUrl: string | null = null;
 let currentId: string | null = null;
 let playGeneration = 0;
 const listeners = new Set<Listener>();
+
+const pendingBlobs: Blob[] = [];
+let drainRunning = false;
 
 function notify(playingId: string | null) {
   currentId = playingId;
@@ -39,6 +43,11 @@ function releaseAudio() {
   }
 }
 
+function clearQueue() {
+  pendingBlobs.length = 0;
+  drainRunning = false;
+}
+
 export function subscribeSpeakPlayback(listener: Listener): () => void {
   listeners.add(listener);
   listener(currentId);
@@ -54,6 +63,7 @@ export function getPlayingSpeakId(): string | null {
 export function stopSpeakPlayback(): void {
   playGeneration += 1;
   stopBrowserSpeaking();
+  clearQueue();
   releaseAudio();
   notify(null);
 }
@@ -75,8 +85,63 @@ function playBrowserFallback(text: string, id: string): void {
   }, 250);
 }
 
+function playBlob(blob: Blob, generation: number, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (generation !== playGeneration) {
+      resolve();
+      return;
+    }
+    releaseAudio();
+    const url = URL.createObjectURL(blob);
+    currentObjectUrl = url;
+    const audio = new Audio(url);
+    currentAudio = audio;
+    notify(id);
+
+    audio.onended = () => {
+      releaseAudio();
+      resolve();
+    };
+    audio.onerror = () => {
+      releaseAudio();
+      reject(new Error("Audio playback failed"));
+    };
+
+    void audio.play().catch(reject);
+  });
+}
+
+async function drainQueue(generation: number, id: string): Promise<void> {
+  if (drainRunning) return;
+  drainRunning = true;
+  try {
+    while (generation === playGeneration) {
+      const next = pendingBlobs.shift();
+      if (!next) break;
+      await playBlob(next, generation, id);
+    }
+  } finally {
+    drainRunning = false;
+    if (
+      generation === playGeneration &&
+      pendingBlobs.length === 0 &&
+      !currentAudio
+    ) {
+      notify(null);
+    }
+  }
+}
+
+function enqueueBlob(blob: Blob, generation: number, id: string): void {
+  if (generation !== playGeneration) return;
+  pendingBlobs.push(blob);
+  void drainQueue(generation, id).catch(() => {
+    /* next chunk or stop handles recovery */
+  });
+}
+
 /**
- * Play text aloud. Uses Piper on the API; falls back to browser TTS on failure.
+ * Play text aloud via Piper sentence stream. Browser TTS only on API failure.
  */
 export async function playSpeakText(text: string, id: string): Promise<void> {
   const trimmed = text.trim();
@@ -87,34 +152,34 @@ export async function playSpeakText(text: string, id: string): Promise<void> {
   notify(id);
 
   try {
-    const blob = await api.speak(trimmed);
+    let received = 0;
+    await api.speakStream(trimmed, (blob) => {
+      received += 1;
+      enqueueBlob(blob, generation, id);
+    });
+
     if (generation !== playGeneration) return;
 
-    const url = URL.createObjectURL(blob);
-    currentObjectUrl = url;
-    const audio = new Audio(url);
-    currentAudio = audio;
+    if (received === 0) {
+      throw new ApiError(502, "TTS stream returned no audio");
+    }
 
-    audio.onended = () => {
-      if (generation !== playGeneration) return;
-      releaseAudio();
-      notify(null);
-    };
-    audio.onerror = () => {
-      if (generation !== playGeneration) return;
-      releaseAudio();
-      playBrowserFallback(trimmed, id);
-    };
-
-    await audio.play();
+    // Wait until the queue finishes playing (drain may still be running).
+    while (
+      generation === playGeneration &&
+      (drainRunning || pendingBlobs.length > 0 || currentAudio)
+    ) {
+      await new Promise((r) => window.setTimeout(r, 100));
+    }
   } catch (err) {
     if (generation !== playGeneration) return;
+    clearQueue();
     releaseAudio();
-    // Auth / hard failures: still try local browser TTS so Play stays useful offline-client.
     if (err instanceof ApiError && err.status === 401) {
       notify(null);
       throw err;
     }
+    // Fail-only browser fallback — not used for slowness.
     playBrowserFallback(trimmed, id);
   }
 }

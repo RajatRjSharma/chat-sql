@@ -119,7 +119,10 @@ backend/
 make tts-models   # download/refresh en_US-amy-low into models/piper/
 ```
 
-`POST /api/voice/speak` synthesizes WAV with Piper. No network calls at speak time.
+- `POST /api/voice/speak` — full WAV (simple clients)
+- `POST /api/voice/speak-stream` — NDJSON sentence WAVs (UI Play button; lower time-to-first-audio)
+
+No network calls at speak time. On Render free tier, enable the keep-alive workflow secret `KEEPALIVE_HEALTH_URL` so the dyno (and loaded Piper model) stay warm.
 
 ## Tests
 
