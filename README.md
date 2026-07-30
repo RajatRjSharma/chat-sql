@@ -6,6 +6,8 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 
 **Repo:** [github.com/RajatRjSharma/chat-sql](https://github.com/RajatRjSharma/chat-sql)
 
+[![CI](https://github.com/RajatRjSharma/chat-sql/actions/workflows/ci.yml/badge.svg)](https://github.com/RajatRjSharma/chat-sql/actions/workflows/ci.yml)
+
 ## Architecture
 
 | Database | Port (local) | Role |
@@ -94,6 +96,9 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 
 ### Render (backend)
 
+- **Root directory:** `backend`
+- **Python:** **3.12** — pinned via `backend/runtime.txt` (do not use 3.14; SSRF/`ipaddress` and other stdlib differences break production)
+- Also set **Environment → Python Version → 3.12** in the Render dashboard so the pin is double-checked
 - **Health check:** `/health`
 - **Build:** `pip install -r requirements.txt`
 - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
@@ -114,7 +119,7 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
 
-Use Python **3.12** on Render (matches local; avoids 3.14 compatibility issues).
+Use Python **3.12** on Render (`backend/runtime.txt` + dashboard). Avoid 3.14.
 
 ### Vercel (frontend)
 
@@ -123,6 +128,20 @@ Use Python **3.12** on Render (matches local; avoids 3.14 compatibility issues).
 | `NEXT_PUBLIC_API_URL` | Render API URL (e.g. `https://your-api.onrender.com`) |
 
 Set **Root Directory** to `frontend`. Leave **Output Directory** empty (default Next.js).
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
+
+| Job | What |
+|-----|------|
+| Backend | Python 3.12 · `pytest` |
+| Frontend | Node 20 · Playwright Chromium E2E (mocked API) |
+
+```bash
+make test            # same backend suite as CI
+make frontend-e2e    # same UI E2E as CI (after make frontend-e2e-install)
+```
 
 ## Useful commands
 
@@ -140,6 +159,7 @@ make destroy       # remove DB containers and volumes
 ├── Makefile
 ├── docker-compose.yml
 ├── .env.example
+├── .github/workflows/ci.yml
 ├── backend/          # FastAPI application — see backend/README.md
 └── frontend/         # Next.js UI (Voice-Driven Data Analyst)
 ```
