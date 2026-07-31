@@ -65,11 +65,6 @@ function SourceMetadataBlock({
     );
   }
 
-  const tables =
-    meta.tables_in_context.length > 0
-      ? meta.tables_in_context.join(", ")
-      : "—";
-
   return (
     <div className="mt-3 space-y-2">
       <p className="break-words text-[15px] font-medium text-[var(--text-primary)]">
@@ -87,14 +82,9 @@ function SourceMetadataBlock({
         label="Access"
         value={meta.is_readonly ? "read-only SELECT" : meta.access_mode}
       />
-      <MetaRow label="Context tables" value={tables} />
-      <MetaRow
-        label="RAG"
-        value={`${meta.chunks_retrieved} chunk${meta.chunks_retrieved === 1 ? "" : "s"} · ${meta.context_mode}`}
-      />
       {chunksEmbedded != null ? (
         <p className="pt-1 font-mono text-[11px] text-[var(--text-secondary)]">
-          {chunksEmbedded} schema chunk{chunksEmbedded === 1 ? "" : "s"} indexed total
+          {chunksEmbedded} schema chunk{chunksEmbedded === 1 ? "" : "s"} indexed
         </p>
       ) : null}
     </div>
@@ -266,11 +256,28 @@ function InsightBody({
   }, [identity, items.length]);
 
   const safeIndex = items.length ? Math.min(chartIndex, items.length - 1) : 0;
-  const activeTurn =
-    items[safeIndex]?.turn ?? (turns.length ? turns[turns.length - 1] : null);
+
+  // Warehouse meta is connection-scoped — reuse the latest turn that has it.
+  const warehouseMeta = useMemo(() => {
+    for (let i = turns.length - 1; i >= 0; i -= 1) {
+      if (turns[i]?.source_metadata) return turns[i].source_metadata;
+    }
+    return null;
+  }, [turns]);
 
   return (
     <div className="space-y-5">
+      <section className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+          Connected warehouse
+        </p>
+        <SourceMetadataBlock
+          meta={warehouseMeta}
+          fallbackName={dataSourceName}
+          chunksEmbedded={chunksEmbedded}
+        />
+      </section>
+
       <SessionBriefCard turns={turns} />
 
       <ChartCarousel
@@ -278,25 +285,6 @@ function InsightBody({
         index={safeIndex}
         onIndexChange={setChartIndex}
       />
-
-      <section className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-          {items.length > 0 ? "Chart provenance" : "Response provenance"}
-        </p>
-        {items.length > 0 && activeTurn ? (
-          <p
-            className="mt-1 break-words text-[12px] leading-snug text-[var(--text-secondary)]"
-            title={activeTurn.question}
-          >
-            For: {activeTurn.question}
-          </p>
-        ) : null}
-        <SourceMetadataBlock
-          meta={activeTurn?.source_metadata}
-          fallbackName={dataSourceName}
-          chunksEmbedded={chunksEmbedded}
-        />
-      </section>
     </div>
   );
 }
