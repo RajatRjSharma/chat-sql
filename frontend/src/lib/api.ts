@@ -1,7 +1,5 @@
 import {
-  authHeaders,
   clearAuthSession,
-  loadAuthSession,
   saveAuthSession,
   sessionFromTokenResponse,
   type AuthUser,
@@ -20,8 +18,22 @@ import type {
   WarehouseConnectResponse,
 } from "./types";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
+/**
+ * API base URL for browser fetch.
+ *
+ * Default is same-origin (`""`) so requests go to `/api/...` and Next.js rewrites
+ * proxy them to FastAPI. That keeps auth cookies first-party — critical on iOS
+ * Safari and Android Chrome, which block cross-site cookies (Vercel→Render).
+ *
+ * Set `NEXT_PUBLIC_API_URL` only when you intentionally call the API host directly
+ * (local debugging). Production should leave it unset and use `API_PROXY_TARGET`.
+ */
+function resolveApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
+  return configured;
+}
+
+const API_URL = resolveApiUrl();
 
 export class ApiError extends Error {
   status: number;
@@ -42,8 +54,6 @@ export type RegisterResponse = {
 };
 
 export type AuthTokenResponse = {
-  access_token: string;
-  refresh_token: string;
   token_type: "bearer";
   expires_in: number;
   user: AuthUser;
@@ -69,13 +79,12 @@ let refreshInFlight: Promise<boolean> | null = null;
 async function tryRefreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
-    const session = loadAuthSession();
-    if (!session?.refreshToken) return false;
     try {
       const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: session.refreshToken }),
+        credentials: "include",
+        body: "{}",
       });
       if (!res.ok) {
         clearAuthSession();
@@ -101,7 +110,6 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string> | undefined),
-    ...authHeaders(),
   };
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   if (!isFormData && !headers["Content-Type"]) {
@@ -111,6 +119,7 @@ async function request<T>(
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers,
+    credentials: "include",
   });
 
   if (res.status === 401 && retryOnUnauthorized && !path.startsWith("/api/auth/")) {
@@ -120,7 +129,6 @@ async function request<T>(
     }
     clearAuthSession();
   } else if (res.status === 401 && path.startsWith("/api/auth/")) {
-    // login/register failures — do not wipe an existing session unless /me or refresh
     if (path === "/api/auth/me" || path === "/api/auth/refresh") {
       clearAuthSession();
     }
@@ -128,6 +136,10 @@ async function request<T>(
 
   if (!res.ok) {
     throw new ApiError(res.status, await parseDetail(res));
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
   }
 
   return res.json() as Promise<T>;
@@ -173,7 +185,7 @@ function parseSseChunk(
         });
       }
     } catch {
-      // Ignore malformed SSE frames — keep reading until a valid result/error.
+      // Ignore malformed SSE frames.
     }
   }
 
@@ -242,12 +254,12 @@ export const api = {
     }).then(toSession);
   },
 
-  refresh(refreshToken: string) {
+  refresh() {
     return request<AuthTokenResponse>(
       "/api/auth/refresh",
       {
         method: "POST",
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: "{}",
       },
       false,
     ).then(toSession);
@@ -294,13 +306,18 @@ export const api = {
     return request<DataSourceSummary[]>("/api/data/sources");
   },
 
-  async deleteSource(dataSourceId: string) {
+  async deleteSource(dataSourceId: string): Promise<void> {
     const res = await fetch(`${API_URL}/api/data/sources/${dataSourceId}`, {
       method: "DELETE",
-      headers: { ...authHeaders() },
+      credentials: "include",
     });
 
     if (res.status === 401) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        await api.deleteSource(dataSourceId);
+        return;
+      }
       clearAuthSession();
     }
     if (res.status === 204 || res.ok) {
@@ -323,10 +340,6 @@ export const api = {
     });
   },
 
-  /**
-   * Stream LangGraph progress via SSE, then resolve with the final ChatResponse.
-   * Calls `onEvent` for every stage/result/error frame.
-   */
   async chatStream(
     body: ChatRequest,
     onEvent?: (event: ChatStreamEvent) => void,
@@ -336,8 +349,8 @@ export const api = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeaders(),
       },
+      credentials: "include",
       body: JSON.stringify(body),
       signal,
     });
@@ -407,16 +420,13 @@ export const api = {
     return request<{ status: string }>("/health");
   },
 
-  /**
-   * Offline Piper TTS — returns audio/wav bytes (auth required).
-   */
   async speak(text: string): Promise<Blob> {
     const res = await fetch(`${API_URL}/api/voice/speak`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeaders(),
       },
+      credentials: "include",
       body: JSON.stringify({ text }),
     });
 
@@ -433,9 +443,6 @@ export const api = {
     return res.blob();
   },
 
-  /**
-   * Sentence-streamed Piper TTS. Calls onChunk as each sentence WAV arrives.
-   */
   async speakStream(
     text: string,
     onChunk: (blob: Blob) => void,
@@ -444,8 +451,8 @@ export const api = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeaders(),
       },
+      credentials: "include",
       body: JSON.stringify({ text }),
     });
 

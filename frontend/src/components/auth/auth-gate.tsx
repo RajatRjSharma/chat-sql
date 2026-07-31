@@ -1,12 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm } from "@/components/auth/login-form";
+import { OtpForm } from "@/components/auth/otp-form";
+import { RegisterForm } from "@/components/auth/register-form";
 import { api, ApiError } from "@/lib/api";
 import type { AuthSession } from "@/lib/auth";
-import { PASSWORD_MIN_LENGTH, validatePasswordClient } from "@/lib/password";
+import { validatePasswordClient } from "@/lib/password";
 
 type Mode = "login" | "register" | "otp";
 
@@ -159,204 +159,58 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
 
         <div className="animate-rise rounded-2xl border border-[var(--border-shell)] bg-[var(--bg-shell-elevated)]/80 p-5 backdrop-blur-sm sm:p-6 md:p-8">
           {mode === "login" ? (
-            <form className="space-y-4" onSubmit={handleLogin} autoComplete="on">
-              <div>
-                <h1 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                  Sign in
-                </h1>
-                <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-                  Email or username + password
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="identifier">Email or username</Label>
-                <Input
-                  id="identifier"
-                  autoComplete="username"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  required
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={busy} size="lg">
-                {busy ? "Signing in…" : "Sign in"}
-              </Button>
-              <p className="text-center text-sm text-[var(--text-muted-dark)]">
-                New here?{" "}
-                <button
-                  type="button"
-                  className="text-[var(--accent)] underline-offset-2 hover:underline"
-                  onClick={() => {
-                    setMode("register");
-                    setError(null);
-                    setInfo(null);
-                    clearSecrets();
-                  }}
-                >
-                  Create an account
-                </button>
-              </p>
-            </form>
+            <LoginForm
+              identifier={identifier}
+              password={password}
+              busy={busy}
+              onIdentifierChange={setIdentifier}
+              onPasswordChange={setPassword}
+              onSubmit={handleLogin}
+              onSwitchToRegister={() => {
+                setMode("register");
+                setError(null);
+                setInfo(null);
+                clearSecrets();
+              }}
+            />
           ) : null}
 
           {mode === "register" ? (
-            <form className="space-y-4" onSubmit={handleRegister} autoComplete="on">
-              <div>
-                <h1 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                  Create account
-                </h1>
-                <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-                  Strong password required
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  minLength={3}
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reg-password">Password</Label>
-                <Input
-                  id="reg-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={PASSWORD_MIN_LENGTH}
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-                <p className="text-[11px] leading-relaxed text-[var(--text-muted-dark)]">
-                  At least {PASSWORD_MIN_LENGTH} chars, with upper, lower, number, and
-                  special character.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reg-password-confirm">Confirm password</Label>
-                <Input
-                  id="reg-password-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  required
-                  minLength={PASSWORD_MIN_LENGTH}
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={busy} size="lg">
-                {busy ? "Creating account…" : "Create account"}
-              </Button>
-              <p className="text-center text-sm text-[var(--text-muted-dark)]">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="text-[var(--accent)] underline-offset-2 hover:underline"
-                  onClick={() => {
-                    setMode("login");
-                    setError(null);
-                    setInfo(null);
-                    clearSecrets();
-                  }}
-                >
-                  Sign in
-                </button>
-              </p>
-            </form>
+            <RegisterForm
+              email={email}
+              username={username}
+              password={password}
+              passwordConfirm={passwordConfirm}
+              busy={busy}
+              onEmailChange={setEmail}
+              onUsernameChange={setUsername}
+              onPasswordChange={setPassword}
+              onPasswordConfirmChange={setPasswordConfirm}
+              onSubmit={handleRegister}
+              onSwitchToLogin={() => {
+                setMode("login");
+                setError(null);
+                setInfo(null);
+                clearSecrets();
+              }}
+            />
           ) : null}
 
           {mode === "otp" ? (
-            <form className="space-y-4" onSubmit={handleVerifyOtp}>
-              <div>
-                <h1 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                  Verify email
-                </h1>
-                <p className="mt-1 text-sm text-[var(--text-muted-dark)]">
-                  Enter the 6-digit code sent via Gmail SMTP
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="otp-email">Email</Label>
-                <Input
-                  id="otp-email"
-                  type="email"
-                  value={otpEmail}
-                  onChange={(e) => setOtpEmail(e.target.value)}
-                  required
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="otp-code">Verification code</Label>
-                <Input
-                  id="otp-code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                  minLength={4}
-                  maxLength={8}
-                  className="border-[var(--border-shell)] bg-[var(--bg-shell)] font-mono tracking-[0.3em] text-[var(--text-on-dark)]"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={busy} size="lg">
-                {busy ? "Verifying…" : "Verify & continue"}
-              </Button>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <button
-                  type="button"
-                  className="text-[var(--text-muted-dark)] underline-offset-2 hover:underline"
-                  disabled={busy}
-                  onClick={() => void handleResend()}
-                >
-                  Resend code
-                </button>
-                <button
-                  type="button"
-                  className="text-[var(--accent)] underline-offset-2 hover:underline"
-                  onClick={() => {
-                    setMode("login");
-                    setError(null);
-                    setInfo(null);
-                  }}
-                >
-                  Back to sign in
-                </button>
-              </div>
-            </form>
+            <OtpForm
+              otpEmail={otpEmail}
+              code={code}
+              busy={busy}
+              onOtpEmailChange={setOtpEmail}
+              onCodeChange={setCode}
+              onSubmit={handleVerifyOtp}
+              onResend={handleResend}
+              onBackToLogin={() => {
+                setMode("login");
+                setError(null);
+                setInfo(null);
+              }}
+            />
           ) : null}
 
           {info ? (
