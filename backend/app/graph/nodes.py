@@ -10,6 +10,11 @@ from app.graph.state import ChatGraphState
 from app.providers.ai import AIClient
 from app.services.rag_service import RagService
 from app.services.result_summarizer import ResultSummarizer
+from app.services.scope_guard import (
+    EMPTY_RESULT_MESSAGE,
+    OUT_OF_SCOPE_MESSAGE,
+    ScopeGuard,
+)
 from app.services.sql_generator import SqlGenerator
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
@@ -28,6 +33,30 @@ def retrieve_schema_node(
     }
 
 
+def assess_relevance_node(
+    state: ChatGraphState,
+    *,
+    client: AIClient | None = None,
+) -> dict[str, Any]:
+    """Refuse questions the warehouse schema cannot support (before SQL)."""
+    decision = ScopeGuard.assess(
+        question=state["question"],
+        schema_context=state.get("schema_context") or "",
+        client=client,
+    )
+    if decision == "out_of_scope":
+        return {
+            "scope": "out_of_scope",
+            "answer": OUT_OF_SCOPE_MESSAGE,
+            "sql": None,
+            "columns": [],
+            "rows": [],
+            "sql_error": None,
+            "status": "ok",
+        }
+    return {"scope": "answerable", "status": "running"}
+
+
 def generate_sql_node(
     state: ChatGraphState,
     *,
@@ -44,6 +73,18 @@ def generate_sql_node(
         source_metadata=state.get("source_metadata"),
         client=client,
     )
+    # Defense in depth if the SQL model refuses instead of inventing a query.
+    if ScopeGuard.is_unanswerable_marker(sql):
+        return {
+            "sql": None,
+            "sql_error": None,
+            "attempts": attempts,
+            "scope": "out_of_scope",
+            "answer": OUT_OF_SCOPE_MESSAGE,
+            "columns": [],
+            "rows": [],
+            "status": "ok",
+        }
     return {
         "sql": sql,
         "sql_error": None,
@@ -101,6 +142,14 @@ def summarize_node(
 ) -> dict[str, Any]:
     columns = state.get("columns") or []
     rows = state.get("rows") or []
+    # Empty result sets must not be narrated with world knowledge.
+    if len(rows) == 0:
+        return {
+            "answer": EMPTY_RESULT_MESSAGE,
+            "columns": columns,
+            "rows": [],
+            "status": "ok",
+        }
     answer = ResultSummarizer.summarize(
         question=state["question"],
         sql=state.get("sql") or "",
@@ -124,6 +173,19 @@ def finalize_failure_node(state: ChatGraphState) -> dict[str, Any]:
         f"({short})"
     )
     return {"answer": answer, "status": "failed"}
+
+
+def route_after_relevance(state: ChatGraphState) -> str:
+    if state.get("scope") == "out_of_scope":
+        return "end"
+    return "generate"
+
+
+def route_after_generate(state: ChatGraphState) -> str:
+    # SQL model may refuse with UNANSWERABLE even if the gate said answerable.
+    if state.get("scope") == "out_of_scope" and state.get("answer"):
+        return "end"
+    return "validate"
 
 
 def route_after_validate(state: ChatGraphState) -> str:
