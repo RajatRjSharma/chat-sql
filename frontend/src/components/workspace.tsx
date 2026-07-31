@@ -265,17 +265,23 @@ export function Workspace({
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
-      <header className="relative z-20 shrink-0 border-b border-white/8">
-        <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5 sm:py-3.5 md:px-7">
+      <header className="relative z-20 shrink-0 border-b border-white/8 pt-[max(0px,var(--safe-top))]">
+        <div className="safe-px flex items-center justify-between gap-3 px-3 py-3 sm:px-5 sm:py-3.5 md:px-7">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-[family-name:var(--font-display)] text-[15px] leading-tight tracking-tight sm:text-base md:text-lg">
+            <p
+              className="break-words font-[family-name:var(--font-display)] text-[15px] leading-tight tracking-tight sm:text-base md:text-lg"
+              title="Voice-Driven Data Analyst"
+            >
               <span className="sm:hidden">VD Analyst</span>
               <span className="hidden sm:inline">Voice-Driven Data Analyst</span>
             </p>
-            <p className="truncate text-[11px] text-[var(--text-muted-dark)] sm:text-xs">
+            <p
+              className="mt-0.5 break-words text-[11px] leading-snug text-[var(--text-muted-dark)] sm:text-xs"
+              title={`@${userLabel} · ${dataSourceName}`}
+            >
               @{userLabel} · {dataSourceName}
               {sessionId ? (
-                <span className="ml-1.5 hidden font-mono text-[10px] opacity-80 sm:ml-2 sm:inline">
+                <span className="ml-1.5 inline font-mono text-[10px] opacity-80 sm:ml-2">
                   session {sessionId.slice(0, 8)}
                 </span>
               ) : (
@@ -309,7 +315,7 @@ export function Workspace({
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--text-on-dark)] hover:bg-white/[0.04] sm:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--text-on-dark)] hover:bg-white/[0.04] sm:hidden"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
@@ -319,12 +325,12 @@ export function Workspace({
         </div>
 
         {menuOpen ? (
-          <div className="border-t border-white/8 bg-[var(--bg-shell-elevated)] px-3 py-3 sm:hidden animate-fade-in">
+          <div className="max-h-[min(70dvh,520px)] overflow-y-auto overscroll-contain border-t border-white/8 bg-[var(--bg-shell-elevated)] px-3 py-3 sm:hidden animate-fade-in">
             <div className="flex flex-col gap-2">
               <Button
                 variant="secondary"
                 size="sm"
-                className="w-full justify-start"
+                className="min-h-11 w-full justify-start"
                 disabled={busy}
                 onClick={handleNewChat}
               >
@@ -333,7 +339,7 @@ export function Workspace({
               <Button
                 variant="secondary"
                 size="sm"
-                className="w-full justify-start"
+                className="min-h-11 w-full justify-start"
                 onClick={() => {
                   setMenuOpen(false);
                   onDisconnect();
@@ -344,7 +350,7 @@ export function Workspace({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-[var(--text-on-dark)]"
+                className="min-h-11 w-full justify-start text-[var(--text-on-dark)]"
                 onClick={() => {
                   setMenuOpen(false);
                   onLogout();
@@ -353,11 +359,68 @@ export function Workspace({
                 Log out
               </Button>
             </div>
+
+            {sessions.length > 0 ? (
+              <div className="mt-4 border-t border-white/8 pt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted-dark)]">
+                  Recent chats
+                </p>
+                <ul className="space-y-1.5">
+                  {sessions.slice(0, 8).map((session) => (
+                    <li key={session.session_id}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void handleSelectSession(session.session_id);
+                        }}
+                        className={cn(
+                          "min-h-11 w-full rounded-lg border px-3 py-2.5 text-left text-[13px] leading-snug transition-colors disabled:opacity-40",
+                          session.session_id === sessionId
+                            ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--text-on-dark)]"
+                            : "border-white/8 text-[var(--text-muted-dark)] hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
+                        )}
+                      >
+                        <span className="line-clamp-2 break-words">
+                          {session.title || "Untitled session"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {suggestionTexts.length > 0 ? (
+              <div className="mt-4 border-t border-white/8 pt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted-dark)]">
+                  Suggested
+                </p>
+                <ul className="space-y-1.5">
+                  {suggestionTexts.slice(0, 4).map((q) => (
+                    <li key={q}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void ask(q);
+                        }}
+                        className="min-h-11 w-full break-words rounded-lg border border-white/8 px-3 py-2.5 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
+                      >
+                        {q}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </header>
 
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_minmax(280px,320px)]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_minmax(260px,300px)] xl:grid-cols-[240px_minmax(0,1fr)_minmax(300px,340px)]">
         <aside className="hidden min-h-0 min-w-0 flex-col border-r border-white/8 bg-[var(--bg-shell)] p-5 lg:flex">
           <SessionHistory
             sessions={sessions}
@@ -384,7 +447,7 @@ export function Workspace({
                       type="button"
                       disabled={busy}
                       onClick={() => ask(q)}
-                      className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
+                      className="w-full break-words rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
                     >
                       {q}
                     </button>
@@ -439,21 +502,25 @@ export function Workspace({
 
             {sessions.length > 0 ? (
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
-                {sessions.slice(0, 6).map((session) => (
-                  <button
-                    key={session.session_id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => handleSelectSession(session.session_id)}
-                    className={
-                      session.session_id === sessionId
-                        ? "shrink-0 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--accent-hover)] disabled:opacity-40"
-                        : "shrink-0 rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)] disabled:opacity-40"
-                    }
-                  >
-                    {(session.title || "Session").slice(0, 28)}
-                  </button>
-                ))}
+                {sessions.slice(0, 6).map((session) => {
+                  const title = session.title || "Session";
+                  return (
+                    <button
+                      key={session.session_id}
+                      type="button"
+                      disabled={busy}
+                      title={title}
+                      onClick={() => handleSelectSession(session.session_id)}
+                      className={
+                        session.session_id === sessionId
+                          ? "min-h-11 max-w-[min(80vw,280px)] shrink-0 whitespace-normal break-words rounded-2xl border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-left text-xs leading-snug text-[var(--accent-hover)] disabled:opacity-40"
+                          : "min-h-11 max-w-[min(80vw,280px)] shrink-0 whitespace-normal break-words rounded-2xl border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-left text-xs leading-snug text-[var(--text-secondary)] disabled:opacity-40"
+                      }
+                    >
+                      {title}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
@@ -462,8 +529,9 @@ export function Workspace({
                     key={q}
                     type="button"
                     disabled={busy}
+                    title={q}
                     onClick={() => ask(q)}
-                    className="max-w-[220px] shrink-0 truncate rounded-full border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)] disabled:opacity-40"
+                    className="min-h-11 max-w-[min(80vw,280px)] shrink-0 whitespace-normal break-words rounded-2xl border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-left text-xs leading-snug text-[var(--text-secondary)] disabled:opacity-40"
                   >
                     {q}
                   </button>

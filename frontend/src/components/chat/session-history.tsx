@@ -87,7 +87,10 @@ export function SessionHistory({
                       : "border-transparent text-[var(--text-muted-dark)] hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
                   )}
                 >
-                  <span className="line-clamp-2 text-[13px] leading-snug">
+                  <span
+                    className="break-words text-[13px] leading-snug"
+                    title={session.title || "Untitled session"}
+                  >
                     {session.title || "Untitled session"}
                   </span>
                   <span className="mt-1.5 flex items-center justify-between gap-2 font-mono text-[10px] opacity-70">

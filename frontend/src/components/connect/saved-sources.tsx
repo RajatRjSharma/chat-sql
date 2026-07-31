@@ -86,10 +86,13 @@ export function SavedSources({
                     !active && "hover:bg-white/[0.04]",
                   )}
                 >
-                  <span className="block font-[family-name:var(--font-display)] text-[15px] tracking-tight text-[var(--text-on-dark)]">
+                  <span className="block break-words font-[family-name:var(--font-display)] text-[15px] tracking-tight text-[var(--text-on-dark)]">
                     {source.name}
                   </span>
-                  <span className="mt-1 block truncate font-mono text-[11px] text-[var(--text-muted-dark)]">
+                  <span
+                    className="mt-1 block break-all font-mono text-[11px] leading-snug text-[var(--text-muted-dark)]"
+                    title={location}
+                  >
                     {location}
                   </span>
                   <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted-dark)]">
@@ -139,7 +142,7 @@ export function SavedSources({
                         setConfirmId(source.id);
                       }}
                       className={cn(
-                        "rounded-lg p-2 text-[var(--text-muted-dark)] transition-colors",
+                        "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[var(--text-muted-dark)] transition-colors",
                         "hover:bg-[var(--error)]/10 hover:text-[#fecaca]",
                         "disabled:opacity-45",
                       )}

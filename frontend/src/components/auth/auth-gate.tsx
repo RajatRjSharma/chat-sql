@@ -147,17 +147,17 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
         className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-[var(--accent-light)]/15 blur-3xl"
       />
 
-      <div className="relative mx-auto flex min-h-[100dvh] max-w-lg flex-col justify-center px-5 py-12">
+      <div className="relative mx-auto flex min-h-[100dvh] max-w-lg flex-col justify-center px-5 py-12 pb-[max(3rem,var(--safe-bottom))] pt-[max(3rem,var(--safe-top))]">
         <header className="mb-10 animate-fade-in">
-          <p className="max-w-[16ch] font-[family-name:var(--font-display)] text-2xl leading-tight tracking-tight md:max-w-none md:text-3xl">
+          <p className="break-words font-[family-name:var(--font-display)] text-2xl leading-tight tracking-tight md:text-3xl">
             Voice-Driven Data Analyst
           </p>
-          <p className="mt-2 text-sm text-[var(--text-muted-dark)]">
+          <p className="mt-2 break-words text-sm text-[var(--text-muted-dark)]">
             Sign in to analyze your warehouses
           </p>
         </header>
 
-        <div className="animate-rise rounded-2xl border border-[var(--border-shell)] bg-[var(--bg-shell-elevated)]/80 p-6 backdrop-blur-sm md:p-8">
+        <div className="animate-rise rounded-2xl border border-[var(--border-shell)] bg-[var(--bg-shell-elevated)]/80 p-5 backdrop-blur-sm sm:p-6 md:p-8">
           {mode === "login" ? (
             <form className="space-y-4" onSubmit={handleLogin} autoComplete="on">
               <div>
