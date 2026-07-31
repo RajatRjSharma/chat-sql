@@ -51,7 +51,6 @@ export function Workspace({
     ask,
     handleSelectSession,
     handleNewChat,
-    latest,
     busy,
     suggestionTexts,
   } = useWorkspaceChat({
@@ -105,7 +104,7 @@ export function Workspace({
                       type="button"
                       disabled={busy}
                       onClick={() => ask(q)}
-                      className="w-full break-words rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
+                      className="w-full break-words rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-on-dark)]/90 transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
                     >
                       {q}
                     </button>
@@ -152,7 +151,7 @@ export function Workspace({
 
             {!isDesktop ? (
               <MobileInsightDrawer
-                latest={latest}
+                turns={turns}
                 dataSourceName={dataSourceName}
                 chunksEmbedded={chunksEmbedded}
               />
@@ -209,7 +208,7 @@ export function Workspace({
         {isDesktop ? (
           <div className="min-h-0 min-w-0">
             <InsightPanel
-              latest={latest}
+              turns={turns}
               dataSourceName={dataSourceName}
               chunksEmbedded={chunksEmbedded}
             />
