@@ -9,11 +9,14 @@ from langgraph.graph import END, START, StateGraph
 
 from app.config import settings
 from app.graph.nodes import (
+    assess_relevance_node,
     execute_sql_node,
     finalize_failure_node,
     generate_sql_node,
     retrieve_schema_node,
     route_after_execute,
+    route_after_generate,
+    route_after_relevance,
     route_after_validate,
     summarize_node,
     validate_sql_node,
@@ -34,6 +37,10 @@ def build_chat_graph(
         "retrieve_schema",
         partial(retrieve_schema_node, schema_context=schema_context),
     )
+    graph.add_node(
+        "assess_relevance",
+        partial(assess_relevance_node, client=client),
+    )
     graph.add_node("generate_sql", partial(generate_sql_node, client=client))
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("execute_sql", execute_sql_node)
@@ -41,8 +48,23 @@ def build_chat_graph(
     graph.add_node("finalize_failure", finalize_failure_node)
 
     graph.add_edge(START, "retrieve_schema")
-    graph.add_edge("retrieve_schema", "generate_sql")
-    graph.add_edge("generate_sql", "validate_sql")
+    graph.add_edge("retrieve_schema", "assess_relevance")
+    graph.add_conditional_edges(
+        "assess_relevance",
+        route_after_relevance,
+        {
+            "generate": "generate_sql",
+            "end": END,
+        },
+    )
+    graph.add_conditional_edges(
+        "generate_sql",
+        route_after_generate,
+        {
+            "validate": "validate_sql",
+            "end": END,
+        },
+    )
     graph.add_conditional_edges(
         "validate_sql",
         route_after_validate,
@@ -96,6 +118,7 @@ def initial_chat_state(
         answer=None,
         attempts=0,
         max_attempts=max_attempts or settings.sql_max_attempts,
+        scope="answerable",
         status="running",
     )
 
@@ -110,6 +133,7 @@ STAGE_LABELS: dict[str, str] = {
     "preparing": "Preparing session",
     "retrieving_context": "Retrieving schema context",
     "retrieve_schema": "Loading schema into the planner",
+    "assess_relevance": "Checking question fits this warehouse",
     "generate_sql": "Generating SQL",
     "validate_sql": "Validating SQL",
     "execute_sql": "Running query",
