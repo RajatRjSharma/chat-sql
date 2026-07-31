@@ -1,6 +1,6 @@
 # Voice-Driven Data Analyst
 
-Conversational BI assistant: ask questions in natural language, get validated SQL against a connected warehouse, plus a plain-language answer, table, and chart (bar / line / pie with a type picker).
+Conversational BI assistant: ask questions in natural language, get validated SQL against a connected warehouse, plus a plain-language answer, table, and chart (bar / line / pie with a type picker). Every non-empty result gets a chart: category series when possible, otherwise a metric bar, row series, or value-frequency view.
 
 **Stack:** Next.js · FastAPI · SQLAlchemy · Alembic · LangGraph · LangChain · PostgreSQL (+ pgvector) · Recharts
 
