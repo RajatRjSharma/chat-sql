@@ -80,7 +80,7 @@ export function ChartShell({
           ) : null}
         </div>
       </div>
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--bg-card)]">
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--bg-card)] outline-none [&_*]:outline-none">
         <ChartPlot kind={activeKind} series={series} compact={compact} expanded={expanded} />
       </div>
     </div>
