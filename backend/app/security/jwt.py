@@ -1,4 +1,4 @@
-"""Stateless JWT access + refresh tokens (no server-side session store)."""
+"""JWT access + refresh tokens. Refresh JTIs are persisted for revoke/rotation."""
 
 from __future__ import annotations
 
@@ -48,21 +48,22 @@ def create_access_token(
     return _encode(payload), expires_in
 
 
-def create_refresh_token(*, user_id: UUID) -> tuple[str, int]:
-    """Longer-lived refresh JWT — still stateless (no DB session)."""
+def create_refresh_token(*, user_id: UUID) -> tuple[str, int, str]:
+    """Return (token, expires_in_seconds, jti). Caller must persist jti for revoke."""
     expires_in = settings.jwt_refresh_expire_minutes * 60
     expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     now = datetime.now(timezone.utc)
+    jti = secrets.token_urlsafe(16)
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "exp": expire,
         "iat": now,
         "nbf": now,
-        "jti": secrets.token_urlsafe(16),
+        "jti": jti,
         "iss": settings.jwt_issuer,
         "type": "refresh",
     }
-    return _encode(payload), expires_in
+    return _encode(payload), expires_in, jti
 
 
 def decode_token(token: str, *, expected_type: TokenType) -> dict[str, Any]:

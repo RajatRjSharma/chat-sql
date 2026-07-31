@@ -51,6 +51,10 @@ When OTP is enabled, set `SMTP_USER` to your Gmail address and `SMTP_PASSWORD` t
 
 JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
+**Sessions:** access + refresh JWTs are **httpOnly cookies** (not `localStorage`). Logout revokes refresh tokens server-side.
+
+**Mobile browsers (iOS Safari / Android Chrome):** do **not** point the browser at a separate API host for cookie auth. Use the Next.js **same-origin `/api` rewrite** (see Vercel section) so cookies are first-party with `AUTH_COOKIE_SAMESITE=lax`. Cross-site cookies (`SameSite=None` from `vercel.app` → `onrender.com`) are frequently blocked on phones even when desktop works.
+
 ## Typical flow
 
 1. **Register / sign in**
@@ -141,10 +145,11 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 |----------|--------|
 | `APP_ENV` | `production` |
 | `APP_DB_*` | Render Postgres connection |
-| `CORS_ORIGINS` | Your Vercel URL (e.g. `https://your-app.vercel.app`) |
+| `CORS_ORIGINS` | Your Vercel URL (e.g. `https://your-app.vercel.app`) — still needed for tooling; browser UI should use the same-origin proxy |
 | `AI_API_KEY` | OpenRouter (or compatible) key |
 | `JWT_SECRET` | Long random secret |
 | `JWT_ISSUER` | `voice-driven-data-analyst` |
+| `AUTH_COOKIE_SAMESITE` | `lax` when using the Vercel `/api` proxy (recommended for mobile) |
 | `CREDENTIALS_SECRET` | Encrypts stored warehouse passwords |
 | `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
@@ -160,9 +165,12 @@ Use Python **3.12** on Render (`backend/runtime.txt` + dashboard). Avoid 3.14.
 
 | Variable | Notes |
 |----------|--------|
-| `NEXT_PUBLIC_API_URL` | Render API URL (e.g. `https://your-api.onrender.com`) |
+| `API_PROXY_TARGET` | Render API origin only (e.g. `https://your-api.onrender.com`) — **server-side**, used by Next rewrites |
+| `NEXT_PUBLIC_API_URL` | **Leave unset** in production so the browser calls same-origin `/api/...` (mobile-safe cookies) |
 
 Set **Root Directory** to `frontend`. Leave **Output Directory** empty (default Next.js).
+
+`next.config.ts` rewrites `/api/*` and `/health*` to `API_PROXY_TARGET`. That makes auth cookies first-party on `*.vercel.app`, which is what iOS/Android browsers need.
 
 ## Continuous integration
 

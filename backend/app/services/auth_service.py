@@ -1,8 +1,10 @@
-"""Authentication and email-OTP orchestration (stateless JWT)."""
+"""Authentication orchestration — JWT cookies + revocable refresh sessions."""
 
 from __future__ import annotations
 
+import hashlib
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -11,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.email_otp import EmailOtp
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import (
     AuthTokenResponse,
@@ -29,8 +32,22 @@ from app.security.passwords import (
 from app.services.email_service import EmailService
 
 
+def _hash_jti(jti: str) -> str:
+    return hashlib.sha256(jti.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class IssuedAuth:
+    """Tokens for httpOnly cookies + public session payload for the JSON body."""
+
+    access_token: str
+    refresh_token: str
+    refresh_max_age: int
+    response: AuthTokenResponse
+
+
 class AuthService:
-    """Register → OTP verify → login / refresh (no server sessions)."""
+    """Register → OTP verify → login / refresh with server-side refresh revoke."""
 
     @staticmethod
     async def register(session: AsyncSession, request: RegisterRequest) -> RegisterResponse:
@@ -79,10 +96,15 @@ class AuthService:
         return RegisterResponse(email=user.email, message="A new verification code was sent.")
 
     @staticmethod
-    async def verify_otp(session: AsyncSession, request: VerifyOtpRequest) -> AuthTokenResponse:
+    async def verify_otp(
+        session: AsyncSession,
+        request: VerifyOtpRequest,
+        *,
+        user_agent: str | None = None,
+    ) -> IssuedAuth:
         user = await AuthService._get_user_by_email(session, request.email)
         if user.email_verified:
-            return AuthService._token_response(user)
+            return await AuthService.issue_session(session, user, user_agent=user_agent)
 
         result = await session.execute(
             select(EmailOtp)
@@ -102,10 +124,15 @@ class AuthService:
         otp.consumed_at = now
         user.email_verified = True
         await session.flush()
-        return AuthService._token_response(user)
+        return await AuthService.issue_session(session, user, user_agent=user_agent)
 
     @staticmethod
-    async def login(session: AsyncSession, request: LoginRequest) -> AuthTokenResponse:
+    async def login(
+        session: AsyncSession,
+        request: LoginRequest,
+        *,
+        user_agent: str | None = None,
+    ) -> IssuedAuth:
         result = await session.execute(
             select(User).where(
                 or_(User.email == request.identifier, User.username == request.identifier)
@@ -120,16 +147,67 @@ class AuthService:
             raise ValueError("Account is disabled")
         if settings.email_otp_enabled and not user.email_verified:
             raise ValueError("Email not verified. Check your inbox for the OTP code.")
-        return AuthService._token_response(user)
+        return await AuthService.issue_session(session, user, user_agent=user_agent)
 
     @staticmethod
-    async def refresh(session: AsyncSession, refresh_token: str) -> AuthTokenResponse:
+    async def refresh(
+        session: AsyncSession,
+        refresh_token: str,
+        *,
+        user_agent: str | None = None,
+    ) -> IssuedAuth:
         payload = decode_token(refresh_token, expected_type="refresh")
+        jti = str(payload.get("jti") or "")
+        if not jti:
+            raise ValueError("Invalid or expired token")
+
+        row = await AuthService._get_refresh_row(session, jti)
+        now = datetime.now(timezone.utc)
+        if row is None or row.revoked_at is not None or row.expires_at < now:
+            raise ValueError("Invalid or expired token")
+
         user_id = UUID(str(payload["sub"]))
+        if row.user_id != user_id:
+            raise ValueError("Invalid or expired token")
+
         user = await AuthService.get_user(session, user_id)
         if settings.email_otp_enabled and not user.email_verified:
             raise ValueError("Email not verified")
-        return AuthService._token_response(user)
+
+        row.revoked_at = now
+        row.revoke_reason = "rotated"
+        await session.flush()
+        return await AuthService.issue_session(session, user, user_agent=user_agent)
+
+    @staticmethod
+    async def logout(
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        refresh_token: str | None,
+        revoke_all: bool = True,
+    ) -> None:
+        """Revoke the current refresh cookie and (by default) all sessions for the user."""
+        now = datetime.now(timezone.utc)
+        if refresh_token:
+            try:
+                payload = decode_token(refresh_token, expected_type="refresh")
+                jti = str(payload.get("jti") or "")
+                row = await AuthService._get_refresh_row(session, jti) if jti else None
+                if row is not None and row.user_id == user_id and row.revoked_at is None:
+                    row.revoked_at = now
+                    row.revoke_reason = "logout"
+            except ValueError:
+                pass
+
+        if revoke_all:
+            await session.execute(
+                update(RefreshToken)
+                .where(RefreshToken.user_id == user_id)
+                .where(RefreshToken.revoked_at.is_(None))
+                .values(revoked_at=now, revoke_reason="logout_all")
+            )
+        await session.flush()
 
     @staticmethod
     async def get_user(session: AsyncSession, user_id: UUID) -> User:
@@ -139,20 +217,43 @@ class AuthService:
         return user
 
     @staticmethod
-    def _token_response(user: User) -> AuthTokenResponse:
+    async def issue_session(
+        session: AsyncSession,
+        user: User,
+        *,
+        user_agent: str | None = None,
+    ) -> IssuedAuth:
         access, expires_in = create_access_token(
             user_id=user.id,
             email=user.email,
             username=user.username,
             role=user.role,
         )
-        refresh, _ = create_refresh_token(user_id=user.id)
-        return AuthTokenResponse(
+        refresh, refresh_max_age, jti = create_refresh_token(user_id=user.id)
+        row = RefreshToken(
+            user_id=user.id,
+            jti_hash=_hash_jti(jti),
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=refresh_max_age),
+            user_agent=(user_agent or "")[:512] or None,
+        )
+        session.add(row)
+        await session.flush()
+        return IssuedAuth(
             access_token=access,
             refresh_token=refresh,
-            expires_in=expires_in,
-            user=UserPublic.model_validate(user),
+            refresh_max_age=refresh_max_age,
+            response=AuthTokenResponse(
+                expires_in=expires_in,
+                user=UserPublic.model_validate(user),
+            ),
         )
+
+    @staticmethod
+    async def _get_refresh_row(session: AsyncSession, jti: str) -> RefreshToken | None:
+        result = await session.execute(
+            select(RefreshToken).where(RefreshToken.jti_hash == _hash_jti(jti))
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def _get_user_by_email(session: AsyncSession, email: str) -> User:

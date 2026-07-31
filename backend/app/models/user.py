@@ -16,6 +16,7 @@ from app.models.table_schema import project_table_args
 if TYPE_CHECKING:
     from app.models.data_source import DataSource
     from app.models.email_otp import EmailOtp
+    from app.models.refresh_token import RefreshToken
     from app.models.session import ChatSession
 
 
@@ -51,6 +52,10 @@ class User(Base):
     data_sources: Mapped[list["DataSource"]] = relationship(back_populates="owner")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="owner")
     email_otps: Mapped[list["EmailOtp"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

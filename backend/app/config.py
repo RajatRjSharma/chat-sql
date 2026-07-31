@@ -125,6 +125,27 @@ class Settings(BaseSettings):
         le=60 * 24 * 30,
     )
     jwt_issuer: str = Field(default="voice-driven-data-analyst", alias="JWT_ISSUER")
+    # httpOnly cookie session — prefer first-party via Next /api rewrite (mobile-safe).
+    # Use AUTH_COOKIE_SAMESITE=lax with the proxy. SameSite=none is for direct cross-site
+    # API calls only and is unreliable on iOS Safari / Android Chrome.
+    auth_access_cookie_name: str = Field(
+        default="vdda_access",
+        alias="AUTH_ACCESS_COOKIE_NAME",
+    )
+    auth_refresh_cookie_name: str = Field(
+        default="vdda_refresh",
+        alias="AUTH_REFRESH_COOKIE_NAME",
+    )
+    auth_cookie_samesite: str = Field(
+        default="lax",
+        alias="AUTH_COOKIE_SAMESITE",
+        description="lax with same-origin proxy; none only for direct cross-site API (needs Secure)",
+    )
+    auth_cookie_secure: bool | None = Field(
+        default=None,
+        alias="AUTH_COOKIE_SECURE",
+        description="None → Secure off only when APP_ENV=local",
+    )
     auth_rate_limit_per_minute: int = Field(
         default=20,
         alias="AUTH_RATE_LIMIT_PER_MINUTE",

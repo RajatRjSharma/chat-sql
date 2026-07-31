@@ -83,7 +83,9 @@ class LoginRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=20)
+    """Optional body fallback for API clients; browsers send the refresh cookie."""
+
+    refresh_token: Optional[str] = Field(default=None, min_length=20)
 
 
 class UserPublic(BaseModel):
@@ -98,8 +100,13 @@ class UserPublic(BaseModel):
 
 
 class AuthTokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
+    """
+    Session payload after login / refresh / OTP verify.
+
+    Access + refresh JWTs are delivered as httpOnly cookies (not localStorage).
+    Tokens are intentionally omitted from the JSON body so XSS cannot exfiltrate them.
+    """
+
     token_type: Literal["bearer"] = "bearer"
     expires_in: int = Field(..., description="Access token lifetime in seconds")
     user: UserPublic

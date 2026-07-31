@@ -35,7 +35,7 @@ class WarehouseCredentials:
             database=request.database,
             schema_name=request.schema_name,
             username=request.username,
-            password=request.password,
+            password=request.password.get_secret_value(),
             is_readonly=request.is_readonly,
         )
 

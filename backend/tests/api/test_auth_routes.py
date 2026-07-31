@@ -10,13 +10,36 @@ from pydantic import SecretStr
 import pytest
 
 from app.models.email_otp import EmailOtp
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import AuthTokenResponse, RegisterRequest, RegisterResponse, UserPublic
 from app.security.password_policy import validate_password_strength
 from app.security.passwords import hash_password, verify_password
+from app.services.auth_service import IssuedAuth
 from tests.conftest import DEMO_USER_ID
 
 STRONG_PASSWORD = "Str0ng!Pass99"
+
+
+def _issued_auth(sample_user: User, *, expires_in: int = 1800) -> IssuedAuth:
+    return IssuedAuth(
+        access_token="test.jwt.token",
+        refresh_token="test.refresh.token",
+        refresh_max_age=604800,
+        response=AuthTokenResponse(
+            expires_in=expires_in,
+            user=UserPublic.model_validate(sample_user),
+        ),
+    )
+
+
+def _active_refresh_row(user: User) -> MagicMock:
+    row = MagicMock(spec=RefreshToken)
+    row.user_id = user.id
+    row.revoked_at = None
+    row.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    row.revoke_reason = None
+    return row
 
 
 class TestAuthRegister:
@@ -111,15 +134,9 @@ class TestAuthRegister:
 
 class TestAuthLogin:
     def test_login_success(self, unauthenticated_client: TestClient, sample_user: User) -> None:
-        token = AuthTokenResponse(
-            access_token="test.jwt.token",
-            refresh_token="test.refresh.token",
-            expires_in=1800,
-            user=UserPublic.model_validate(sample_user),
-        )
         with patch(
             "app.routes.auth.AuthService.login",
-            new=AsyncMock(return_value=token),
+            new=AsyncMock(return_value=_issued_auth(sample_user)),
         ):
             response = unauthenticated_client.post(
                 "/api/auth/login",
@@ -127,11 +144,14 @@ class TestAuthLogin:
             )
         assert response.status_code == 200
         body = response.json()
-        assert body["access_token"] == "test.jwt.token"
-        assert body["refresh_token"] == "test.refresh.token"
+        assert "access_token" not in body
+        assert "refresh_token" not in body
+        assert body["token_type"] == "bearer"
         assert body["expires_in"] == 1800
         assert "password" not in body
         assert body["user"]["username"] == "analyst"
+        assert response.cookies.get("vdda_access") == "test.jwt.token"
+        assert response.cookies.get("vdda_refresh") == "test.refresh.token"
 
     def test_login_unverified(self, unauthenticated_client: TestClient) -> None:
         with patch(
@@ -159,6 +179,51 @@ class TestAuthMe:
         assert response.status_code == 200
         assert response.json()["id"] == str(sample_user.id)
         assert response.json()["email"] == sample_user.email
+
+
+class TestAuthLogout:
+    def test_logout_clears_session(self, client: TestClient) -> None:
+        with patch(
+            "app.routes.auth.AuthService.logout",
+            new=AsyncMock(return_value=None),
+        ) as logout:
+            response = client.post("/api/auth/logout")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok", "message": "Logged out"}
+        logout.assert_awaited_once()
+        set_cookie = ",".join(response.headers.get_list("set-cookie"))
+        assert "vdda_access" in set_cookie
+        assert "vdda_refresh" in set_cookie
+
+    async def test_logout_revokes_refresh_row(
+        self, mock_db_session, sample_user: User
+    ) -> None:
+        from app.services.auth_service import AuthService
+
+        row = _active_refresh_row(sample_user)
+        with (
+            patch(
+                "app.services.auth_service.decode_token",
+                return_value={"sub": str(sample_user.id), "jti": "logout-jti"},
+            ),
+            patch.object(
+                AuthService,
+                "_get_refresh_row",
+                new=AsyncMock(return_value=row),
+            ),
+        ):
+            await AuthService.logout(
+                mock_db_session,
+                user_id=sample_user.id,
+                refresh_token="refresh-token-value",
+                revoke_all=True,
+            )
+
+        assert row.revoked_at is not None
+        assert row.revoke_reason == "logout"
+        mock_db_session.execute.assert_awaited()
+        mock_db_session.flush.assert_awaited()
 
 
 class TestAuthProtectsData:
@@ -229,19 +294,25 @@ class TestAuthServiceOtp:
             ),
             patch(
                 "app.services.auth_service.create_refresh_token",
-                return_value=("jwt-refresh", 604800),
+                return_value=("jwt-refresh", 604800, "refresh-jti"),
             ),
         ):
-            response = await AuthService.verify_otp(
+            issued = await AuthService.verify_otp(
                 mock_db_session,
                 VerifyOtpRequest(email=sample_user.email, code=code),
             )
 
         assert sample_user.email_verified is True
         assert otp.consumed_at is not None
-        assert response.access_token == "jwt-access"
-        assert response.refresh_token == "jwt-refresh"
-        assert response.expires_in == 1800
+        assert issued.access_token == "jwt-access"
+        assert issued.refresh_token == "jwt-refresh"
+        assert issued.refresh_max_age == 604800
+        assert issued.response.expires_in == 1800
+        assert issued.response.user.email == sample_user.email
+        assert "access_token" not in issued.response.model_dump()
+        added = mock_db_session.add.call_args[0][0]
+        assert isinstance(added, RefreshToken)
+        assert added.user_id == sample_user.id
 
     async def test_register_skips_otp_when_disabled(
         self, mock_db_session, sample_user: User
@@ -307,16 +378,20 @@ class TestAuthServiceOtp:
             ),
             patch(
                 "app.services.auth_service.create_refresh_token",
-                return_value=("jwt-refresh", 604800),
+                return_value=("jwt-refresh", 604800, "refresh-jti"),
             ),
         ):
             mock_settings.email_otp_enabled = False
-            response = await AuthService.login(
+            issued = await AuthService.login(
                 mock_db_session,
                 LoginRequest(identifier=sample_user.email, password=SecretStr(STRONG_PASSWORD)),
             )
 
-        assert response.access_token == "jwt-access"
+        assert issued.access_token == "jwt-access"
+        assert issued.response.expires_in == 1800
+        assert issued.response.user.id == sample_user.id
+        added = mock_db_session.add.call_args[0][0]
+        assert isinstance(added, RefreshToken)
 
     async def test_login_still_blocks_unverified_when_otp_enabled(
         self, mock_db_session, sample_user: User
@@ -373,12 +448,18 @@ class TestAuthServiceOtp:
 
         sample_user.email_verified = False
         mock_db_session.get = AsyncMock(return_value=sample_user)
+        row = _active_refresh_row(sample_user)
 
         with (
             patch("app.services.auth_service.settings") as mock_settings,
             patch(
                 "app.services.auth_service.decode_token",
-                return_value={"sub": str(sample_user.id)},
+                return_value={"sub": str(sample_user.id), "jti": "old-jti"},
+            ),
+            patch.object(
+                AuthService,
+                "_get_refresh_row",
+                new=AsyncMock(return_value=row),
             ),
             patch(
                 "app.services.auth_service.create_access_token",
@@ -386,13 +467,18 @@ class TestAuthServiceOtp:
             ),
             patch(
                 "app.services.auth_service.create_refresh_token",
-                return_value=("jwt-refresh", 604800),
+                return_value=("jwt-refresh", 604800, "new-jti"),
             ),
         ):
             mock_settings.email_otp_enabled = False
-            response = await AuthService.refresh(mock_db_session, "refresh-token-value")
+            issued = await AuthService.refresh(mock_db_session, "refresh-token-value")
 
-        assert response.access_token == "jwt-access"
+        assert issued.access_token == "jwt-access"
+        assert issued.response.expires_in == 1800
+        assert row.revoked_at is not None
+        assert row.revoke_reason == "rotated"
+        added = mock_db_session.add.call_args[0][0]
+        assert isinstance(added, RefreshToken)
 
     async def test_refresh_blocks_unverified_when_otp_enabled(
         self, mock_db_session, sample_user: User
@@ -401,12 +487,18 @@ class TestAuthServiceOtp:
 
         sample_user.email_verified = False
         mock_db_session.get = AsyncMock(return_value=sample_user)
+        row = _active_refresh_row(sample_user)
 
         with (
             patch("app.services.auth_service.settings") as mock_settings,
             patch(
                 "app.services.auth_service.decode_token",
-                return_value={"sub": str(sample_user.id)},
+                return_value={"sub": str(sample_user.id), "jti": "old-jti"},
+            ),
+            patch.object(
+                AuthService,
+                "_get_refresh_row",
+                new=AsyncMock(return_value=row),
             ),
         ):
             mock_settings.email_otp_enabled = True
