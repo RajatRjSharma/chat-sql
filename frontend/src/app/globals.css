@@ -64,16 +64,33 @@
   }
 
   img,
-  svg,
   video,
   canvas {
     max-width: 100%;
     height: auto;
   }
 
+  /* max-width only — height:auto on svg breaks Recharts sizing */
+  svg {
+    max-width: 100%;
+  }
+
   button,
   [role="button"] {
     touch-action: manipulation;
+  }
+
+  /* Clicking bars/pies focuses the SVG; kill the default blue focus ring */
+  .recharts-wrapper,
+  .recharts-wrapper:focus,
+  .recharts-wrapper:focus-visible,
+  .recharts-surface,
+  .recharts-surface:focus,
+  .recharts-surface:focus-visible,
+  .recharts-sector:focus,
+  .recharts-bar-rectangle:focus,
+  .recharts-layer:focus {
+    outline: none !important;
   }
 
   ::selection {
