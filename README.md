@@ -66,7 +66,7 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
 Summaries are spoken with **Piper** on the API (local ONNX, no cloud TTS at request time). The English voice `en_US-amy-low` is committed under `backend/models/piper/` and used for local, Docker, and production.
 
-Play uses **`POST /api/voice/speak-stream`**. Prefetch starts when the answer arrives and **auto-plays** as soon as the first short audio chunk is ready (so you should not wait on the Play click). Chunks are cached in memory for repeat plays.
+Play uses **`POST /api/voice/speak-stream`**. Prefetch starts when the answer arrives so Play has less wait; playback only starts when you press Speak. Chunks are cached in memory for repeat plays.
 
 | Env | Default | Notes |
 |-----|---------|-------|
