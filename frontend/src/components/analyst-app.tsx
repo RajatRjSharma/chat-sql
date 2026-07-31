@@ -11,6 +11,7 @@ import { api, ApiError } from "@/lib/api";
 import {
   clearAuthSession,
   loadAuthSession,
+  onAuthCleared,
   saveAuthSession,
   type AuthSession,
 } from "@/lib/auth";
@@ -32,16 +33,35 @@ export function AnalystApp() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectError, setSelectError] = useState<string | null>(null);
 
+  const resetToSignedOut = useCallback(() => {
+    clearWorkspace();
+    setAuth(null);
+    setWorkspace(null);
+    setSources([]);
+    setSelectError(null);
+    setSelectingId(null);
+    setDeletingId(null);
+    setSourcesLoading(false);
+  }, []);
+
   const refreshSources = useCallback(async () => {
     try {
       const list = await api.listSources();
       setSources(list);
-    } catch {
+    } catch (err) {
+      // Session already invalidated by api layer — stay empty until login.
+      if (err instanceof ApiError && err.status === 401) {
+        setSources([]);
+        return;
+      }
       setSources([]);
     } finally {
       setSourcesLoading(false);
     }
   }, []);
+
+  // Cookie death (401 → failed refresh) clears storage; sync React to AuthGate.
+  useEffect(() => onAuthCleared(resetToSignedOut), [resetToSignedOut]);
 
   useEffect(() => {
     async function boot() {
@@ -60,15 +80,12 @@ export function AnalystApp() {
         await refreshSources();
       } catch {
         clearAuthSession();
-        clearWorkspace();
-        setAuth(null);
-        setWorkspace(null);
-        setSourcesLoading(false);
+        resetToSignedOut();
       }
       setReady(true);
     }
     void boot();
-  }, [refreshSources]);
+  }, [refreshSources, resetToSignedOut]);
 
   function handleAuthenticated(session: AuthSession) {
     saveAuthSession(session);
@@ -86,11 +103,7 @@ export function AnalystApp() {
       /* ignore — always clear local session */
     }
     clearAuthSession();
-    clearWorkspace();
-    setAuth(null);
-    setWorkspace(null);
-    setSources([]);
-    setSelectError(null);
+    resetToSignedOut();
   }
 
   function openWorkspace(payload: {

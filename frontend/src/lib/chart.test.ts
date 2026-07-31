@@ -24,6 +24,28 @@ describe("deriveChart", () => {
     expect(series.data.map((d) => d.value)).toEqual([100, 4]);
   });
 
+  it("ignores long text dumps as category and charts numeric metrics", () => {
+    const sampleNames =
+      "Initech, Wayne Enterprises, Massive Dynamic, Octan Corp, Oscorp, " +
+      "Acme Corp, Stark Industries, Pied Piper, Gringotts, Aperture Science";
+    const series = deriveChart(
+      ["total_customers", "distinct_regions", "sample_names"],
+      [
+        {
+          total_customers: 20,
+          distinct_regions: 4,
+          sample_names: sampleNames,
+        },
+      ],
+    );
+    expect(series.categoryKey).toBe("metric");
+    expect(series.data.map((d) => d.name)).toEqual([
+      "total_customers",
+      "distinct_regions",
+    ]);
+    expect(series.data.map((d) => d.value)).toEqual([20, 4]);
+  });
+
   it("uses frequency counts for text-only results", () => {
     const series = deriveChart(
       ["status"],

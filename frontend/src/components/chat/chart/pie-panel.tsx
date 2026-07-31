@@ -3,7 +3,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { ChartPoint } from "@/lib/chart";
 import { cn } from "@/lib/cn";
-import { formatValue, pieColor, TOOLTIP_STYLE } from "./chart-shared";
+import { formatValue, pieColor, TOOLTIP_STYLE, truncateLabel } from "./chart-shared";
 
 export function PiePanel({
   data,
@@ -144,13 +144,13 @@ function PieLegend({
             <div className="min-w-0 flex-1">
               <p
                 className={cn(
-                  "break-words leading-snug text-[var(--text-primary)]",
+                  "truncate leading-snug text-[var(--text-primary)]",
                   compact && !expanded ? "text-[11px]" : "text-[12px]",
                   expanded && "text-[13px]",
                 )}
                 title={point.name}
               >
-                {point.name}
+                {truncateLabel(point.name, expanded ? 36 : 22)}
               </p>
               <p className="mt-0.5 break-all font-mono text-[10px] tabular-nums text-[var(--text-secondary)] sm:text-[11px]">
                 {formatValue(point.value)}

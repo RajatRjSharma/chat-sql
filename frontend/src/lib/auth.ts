@@ -22,6 +22,30 @@ const LEGACY_KEYS = [
   "meridian.auth.v2",
 ] as const;
 
+type AuthClearedListener = () => void;
+const authClearedListeners = new Set<AuthClearedListener>();
+
+/**
+ * Subscribe to session clears (401 after failed refresh, logout, boot failure).
+ * Use this to drop React "logged in" state when cookies die but localStorage lingered.
+ */
+export function onAuthCleared(listener: AuthClearedListener): () => void {
+  authClearedListeners.add(listener);
+  return () => {
+    authClearedListeners.delete(listener);
+  };
+}
+
+function emitAuthCleared(): void {
+  for (const listener of [...authClearedListeners]) {
+    try {
+      listener();
+    } catch {
+      /* ignore subscriber errors */
+    }
+  }
+}
+
 function clearLegacyKeys(): void {
   for (const key of LEGACY_KEYS) {
     try {
@@ -66,6 +90,7 @@ export function clearAuthSession(): void {
   } catch {
     /* ignore */
   }
+  emitAuthCleared();
 }
 
 export function sessionFromTokenResponse(token: {
