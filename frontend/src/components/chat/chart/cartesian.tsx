@@ -17,7 +17,9 @@ import {
   DENSE_CATEGORY_COUNT,
   formatValue,
   formatYTick,
+  MAX_TICK_CHARS,
   TOOLTIP_STYLE,
+  truncateLabel,
 } from "./chart-shared";
 import { PiePanel } from "./pie-panel";
 
@@ -43,14 +45,21 @@ export function ChartPlot({
   );
 }
 
+function displayLen(data: ChartPoint[]) {
+  return Math.max(
+    ...data.map((d) => Math.min(d.name.length, MAX_TICK_CHARS)),
+    1,
+  );
+}
+
 function cartesianChrome(data: ChartPoint[]) {
-  const maxLen = Math.max(...data.map((d) => d.name.length), 1);
+  const maxLen = displayLen(data);
   const dense = data.length >= DENSE_CATEGORY_COUNT;
   const longLabels = maxLen > 8;
   const angled = dense || longLabels || data.length >= 5;
-  // Room for full category names (no ellipsis); scale with longest label.
+  // Height from truncated labels only — keeps the plot area visible.
   const xAxisHeight = angled
-    ? Math.min(130, Math.max(56, 24 + maxLen * 3.4))
+    ? Math.min(88, Math.max(48, 22 + maxLen * 2.6))
     : 32;
 
   return [
@@ -103,6 +112,7 @@ function CategoryTick({
   angled: boolean;
 }) {
   const label = String(payload?.value ?? "");
+  const short = truncateLabel(label);
   return (
     <g transform={`translate(${x},${y})`}>
       <title>{label}</title>
@@ -115,21 +125,21 @@ function CategoryTick({
         fontSize={11}
         style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
       >
-        {label}
+        {short}
       </text>
     </g>
   );
 }
 
 function cartesianMargin(data: ChartPoint[]) {
-  const maxLen = Math.max(...data.map((d) => d.name.length), 1);
+  const maxLen = displayLen(data);
   const angled =
     data.length >= DENSE_CATEGORY_COUNT || maxLen > 8 || data.length >= 5;
   return {
     top: 8,
     right: 12,
     left: 0,
-    bottom: angled ? Math.min(36, 10 + Math.floor(maxLen * 0.35)) : 8,
+    bottom: angled ? Math.min(28, 8 + Math.floor(maxLen * 0.4)) : 8,
   };
 }
 

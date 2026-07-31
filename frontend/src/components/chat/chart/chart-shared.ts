@@ -23,12 +23,24 @@ export const TOOLTIP_STYLE = {
   borderRadius: 8,
   color: "var(--text-on-dark)",
   fontSize: 12,
-  maxWidth: 240,
-} as const;
+  maxWidth: 320,
+  whiteSpace: "normal" as const,
+  wordBreak: "break-word" as const,
+  lineHeight: 1.35,
+};
 
 export const AXIS_TICK = { fill: "var(--text-secondary)", fontSize: 11 } as const;
 
 export const DENSE_CATEGORY_COUNT = 8;
+/** Visible chars on axis ticks; full label stays in tooltip / native title. */
+export const MAX_TICK_CHARS = 14;
+
+export function truncateLabel(label: string, maxChars = MAX_TICK_CHARS): string {
+  const text = label.trim();
+  if (text.length <= maxChars) return text;
+  if (maxChars <= 1) return "…";
+  return `${text.slice(0, Math.max(1, maxChars - 1))}…`;
+}
 
 export function formatYTick(value: number): string {
   const abs = Math.abs(value);

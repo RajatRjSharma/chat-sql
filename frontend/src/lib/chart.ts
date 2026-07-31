@@ -22,6 +22,8 @@ const EMPTY_SERIES: ChartSeries = {
 const MAX_CHART_POINTS = 40;
 const PIE_MAX_CATEGORIES = 8;
 const LINE_MIN_ROWS = 13;
+/** Skip text columns whose typical values would crush axis labels (e.g. STRING_AGG dumps). */
+const MAX_AVG_CATEGORY_LABEL_LEN = 48;
 
 function isNumeric(value: unknown): boolean {
   if (typeof value === "number" && Number.isFinite(value)) return true;
@@ -40,6 +42,28 @@ function toNumber(value: unknown): number {
 function labelOf(value: unknown, fallback: string): string {
   if (value == null || value === "") return fallback;
   return String(value);
+}
+
+function averageLabelLength(
+  rows: Record<string, unknown>[],
+  column: string,
+): number {
+  if (!rows.length) return 0;
+  let total = 0;
+  for (const row of rows) {
+    total += String(row[column] ?? "").length;
+  }
+  return total / rows.length;
+}
+
+/** Prefer short categorical labels (region, status) over blob columns (sample_names). */
+function shortCategoryColumns(
+  columns: string[],
+  rows: Record<string, unknown>[],
+): string[] {
+  return columns.filter(
+    (col) => averageLabelLength(rows, col) <= MAX_AVG_CATEGORY_LABEL_LEN,
+  );
 }
 
 function finish(categoryKey: string, valueKey: string, data: ChartPoint[]): ChartSeries {
@@ -100,10 +124,11 @@ export function deriveChart(
     sample.every((row) => row[col] == null || row[col] === "" || isNumeric(row[col])),
   );
   const categoryCols = columns.filter((col) => !numericCols.includes(col));
+  const usableCategoryCols = shortCategoryColumns(categoryCols, sample);
 
-  // 1) Classic: label + value
-  if (numericCols.length && categoryCols.length) {
-    const categoryKey = categoryCols[0];
+  // 1) Classic: short label + value (ignore blob text columns like STRING_AGG lists)
+  if (numericCols.length && usableCategoryCols.length) {
+    const categoryKey = usableCategoryCols[0];
     const valueKey = numericCols[0];
     const data = rows.map((row, index) => ({
       name: labelOf(row[categoryKey], `Row ${index + 1}`),
@@ -112,7 +137,8 @@ export function deriveChart(
     return finish(categoryKey, valueKey, data);
   }
 
-  // 2) Single row of metrics (e.g. SELECT SUM(...) AS total)
+  // 2) Single row of metrics (e.g. SELECT SUM(...) AS total) — also when the only
+  //    text columns are long dumps that should not become the X axis.
   if (numericCols.length && rows.length === 1) {
     const row = rows[0];
     const data = numericCols.map((col) => ({
@@ -122,18 +148,21 @@ export function deriveChart(
     return finish("metric", "value", data);
   }
 
-  // 3) Multi-row numeric-only: plot first numeric against row index / first col
+  // 3) Multi-row numeric-only (or long-only text cats): plot first numeric vs row / short label
   if (numericCols.length) {
-    const labelCol = columns[0];
-    const valueKey = numericCols.find((c) => c !== labelCol) ?? numericCols[0];
+    const labelCol =
+      usableCategoryCols[0] ??
+      (categoryCols.length === 0 ? columns[0] : null);
+    const valueKey =
+      (labelCol && numericCols.find((c) => c !== labelCol)) ?? numericCols[0];
     const data = rows.map((row, index) => ({
       name:
-        labelCol !== valueKey
+        labelCol && labelCol !== valueKey
           ? labelOf(row[labelCol], `Row ${index + 1}`)
           : `Row ${index + 1}`,
       value: toNumber(row[valueKey]),
     }));
-    return finish(labelCol !== valueKey ? labelCol : "row", valueKey, data);
+    return finish(labelCol && labelCol !== valueKey ? labelCol : "row", valueKey, data);
   }
 
   // 4) Text-only: frequency of the first column (top N)

@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearAuthSession,
   loadAuthSession,
+  onAuthCleared,
   saveAuthSession,
   sessionFromTokenResponse,
   type AuthUser,
@@ -59,5 +60,16 @@ describe("auth session storage", () => {
     expect(localStorage.getItem("vdda.auth.v2")).toBeNull();
     expect(localStorage.getItem("vdda.auth.v1")).toBeNull();
     expect(loadAuthSession()).toBeNull();
+  });
+
+  it("notifies subscribers when the session is cleared (e.g. 401)", () => {
+    const onCleared = vi.fn();
+    const unsubscribe = onAuthCleared(onCleared);
+    saveAuthSession({ expiresAt: Date.now() + 60_000, user });
+    clearAuthSession();
+    expect(onCleared).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    clearAuthSession();
+    expect(onCleared).toHaveBeenCalledTimes(1);
   });
 });
