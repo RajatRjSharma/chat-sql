@@ -22,9 +22,12 @@ type InsightPanelProps = {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 text-[12px] leading-snug">
+    <div className="flex flex-col gap-0.5 text-[12px] leading-snug sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <span className="shrink-0 text-[var(--text-secondary)]">{label}</span>
-      <span className="min-w-0 break-words text-right font-mono text-[var(--text-primary)]">
+      <span
+        className="min-w-0 break-words font-mono text-[var(--text-primary)] sm:text-right"
+        title={value}
+      >
         {value}
       </span>
     </div>
@@ -57,7 +60,7 @@ function SourceMetadataBlock({
 
   const tables =
     meta.tables_in_context.length > 0
-      ? meta.tables_in_context.slice(0, 6).join(", ")
+      ? meta.tables_in_context.join(", ")
       : "—";
 
   return (
@@ -202,7 +205,7 @@ export function MobileInsightDrawer({
         "rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)]",
       )}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-[var(--text-primary)] marker:content-none [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-[var(--text-primary)] marker:content-none [&::-webkit-details-marker]:hidden">
         <span>Evidence & provenance</span>
         <span className="text-[11px] font-normal uppercase tracking-[0.12em] text-[var(--text-secondary)] group-open:hidden">
           {hasContent ? "Show" : "Empty"}

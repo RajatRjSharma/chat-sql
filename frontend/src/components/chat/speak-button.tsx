@@ -66,7 +66,7 @@ export function SpeakButton({ text, className, speakId }: SpeakButtonProps) {
       type="button"
       variant="ghost"
       size="sm"
-      className={cn("h-8 px-2", className)}
+      className={cn("h-11 min-w-11 px-2 sm:h-8 sm:min-w-0", className)}
       onClick={() => {
         void handleClick();
       }}

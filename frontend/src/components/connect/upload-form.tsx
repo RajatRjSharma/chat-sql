@@ -117,7 +117,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
             onDrop={onDrop}
             onClick={() => !busy && inputRef.current?.click()}
             className={cn(
-              "cursor-pointer rounded-xl border border-dashed px-5 py-8 text-center transition-colors",
+              "cursor-pointer rounded-xl border border-dashed px-4 py-7 text-center transition-colors sm:px-5 sm:py-8",
               dragOver
                 ? "border-[var(--accent)] bg-[var(--accent)]/10"
                 : "border-white/15 bg-[var(--bg-shell)]/60 hover:border-white/25",
@@ -132,7 +132,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
               disabled={busy}
               onChange={onFileInput}
             />
-            <p className="text-sm text-[var(--text-on-dark)]">
+            <p className="break-all text-sm text-[var(--text-on-dark)]">
               {file ? file.name : "Drop a file here, or click to browse"}
             </p>
             <p className="mt-2 text-xs text-[var(--text-muted-dark)]">

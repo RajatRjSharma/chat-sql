@@ -37,7 +37,7 @@ export function SqlDisclosure({ sql, attempts }: SqlDisclosureProps) {
         />
       </button>
       {open ? (
-        <pre className="overflow-x-auto border-t border-[var(--border-card)] bg-[var(--bg-shell)] px-4 py-3 font-mono text-[12px] leading-relaxed text-[var(--text-on-dark)]">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words border-t border-[var(--border-card)] bg-[var(--bg-shell)] px-4 py-3 font-mono text-[12px] leading-relaxed text-[var(--text-on-dark)]">
           {sql}
         </pre>
       ) : null}

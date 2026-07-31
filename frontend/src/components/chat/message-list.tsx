@@ -31,11 +31,11 @@ export function MessageList({
 }: MessageListProps) {
   if (!turns.length && !pendingQuestion) {
     return (
-      <div className="flex h-full min-h-[280px] flex-col items-center justify-center px-4 text-center animate-fade-in sm:min-h-[280px] sm:px-6">
-        <p className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--text-primary)] sm:text-3xl">
+      <div className="flex h-full min-h-[240px] flex-col items-center justify-center px-4 text-center animate-fade-in sm:min-h-[280px] sm:px-6">
+        <p className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--text-primary)] sm:text-3xl md:text-4xl">
           Ask anything about the warehouse
         </p>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-[var(--text-secondary)] sm:text-[15px]">
           Questions become validated SQL, executed read-only, then summarized with a
           chart when the result shape allows.
         </p>

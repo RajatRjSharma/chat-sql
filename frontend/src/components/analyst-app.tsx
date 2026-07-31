@@ -222,13 +222,13 @@ export function AnalystApp() {
         className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[var(--accent-light)]/15 blur-3xl"
       />
 
-      <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-4 py-6 sm:px-5 sm:py-8 md:px-10 md:py-12">
+      <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-4 pb-[max(1.5rem,var(--safe-bottom))] pt-[max(1.5rem,var(--safe-top))] sm:px-5 sm:py-8 md:px-10 md:py-12">
         <header className="flex items-start justify-between gap-3 animate-fade-in sm:items-center">
           <div className="min-w-0">
-            <p className="max-w-[14ch] font-[family-name:var(--font-display)] text-lg leading-tight tracking-tight sm:max-w-[18ch] sm:text-xl md:max-w-none md:text-2xl">
+            <p className="break-words font-[family-name:var(--font-display)] text-base leading-tight tracking-tight sm:text-xl md:text-2xl">
               Voice-Driven Data Analyst
             </p>
-            <p className="mt-1 truncate text-sm text-[var(--text-muted-dark)]">
+            <p className="mt-1 break-words text-sm text-[var(--text-muted-dark)]">
               @{auth.user.username}
             </p>
           </div>

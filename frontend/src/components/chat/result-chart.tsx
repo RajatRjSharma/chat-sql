@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bar,
@@ -29,6 +24,7 @@ import {
   type ChartPoint,
   type ChartSeries,
 } from "@/lib/chart";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/cn";
 
 const PIE_COLORS = [
@@ -67,12 +63,6 @@ type ResultChartProps = {
   compact?: boolean;
 };
 
-function truncateLabel(value: unknown, max = 14): string {
-  const text = String(value ?? "");
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1)}…`;
-}
-
 function formatYTick(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
@@ -97,6 +87,7 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
   const [pickedKind, setPickedKind] = useState<ChartDisplayKind | null>(null);
   const [baselineIdentity, setBaselineIdentity] = useState(identity);
   const [fullscreen, setFullscreen] = useState(false);
+  const isNarrow = useMediaQuery("(max-width: 639px)");
 
   if (identity !== baselineIdentity) {
     setBaselineIdentity(identity);
@@ -109,9 +100,23 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
   const showTruncationNote =
     series.valueKey !== "count" && rows.length > series.data.length;
 
-  // Pie needs vertical room for a side legend; bar/line stay tighter.
+  // Responsive heights: taller on phones when pie stacks; room for axis labels on bar/line.
   const height =
-    activeKind === "pie" ? (compact ? 260 : 340) : compact ? 200 : 280;
+    activeKind === "pie"
+      ? isNarrow
+        ? compact
+          ? 420
+          : 460
+        : compact
+          ? 330
+          : 380
+      : isNarrow
+        ? compact
+          ? 260
+          : 300
+        : compact
+          ? 240
+          : 320;
 
   return (
     <>
@@ -163,18 +168,20 @@ function ChartShell({
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] animate-fade-in",
-        expanded ? "h-full rounded-2xl border-0 p-0" : "p-4",
+        "flex w-full min-w-0 flex-col overflow-hidden bg-[var(--bg-card)] animate-fade-in",
+        expanded
+          ? "h-full border-0 p-0"
+          : "rounded-xl border border-[var(--border-card)] p-3.5 sm:p-4",
       )}
       style={expanded ? undefined : { height }}
     >
       <div
         className={cn(
-          "flex shrink-0 items-start justify-between gap-2",
-          expanded ? "mb-4 px-1" : "mb-3",
+          "flex shrink-0 flex-wrap items-start justify-between gap-2",
+          expanded ? "mb-4" : "mb-3",
         )}
       >
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
             Visualization
             {showTruncationNote ? (
@@ -183,7 +190,10 @@ function ChartShell({
               </span>
             ) : null}
           </p>
-          <p className="truncate font-mono text-[11px] text-[var(--text-secondary)]">
+          <p
+            className="break-words font-mono text-[11px] leading-snug text-[var(--text-secondary)]"
+            title={`${series.valueKey} · ${series.categoryKey}`}
+          >
             {series.valueKey} · {series.categoryKey}
           </p>
         </div>
@@ -196,8 +206,10 @@ function ChartShell({
               aria-label="View chart fullscreen"
               title="Fullscreen"
               className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-card)]",
-                "text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]",
+                "inline-flex h-11 w-11 items-center justify-center rounded-md sm:h-8 sm:w-8",
+                "border border-[var(--border-card)] bg-[var(--bg-card)]",
+                "text-[var(--text-secondary)] transition-colors",
+                "hover:bg-[var(--bg-user)] hover:text-[var(--text-primary)]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
               )}
             >
@@ -206,7 +218,7 @@ function ChartShell({
           ) : null}
         </div>
       </div>
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--bg-card)]">
         <ChartPlot kind={activeKind} series={series} compact={compact} expanded={expanded} />
       </div>
     </div>
@@ -254,11 +266,11 @@ function ChartFullscreenModal({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 md:p-6">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-5 md:p-8">
       <button
         type="button"
         aria-label="Close fullscreen chart"
-        className="absolute inset-0 bg-[var(--bg-shell)]/70 backdrop-blur-[2px] animate-fade-in"
+        className="absolute inset-0 bg-[var(--bg-shell)]/65 backdrop-blur-[3px] animate-fade-in"
         onClick={onClose}
       />
       <div
@@ -266,13 +278,14 @@ function ChartFullscreenModal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          "relative z-[81] flex w-full max-w-5xl flex-col",
-          "h-[min(92dvh,860px)] max-h-[100dvh]",
-          "rounded-t-2xl border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[0_24px_80px_-24px_rgba(15,23,42,0.55)] sm:rounded-2xl",
-          "animate-rise",
+          "relative z-[81] flex w-full max-w-5xl flex-col overflow-hidden",
+          "h-[min(94dvh,900px)] max-h-[100dvh]",
+          "rounded-t-2xl border border-[var(--border-card)] bg-[var(--bg-card)]",
+          "shadow-[0_28px_90px_-28px_rgba(15,23,42,0.55)] sm:rounded-2xl",
+          "pb-[max(0px,var(--safe-bottom))] animate-rise",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-card)] px-4 py-3 sm:px-5">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-card)] bg-[var(--bg-card)] px-4 py-3.5 pt-[max(0.875rem,var(--safe-top))] sm:px-6 sm:pt-3.5">
           <div className="min-w-0">
             <p
               id={titleId}
@@ -280,12 +293,12 @@ function ChartFullscreenModal({
             >
               Chart view
             </p>
-            <p className="truncate font-mono text-[11px] text-[var(--text-secondary)]">
+            <p className="break-words font-mono text-[11px] leading-snug text-[var(--text-secondary)]">
               {series.valueKey} · {series.categoryKey}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-md border border-[var(--border-card)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] sm:inline-flex">
+            <span className="hidden items-center gap-1.5 rounded-md border border-[var(--border-card)] bg-[var(--bg-card)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] sm:inline-flex">
               <Minimize2 className="h-3.5 w-3.5" />
               Esc to close
             </span>
@@ -295,8 +308,9 @@ function ChartFullscreenModal({
               onClick={onClose}
               aria-label="Close"
               className={cn(
-                "inline-flex h-10 w-10 items-center justify-center rounded-md border border-[var(--border-card)]",
-                "bg-[var(--bg-card)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-user)]",
+                "inline-flex h-11 w-11 items-center justify-center rounded-md sm:h-10 sm:w-10",
+                "border border-[var(--border-card)] bg-[var(--bg-card)] text-[var(--text-primary)]",
+                "transition-colors hover:bg-[var(--bg-user)]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
               )}
             >
@@ -304,7 +318,7 @@ function ChartFullscreenModal({
             </button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 p-4 sm:p-5">
+        <div className="min-h-0 flex-1 bg-[var(--bg-card)] px-4 py-4 sm:px-6 sm:py-5">
           <ChartShell
             series={series}
             activeKind={activeKind}
@@ -331,7 +345,7 @@ function ChartKindToggle({
 }) {
   return (
     <div
-      className="flex max-w-full shrink-0 rounded-lg border border-[var(--border-card)] p-0.5"
+      className="flex max-w-full shrink-0 rounded-lg border border-[var(--border-card)] bg-[var(--bg-card)] p-0.5"
       role="group"
       aria-label="Chart type"
     >
@@ -344,11 +358,11 @@ function ChartKindToggle({
             onClick={() => onChange(opt.id)}
             aria-pressed={selected}
             className={cn(
-              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors sm:px-2.5",
+              "min-h-11 rounded-md px-3 py-2 text-[12px] font-medium transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px]",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
               selected
                 ? "bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-user)] hover:text-[var(--text-primary)]",
             )}
           >
             {opt.label}
@@ -382,9 +396,14 @@ function ChartPlot({
 }
 
 function cartesianChrome(data: ChartPoint[]) {
+  const maxLen = Math.max(...data.map((d) => d.name.length), 1);
   const dense = data.length >= DENSE_CATEGORY_COUNT;
-  const longLabels = data.some((d) => d.name.length > 10);
-  const angled = dense || longLabels;
+  const longLabels = maxLen > 8;
+  const angled = dense || longLabels || data.length >= 5;
+  // Room for full category names (no ellipsis); scale with longest label.
+  const xAxisHeight = angled
+    ? Math.min(130, Math.max(56, 24 + maxLen * 3.4))
+    : 32;
 
   return [
     <CartesianGrid
@@ -396,15 +415,13 @@ function cartesianChrome(data: ChartPoint[]) {
     <XAxis
       key="x"
       dataKey="name"
-      tick={AXIS_TICK}
+      tick={<CategoryTick angled={angled} />}
       axisLine={false}
       tickLine={false}
-      interval="preserveStartEnd"
-      minTickGap={angled ? 4 : 12}
-      angle={angled ? -32 : 0}
-      textAnchor={angled ? "end" : "middle"}
-      height={angled ? 52 : 28}
-      tickFormatter={(value) => truncateLabel(value, angled ? 10 : 14)}
+      interval={data.length <= 14 ? 0 : "preserveStartEnd"}
+      minTickGap={angled ? 2 : 8}
+      height={xAxisHeight}
+      tickMargin={angled ? 6 : 8}
     />,
     <YAxis
       key="y"
@@ -426,14 +443,45 @@ function cartesianChrome(data: ChartPoint[]) {
   ];
 }
 
+function CategoryTick({
+  x = 0,
+  y = 0,
+  payload,
+  angled,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string | number };
+  angled: boolean;
+}) {
+  const label = String(payload?.value ?? "");
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{label}</title>
+      <text
+        dy={angled ? 4 : 12}
+        dx={angled ? -2 : 0}
+        textAnchor={angled ? "end" : "middle"}
+        transform={angled ? "rotate(-38)" : undefined}
+        fill="var(--text-secondary)"
+        fontSize={11}
+        style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
 function cartesianMargin(data: ChartPoint[]) {
+  const maxLen = Math.max(...data.map((d) => d.name.length), 1);
   const angled =
-    data.length >= DENSE_CATEGORY_COUNT || data.some((d) => d.name.length > 10);
+    data.length >= DENSE_CATEGORY_COUNT || maxLen > 8 || data.length >= 5;
   return {
     top: 8,
-    right: 8,
+    right: 12,
     left: 0,
-    bottom: angled ? 8 : 4,
+    bottom: angled ? Math.min(36, 10 + Math.floor(maxLen * 0.35)) : 8,
   };
 }
 
@@ -477,14 +525,19 @@ function PiePanel({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full gap-3",
-        stackLegend ? "flex-col" : "flex-row items-stretch",
+        "flex h-full min-h-0 w-full bg-[var(--bg-card)]",
+        stackLegend
+          ? "flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3"
+          : "flex-row items-stretch gap-3 sm:gap-4",
       )}
     >
       <div
         className={cn(
-          "relative min-h-0 min-w-0",
-          stackLegend ? "h-[58%] w-full" : "h-full flex-[1.35]",
+          "relative min-h-0 min-w-0 bg-[var(--bg-card)]",
+          stackLegend
+            ? "min-h-[220px] flex-[1.7] sm:h-full sm:min-h-0 sm:flex-[1.75]"
+            : "h-full flex-[1.75]",
+          expanded && "flex-[1.9]",
         )}
       >
         <ResponsiveContainer width="100%" height="100%" debounce={50}>
@@ -507,18 +560,15 @@ function PiePanel({
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={expanded ? "48%" : compact ? "42%" : "46%"}
-              outerRadius={expanded ? "78%" : compact ? "72%" : "76%"}
-              paddingAngle={data.length > 1 ? 2.5 : 0}
+              innerRadius={expanded ? "45%" : compact ? "38%" : "42%"}
+              outerRadius={expanded ? "84%" : compact ? "88%" : "82%"}
+              paddingAngle={data.length > 1 ? 2 : 0}
               stroke="var(--bg-card)"
-              strokeWidth={3}
+              strokeWidth={expanded ? 4 : 3}
               isAnimationActive={!compact}
             >
               {data.map((point, index) => (
-                <Cell
-                  key={`${point.name}-${index}`}
-                  fill={pieColor(index)}
-                />
+                <Cell key={`${point.name}-${index}`} fill={pieColor(index)} />
               ))}
             </Pie>
           </PieChart>
@@ -528,7 +578,16 @@ function PiePanel({
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
               Total
             </p>
-            <p className="mt-0.5 font-mono text-sm font-medium tabular-nums text-[var(--text-primary)] sm:text-base">
+            <p
+              className={cn(
+                "mt-0.5 font-mono font-semibold tabular-nums text-[var(--text-primary)]",
+                expanded
+                  ? "text-lg sm:text-xl"
+                  : compact
+                    ? "text-[13px] sm:text-sm"
+                    : "text-sm sm:text-base",
+              )}
+            >
               {formatValue(total)}
             </p>
           </div>
@@ -562,9 +621,11 @@ function PieLegend({
   return (
     <ul
       className={cn(
-        "min-h-0 min-w-0 overflow-y-auto overscroll-contain",
-        stack ? "flex max-h-[42%] flex-wrap content-start gap-1.5" : "flex flex-1 flex-col gap-1.5 py-0.5",
-        expanded && !stack && "gap-2 pr-1",
+        "min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[var(--bg-card)]",
+        stack
+          ? "flex max-h-[38%] flex-wrap content-start gap-1.5 sm:max-h-none sm:w-[min(42%,240px)] sm:flex-1 sm:flex-col sm:flex-nowrap sm:justify-center sm:py-0.5"
+          : "flex w-[min(48%,240px)] shrink-0 flex-col justify-center gap-1.5 py-0.5 sm:w-[min(42%,280px)]",
+        expanded && "w-[min(38%,320px)] gap-2",
       )}
       aria-label="Pie chart legend"
     >
@@ -574,9 +635,10 @@ function PieLegend({
           <li
             key={`${point.name}-${index}`}
             className={cn(
-              "flex items-start gap-2 rounded-lg border border-[var(--border-card)]/80 bg-[var(--bg-surface)]/60",
-              stack ? "max-w-full px-2 py-1.5" : "px-2.5 py-2",
+              "flex items-start gap-2 rounded-lg border border-[var(--border-card)] bg-[var(--bg-card)]",
+              compact && !expanded ? "px-2 py-1.5" : "px-2.5 py-2",
               expanded && "px-3 py-2.5",
+              stack && "max-w-full sm:max-w-none",
             )}
           >
             <span
@@ -587,17 +649,17 @@ function PieLegend({
             <div className="min-w-0 flex-1">
               <p
                 className={cn(
-                  "leading-snug text-[var(--text-primary)]",
+                  "break-words leading-snug text-[var(--text-primary)]",
                   compact && !expanded ? "text-[11px]" : "text-[12px]",
                   expanded && "text-[13px]",
                 )}
                 title={point.name}
               >
-                {truncateLabel(point.name, expanded ? 36 : compact ? 16 : 22)}
+                {point.name}
               </p>
-              <p className="mt-0.5 font-mono text-[10px] tabular-nums text-[var(--text-secondary)] sm:text-[11px]">
+              <p className="mt-0.5 break-all font-mono text-[10px] tabular-nums text-[var(--text-secondary)] sm:text-[11px]">
                 {formatValue(point.value)}
-                <span className="text-[var(--text-secondary)]/80">
+                <span className="text-[var(--text-secondary)]">
                   {" "}
                   · {pct.toFixed(1)}%
                 </span>

@@ -39,8 +39,7 @@ function toNumber(value: unknown): number {
 
 function labelOf(value: unknown, fallback: string): string {
   if (value == null || value === "") return fallback;
-  const text = String(value);
-  return text.length > 48 ? `${text.slice(0, 47)}…` : text;
+  return String(value);
 }
 
 function finish(categoryKey: string, valueKey: string, data: ChartPoint[]): ChartSeries {
