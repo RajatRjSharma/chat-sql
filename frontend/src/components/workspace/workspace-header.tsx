@@ -80,7 +80,12 @@ export function WorkspaceHeader({
             <span className="md:hidden">Switch</span>
             <span className="hidden md:inline">Switch warehouse</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onLogout}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[var(--text-on-dark)] hover:bg-white/[0.06] hover:text-[var(--text-on-dark)]"
+            onClick={onLogout}
+          >
             Log out
           </Button>
         </div>
@@ -151,7 +156,7 @@ export function WorkspaceHeader({
                         "min-h-11 w-full rounded-lg border px-3 py-2.5 text-left text-[13px] leading-snug transition-colors disabled:opacity-40",
                         session.session_id === sessionId
                           ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--text-on-dark)]"
-                          : "border-white/8 text-[var(--text-muted-dark)] hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
+                          : "border-white/8 text-[var(--text-on-dark)]/90 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
                       )}
                     >
                       <span className="line-clamp-2 break-words">
@@ -179,7 +184,7 @@ export function WorkspaceHeader({
                         setMenuOpen(false);
                         void onAsk(q);
                       }}
-                      className="min-h-11 w-full break-words rounded-lg border border-white/8 px-3 py-2.5 text-left text-[12px] leading-snug text-[var(--text-muted-dark)] hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
+                      className="min-h-11 w-full break-words rounded-lg border border-white/8 px-3 py-2.5 text-left text-[12px] leading-snug text-[var(--text-on-dark)]/90 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
                     >
                       {q}
                     </button>

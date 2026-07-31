@@ -15,7 +15,8 @@
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-on-dark: #f1f5f9;
-  --text-muted-dark: #94a3b8;
+  /* Brighter than slate-400 so copy stays readable on --bg-shell */
+  --text-muted-dark: #c5cedb;
 
   --accent: #4292e0;
   --accent-hover: #2f7bc9;

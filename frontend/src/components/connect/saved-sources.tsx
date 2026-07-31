@@ -90,12 +90,12 @@ export function SavedSources({
                     {source.name}
                   </span>
                   <span
-                    className="mt-1 block break-all font-mono text-[11px] leading-snug text-[var(--text-muted-dark)]"
+                    className="mt-1 block break-all font-mono text-[11px] leading-snug text-[var(--text-on-dark)]/75"
                     title={location}
                   >
                     {location}
                   </span>
-                  <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted-dark)]">
+                  <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-on-dark)]/70">
                     <span>
                       {source.session_count} session
                       {source.session_count === 1 ? "" : "s"}
@@ -142,7 +142,7 @@ export function SavedSources({
                         setConfirmId(source.id);
                       }}
                       className={cn(
-                        "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[var(--text-muted-dark)] transition-colors",
+                        "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[var(--text-on-dark)]/70 transition-colors",
                         "hover:bg-[var(--error)]/10 hover:text-[#fecaca]",
                         "disabled:opacity-45",
                       )}

@@ -84,7 +84,7 @@ export function SessionHistory({
                     "disabled:opacity-40",
                     active
                       ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--text-on-dark)]"
-                      : "border-transparent text-[var(--text-muted-dark)] hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
+                      : "border-transparent text-[var(--text-on-dark)]/92 hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)]",
                   )}
                 >
                   <span
@@ -93,7 +93,7 @@ export function SessionHistory({
                   >
                     {session.title || "Untitled session"}
                   </span>
-                  <span className="mt-1.5 flex items-center justify-between gap-2 font-mono text-[10px] opacity-70">
+                  <span className="mt-1.5 flex items-center justify-between gap-2 font-mono text-[10px] text-[var(--text-muted-dark)]">
                     <span>
                       {session.message_count} msg
                       {session.message_count === 1 ? "" : "s"}
