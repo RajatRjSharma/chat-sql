@@ -45,28 +45,24 @@ export function AnalystApp() {
 
   useEffect(() => {
     async function boot() {
+      // Cookie session: probe /me when a profile cache exists, or once blindly
+      // after hard refresh if cookies might still be valid.
       const stored = loadAuthSession();
-      if (stored) {
-        try {
-          const user = await api.me();
-          const session = {
-            accessToken: stored.accessToken,
-            refreshToken: stored.refreshToken,
-            expiresAt: stored.expiresAt,
-            user,
-          };
-          saveAuthSession(session);
-          setAuth(session);
-          setWorkspace(loadWorkspace());
-          await refreshSources();
-        } catch {
-          clearAuthSession();
-          clearWorkspace();
-          setAuth(null);
-          setWorkspace(null);
-          setSourcesLoading(false);
-        }
-      } else {
+      try {
+        const user = await api.me();
+        const session = {
+          expiresAt: stored?.expiresAt ?? Date.now() + 30 * 60 * 1000,
+          user,
+        };
+        saveAuthSession(session);
+        setAuth(session);
+        setWorkspace(loadWorkspace());
+        await refreshSources();
+      } catch {
+        clearAuthSession();
+        clearWorkspace();
+        setAuth(null);
+        setWorkspace(null);
         setSourcesLoading(false);
       }
       setReady(true);

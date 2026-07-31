@@ -33,7 +33,9 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       ...process.env,
-      NEXT_PUBLIC_API_URL: "http://127.0.0.1:8000",
+      // Same-origin /api (Next rewrite) — matches production mobile-safe cookie path.
+      NEXT_PUBLIC_API_URL: "",
+      API_PROXY_TARGET: "http://127.0.0.1:8000",
     },
   },
 });

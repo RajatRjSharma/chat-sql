@@ -1,4 +1,4 @@
-/** Client-side auth session — access + refresh JWTs (stateless). */
+/** Client-side auth profile cache — JWTs live in httpOnly cookies only. */
 
 export type AuthUser = {
   id: string;
@@ -9,25 +9,37 @@ export type AuthUser = {
   created_at?: string | null;
 };
 
+/** Lightweight client mirror of the server session (no tokens). */
 export type AuthSession = {
-  accessToken: string;
-  refreshToken: string;
   expiresAt: number;
   user: AuthUser;
 };
 
-const STORAGE_KEY = "vdda.auth.v1";
+const STORAGE_KEY = "vdda.auth.v2";
+const LEGACY_KEYS = [
+  "vdda.auth.v1",
+  "meridian.auth.v1",
+  "meridian.auth.v2",
+] as const;
+
+function clearLegacyKeys(): void {
+  for (const key of LEGACY_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 export function loadAuthSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
   try {
-    // Clear legacy Meridian keys if present.
-    localStorage.removeItem("meridian.auth.v1");
-    localStorage.removeItem("meridian.auth.v2");
+    clearLegacyKeys();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
-    if (!parsed?.accessToken || !parsed?.refreshToken || !parsed?.user?.id) {
+    if (!parsed?.user?.id || typeof parsed.expiresAt !== "number") {
       return null;
     }
     return parsed;
@@ -37,34 +49,30 @@ export function loadAuthSession(): AuthSession | null {
 }
 
 export function saveAuthSession(session: AuthSession): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  clearLegacyKeys();
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      expiresAt: session.expiresAt,
+      user: session.user,
+    } satisfies AuthSession),
+  );
 }
 
 export function clearAuthSession(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("meridian.auth.v1");
-    localStorage.removeItem("meridian.auth.v2");
+    clearLegacyKeys();
   } catch {
     /* ignore */
   }
 }
 
-export function authHeaders(): Record<string, string> {
-  const session = loadAuthSession();
-  if (!session?.accessToken) return {};
-  return { Authorization: `Bearer ${session.accessToken}` };
-}
-
 export function sessionFromTokenResponse(token: {
-  access_token: string;
-  refresh_token: string;
   expires_in: number;
   user: AuthUser;
 }): AuthSession {
   return {
-    accessToken: token.access_token,
-    refreshToken: token.refresh_token,
     expiresAt: Date.now() + token.expires_in * 1000,
     user: token.user,
   };

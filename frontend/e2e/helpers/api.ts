@@ -49,7 +49,7 @@ export type MockApiOptions = {
 
 /**
  * Stub FastAPI routes used by the Voice-Driven Data Analyst UI.
- * Paths match NEXT_PUBLIC_API_URL (http://127.0.0.1:8000).
+ * Paths match same-origin `/api/...` (Next rewrite) or a direct API host.
  */
 export async function mockApi(page: Page, options: MockApiOptions = {}) {
   const sources = options.sources ?? [];
@@ -76,14 +76,13 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
   await page.addInitScript((user) => {
     try {
       localStorage.setItem(
-        "vdda.auth.v1",
+        "vdda.auth.v2",
         JSON.stringify({
-          accessToken: "e2e-test-token",
-          refreshToken: "e2e-refresh-token",
           expiresAt: Date.now() + 60 * 60 * 1000,
           user,
         }),
       );
+      localStorage.removeItem("vdda.auth.v1");
     } catch {
       /* ignore */
     }
@@ -103,8 +102,6 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (method === "POST" && path === "/api/auth/login") {
       return fulfill(route, {
-        access_token: "e2e-test-token",
-        refresh_token: "e2e-refresh-token",
         token_type: "bearer",
         expires_in: 1800,
         user: demoUser,
@@ -123,8 +120,6 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (method === "POST" && path === "/api/auth/verify-otp") {
       return fulfill(route, {
-        access_token: "e2e-test-token",
-        refresh_token: "e2e-refresh-token",
         token_type: "bearer",
         expires_in: 1800,
         user: demoUser,
@@ -132,8 +127,6 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (method === "POST" && path === "/api/auth/refresh") {
       return fulfill(route, {
-        access_token: "e2e-test-token",
-        refresh_token: "e2e-refresh-token",
         token_type: "bearer",
         expires_in: 1800,
         user: demoUser,
