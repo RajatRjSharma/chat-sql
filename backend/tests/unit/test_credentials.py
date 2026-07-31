@@ -20,6 +20,7 @@ class TestWarehouseCredentials:
         assert creds.schema_name == "sales"
         assert creds.username == "bi_readonly"
         assert creds.password == "readonly_pass"
+        assert warehouse_connect_request.password.get_secret_value() == "readonly_pass"
         assert creds.is_readonly is True
 
     def test_connection_url_format(self, warehouse_connect_request: WarehouseConnectRequest) -> None:

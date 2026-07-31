@@ -5,6 +5,7 @@ from app.models.data_source import DataSource
 from app.models.email_otp import EmailOtp
 from app.models.message import Message
 from app.models.query_history import QueryHistory
+from app.models.refresh_token import RefreshToken
 from app.models.schema_embedding import SchemaEmbedding
 from app.models.session import ChatSession
 from app.models.user import User
@@ -16,6 +17,7 @@ __all__ = [
     "EmailOtp",
     "Message",
     "QueryHistory",
+    "RefreshToken",
     "SchemaEmbedding",
     "User",
 ]

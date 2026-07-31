@@ -27,6 +27,7 @@ class TestWarehouseConnectRequest:
         assert request.db_type == "postgres"
         assert request.port == 5432
         assert request.is_readonly is True
+        assert request.password.get_secret_value() == "secret"
 
     def test_empty_schema_name_becomes_none(self) -> None:
         request = WarehouseConnectRequest(
