@@ -133,7 +133,7 @@ STAGE_LABELS: dict[str, str] = {
     "preparing": "Preparing session",
     "retrieving_context": "Retrieving schema context",
     "retrieve_schema": "Loading schema into the planner",
-    "assess_relevance": "Checking question fits this warehouse",
+    "assess_relevance": "Checking question scope",
     "generate_sql": "Generating SQL",
     "validate_sql": "Validating SQL",
     "execute_sql": "Running query",

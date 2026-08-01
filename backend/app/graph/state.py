@@ -23,5 +23,5 @@ class ChatGraphState(TypedDict, total=False):
     answer: str | None
     attempts: int
     max_attempts: int
-    scope: Literal["answerable", "out_of_scope"]
+    scope: Literal["answerable", "out_of_scope", "needs_clarification"]
     status: Literal["ok", "failed", "running"]

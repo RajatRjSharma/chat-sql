@@ -14,6 +14,7 @@ from app.services.scope_guard import (
     EMPTY_RESULT_MESSAGE,
     OUT_OF_SCOPE_MESSAGE,
     ScopeGuard,
+    clarification_message,
 )
 from app.services.sql_generator import SqlGenerator
 from app.services.sql_validator import SqlValidator
@@ -38,16 +39,32 @@ def assess_relevance_node(
     *,
     client: AIClient | None = None,
 ) -> dict[str, Any]:
-    """Refuse questions the warehouse schema cannot support (before SQL)."""
+    """Layered scope gate before SQL (overlap → clarify → LLM)."""
+    schema_context = state.get("schema_context") or ""
+    allowed_tables = list(state.get("allowed_tables") or [])
     decision = ScopeGuard.assess(
         question=state["question"],
-        schema_context=state.get("schema_context") or "",
+        schema_context=schema_context,
+        allowed_tables=allowed_tables,
         client=client,
     )
     if decision == "out_of_scope":
         return {
             "scope": "out_of_scope",
             "answer": OUT_OF_SCOPE_MESSAGE,
+            "sql": None,
+            "columns": [],
+            "rows": [],
+            "sql_error": None,
+            "status": "ok",
+        }
+    if decision == "needs_clarification":
+        return {
+            "scope": "needs_clarification",
+            "answer": clarification_message(
+                schema_context=schema_context,
+                allowed_tables=allowed_tables,
+            ),
             "sql": None,
             "columns": [],
             "rows": [],
@@ -176,7 +193,7 @@ def finalize_failure_node(state: ChatGraphState) -> dict[str, Any]:
 
 
 def route_after_relevance(state: ChatGraphState) -> str:
-    if state.get("scope") == "out_of_scope":
+    if state.get("scope") in {"out_of_scope", "needs_clarification"}:
         return "end"
     return "generate"
 
