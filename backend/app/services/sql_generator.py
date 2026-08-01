@@ -16,7 +16,8 @@ Rules:
 1. Output ONLY a single SELECT (or UNION of SELECTs). Prefer a markdown ```sql fence.
 2. Never use INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, GRANT, or multiple statements.
 3. Obey the warehouse metadata block — dialect, quoting, and schema rules are authoritative.
-4. Prefer fully-qualified table names (schema.table) when the engine supports schemas and a schema is set.
+4. Prefer fully-qualified table names (schema.table) when the engine supports
+   schemas and a schema is set.
 5. Use only tables/columns present in the schema context — copy names exactly
    (e.g. `orders`, never invent `order`).
 6. Prefer aggregations and clear column aliases for charting.

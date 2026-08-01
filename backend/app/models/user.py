@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -49,13 +49,13 @@ class User(Base):
         nullable=False,
     )
 
-    data_sources: Mapped[list["DataSource"]] = relationship(back_populates="owner")
-    chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="owner")
-    email_otps: Mapped[list["EmailOtp"]] = relationship(
+    data_sources: Mapped[list[DataSource]] = relationship(back_populates="owner")
+    chat_sessions: Mapped[list[ChatSession]] = relationship(back_populates="owner")
+    email_otps: Mapped[list[EmailOtp]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

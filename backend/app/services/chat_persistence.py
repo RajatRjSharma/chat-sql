@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -45,7 +45,7 @@ class ChatPersistenceService:
 
     @staticmethod
     async def touch_session(session: AsyncSession, chat: ChatSession) -> None:
-        chat.updated_at = datetime.now(timezone.utc)
+        chat.updated_at = datetime.now(UTC)
         session.add(chat)
         await session.flush()
 

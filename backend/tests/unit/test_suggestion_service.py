@@ -7,7 +7,6 @@ from app.services.suggestion_service import (
     parse_schema_chunk,
 )
 
-
 SAMPLE_CHUNK = """
 Table: sales.orders
 Columns:

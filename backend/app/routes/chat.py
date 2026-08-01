@@ -36,7 +36,7 @@ def _chat_http_exception(exc: Exception) -> HTTPException:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=GENERIC_AI,
         )
-    if isinstance(exc, (ChatPipelineError, SchemaEmbeddingError)):
+    if isinstance(exc, ChatPipelineError | SchemaEmbeddingError):
         return HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=safe_public_detail(exc, fallback=GENERIC_CHAT),

@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Text, func
@@ -31,7 +31,7 @@ class SchemaEmbedding(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[Optional[list[float]]] = mapped_column(
+    embedding: Mapped[list[float] | None] = mapped_column(
         Vector(settings.embedding_dimensions),
         nullable=True,
     )

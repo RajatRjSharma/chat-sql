@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
@@ -31,8 +31,8 @@ def create_access_token(
 ) -> tuple[str, int]:
     """Return (token, expires_in_seconds). Short-lived; pair with refresh."""
     expires_in = settings.jwt_expire_minutes * 60
-    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-    now = datetime.now(timezone.utc)
+    expire = datetime.now(UTC) + timedelta(seconds=expires_in)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "email": email,
@@ -51,8 +51,8 @@ def create_access_token(
 def create_refresh_token(*, user_id: UUID) -> tuple[str, int, str]:
     """Return (token, expires_in_seconds, jti). Caller must persist jti for revoke."""
     expires_in = settings.jwt_refresh_expire_minutes * 60
-    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-    now = datetime.now(timezone.utc)
+    expire = datetime.now(UTC) + timedelta(seconds=expires_in)
+    now = datetime.now(UTC)
     jti = secrets.token_urlsafe(16)
     payload: dict[str, Any] = {
         "sub": str(user_id),

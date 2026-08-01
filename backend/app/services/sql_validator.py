@@ -77,7 +77,7 @@ class SqlValidator:
         if statement is None:
             raise SqlValidationError("Empty SQL statement.")
 
-        if not isinstance(statement, (exp.Select, exp.Union)):
+        if not isinstance(statement, exp.Select | exp.Union):
             raise SqlValidationError("Only SELECT (or UNION of SELECTs) is allowed.")
 
         for node in statement.walk():

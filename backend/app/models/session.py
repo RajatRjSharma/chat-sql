@@ -35,13 +35,13 @@ class ChatSession(Base):
         nullable=False,
         index=True,
     )
-    data_source_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    data_source_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(fk_table("data_sources.id"), ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     context_cache: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

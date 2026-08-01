@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -12,8 +12,6 @@ from app.models.base import Base
 from app.models.table_schema import fk_table, project_table_args
 
 if TYPE_CHECKING:
-    from app.models.message import Message
-    from app.models.query_history import QueryHistory
     from app.models.schema_embedding import SchemaEmbedding
     from app.models.session import ChatSession
     from app.models.user import User
@@ -45,10 +43,10 @@ class DataSource(Base):
     host: Mapped[str] = mapped_column(String(255), nullable=False)
     port: Mapped[int] = mapped_column(Integer, nullable=False, default=5432)
     database: Mapped[str] = mapped_column(String(100), nullable=False)
-    schema_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    schema_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    username: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Encrypted at rest; nullable when credentials are supplied out of band.
-    password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    password_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_readonly: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     extra_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)

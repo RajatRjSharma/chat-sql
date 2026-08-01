@@ -98,12 +98,16 @@ Refresh the bundled voice: `make tts-models`. Mic input still uses the browser W
 
 ### Keep Render awake (free tier)
 
-Render free instances sleep after ~15 minutes idle, which makes the first TTS call very slow. Add a GitHub Actions keep-alive:
+Render free web services [spin down after **15 minutes**](https://render.com/docs/free) without inbound HTTP (spin-up ~1 minute), which makes the first TTS call after idle slow.
+
+GitHub Actions keep-alive:
 
 1. Repo **Settings → Secrets → Actions** → add `KEEPALIVE_HEALTH_URL` = `https://your-api.onrender.com/health`
-2. Workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings every 12 minutes (and on manual dispatch)
+2. Workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings every **5 minutes** (and on manual **Run workflow**)
 
 Without the secret, the workflow no-ops safely.
+
+Note: Actions cron can be delayed by GitHub under load, so gaps longer than 5 minutes may still happen. A service kept warm uses Free instance hours (~750/month); spun-down time does not.
 
 ### CSV / Excel upload
 
@@ -188,20 +192,27 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 
 | Job | What |
 |-----|------|
-| Backend | Python 3.12 · `pytest` |
-| Frontend | Node 20 · Playwright Chromium E2E (mocked API) |
+| Backend | Python 3.12 · `ruff check` · `pytest` |
+| Frontend quality | Node 20 · ESLint · `tsc --noEmit` · Vitest |
+| Frontend E2E | Node 20 · Playwright Chromium (mocked API) |
 
 ```bash
-make test            # same backend suite as CI
-make frontend-e2e    # same UI E2E as CI (after make frontend-e2e-install)
+make lint                 # backend ruff
+make test                 # backend pytest
+make frontend-lint        # ESLint
+make frontend-typecheck   # TypeScript
+make frontend-test        # Vitest
+make frontend-e2e         # Playwright (after make frontend-e2e-install)
+make check                # ruff + pytest + eslint + tsc + vitest
+make check-all            # check + Playwright E2E
 ```
 
 ## Useful commands
 
 ```bash
 make help          # list all targets
-make test          # run backend tests
-make frontend-e2e  # run Playwright UI E2E (mocked API)
+make check         # UI + backend quality gates (matches CI minus E2E)
+make check-all     # quality gates + Playwright E2E
 make destroy       # remove DB containers and volumes
 ```
 

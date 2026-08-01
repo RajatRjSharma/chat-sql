@@ -11,7 +11,12 @@ def _sample_table() -> TableInfo:
         schema_name="sales",
         table_name="orders",
         columns=[
-            ColumnInfo(name="order_id", data_type="integer", is_nullable=False, is_primary_key=True),
+            ColumnInfo(
+                name="order_id",
+                data_type="integer",
+                is_nullable=False,
+                is_primary_key=True,
+            ),
             ColumnInfo(name="amount", data_type="numeric", is_nullable=False),
             ColumnInfo(name="customer_id", data_type="integer", is_nullable=False),
         ],

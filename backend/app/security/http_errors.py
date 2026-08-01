@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import NoReturn
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 

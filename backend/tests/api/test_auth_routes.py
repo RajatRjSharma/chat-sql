@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-import pytest
 
 from app.models.email_otp import EmailOtp
 from app.models.refresh_token import RefreshToken
@@ -37,7 +37,7 @@ def _active_refresh_row(user: User) -> MagicMock:
     row = MagicMock(spec=RefreshToken)
     row.user_id = user.id
     row.revoked_at = None
-    row.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    row.expires_at = datetime.now(UTC) + timedelta(days=7)
     row.revoke_reason = None
     return row
 
@@ -277,7 +277,7 @@ class TestAuthServiceOtp:
             user_id=sample_user.id,
             purpose="verify_email",
             code_hash=hash_password(code),
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
             consumed_at=None,
         )
 

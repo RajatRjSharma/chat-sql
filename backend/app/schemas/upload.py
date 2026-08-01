@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -20,4 +20,4 @@ class UploadResponse(BaseModel):
     columns: list[str] = Field(default_factory=list)
     file_kind: Literal["csv", "xlsx"]
     status: str = "loaded"
-    message: Optional[str] = None
+    message: str | None = None

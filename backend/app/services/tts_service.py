@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import logging
 import re
@@ -10,7 +11,6 @@ import wave
 from collections import OrderedDict
 from collections.abc import Iterator
 from pathlib import Path
-import hashlib
 
 from app.config import settings
 
