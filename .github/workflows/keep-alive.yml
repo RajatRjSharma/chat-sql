@@ -1,12 +1,17 @@
 # Keep Render free-tier API warm so Piper TTS stays loaded.
+# Render spins down free web services after 15 minutes without inbound HTTP
+# (https://render.com/docs/free).
+#
+# GitHub Actions `schedule` can run late under load; */5 is still the best
+# we can do from Actions alone (no external monitor).
+#
 # Set repository secret KEEPALIVE_HEALTH_URL to the full health URL, e.g.:
 #   https://your-api.onrender.com/health
 name: Keep-alive
 
 on:
   schedule:
-    # Every 12 minutes — under Render's ~15m idle sleep window
-    - cron: "*/12 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:

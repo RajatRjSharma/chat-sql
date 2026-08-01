@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 
+import pandas as pd
 import pytest
 
 from app.core.exceptions import UploadError
@@ -13,7 +14,6 @@ from app.services.file_parser import (
     sanitize_identifier,
     unique_identifiers,
 )
-import pandas as pd
 
 
 class TestSanitizeIdentifier:

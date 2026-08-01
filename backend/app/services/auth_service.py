@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import or_, select, update
@@ -115,7 +115,7 @@ class AuthService:
             .limit(1)
         )
         otp = result.scalar_one_or_none()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if otp is None or otp.expires_at < now:
             raise ValueError("Verification code expired. Request a new one.")
         if not verify_password(request.code, otp.code_hash):
@@ -162,7 +162,7 @@ class AuthService:
             raise ValueError("Invalid or expired token")
 
         row = await AuthService._get_refresh_row(session, jti)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if row is None or row.revoked_at is not None or row.expires_at < now:
             raise ValueError("Invalid or expired token")
 
@@ -188,7 +188,7 @@ class AuthService:
         revoke_all: bool = True,
     ) -> None:
         """Revoke the current refresh cookie and (by default) all sessions for the user."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if refresh_token:
             try:
                 payload = decode_token(refresh_token, expected_type="refresh")
@@ -233,7 +233,7 @@ class AuthService:
         row = RefreshToken(
             user_id=user.id,
             jti_hash=_hash_jti(jti),
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=refresh_max_age),
+            expires_at=datetime.now(UTC) + timedelta(seconds=refresh_max_age),
             user_agent=(user_agent or "")[:512] or None,
         )
         session.add(row)
@@ -270,7 +270,7 @@ class AuthService:
             .where(EmailOtp.user_id == user.id)
             .where(EmailOtp.purpose == "verify_email")
             .where(EmailOtp.consumed_at.is_(None))
-            .values(consumed_at=datetime.now(timezone.utc))
+            .values(consumed_at=datetime.now(UTC))
         )
 
         code = "".join(secrets.choice("0123456789") for _ in range(settings.otp_length))
@@ -278,7 +278,7 @@ class AuthService:
             user_id=user.id,
             purpose="verify_email",
             code_hash=hash_password(code),
-            expires_at=datetime.now(timezone.utc)
+            expires_at=datetime.now(UTC)
             + timedelta(minutes=settings.otp_expire_minutes),
         )
         session.add(otp)

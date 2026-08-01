@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
-
 import pytest
 
 from app.schemas.data_source import WarehouseConnectRequest
@@ -11,7 +9,9 @@ from app.warehouse.credentials import WarehouseConnectionInfo, WarehouseCredenti
 
 
 class TestWarehouseCredentials:
-    def test_from_request_maps_fields(self, warehouse_connect_request: WarehouseConnectRequest) -> None:
+    def test_from_request_maps_fields(
+        self, warehouse_connect_request: WarehouseConnectRequest
+    ) -> None:
         creds = WarehouseCredentials.from_request(warehouse_connect_request)
         assert creds.name == "Demo Sales Warehouse"
         assert creds.host == "localhost"
@@ -23,7 +23,9 @@ class TestWarehouseCredentials:
         assert warehouse_connect_request.password.get_secret_value() == "readonly_pass"
         assert creds.is_readonly is True
 
-    def test_connection_url_format(self, warehouse_connect_request: WarehouseConnectRequest) -> None:
+    def test_connection_url_format(
+        self, warehouse_connect_request: WarehouseConnectRequest
+    ) -> None:
         creds = WarehouseCredentials.from_request(warehouse_connect_request)
         assert creds.connection_url() == (
             "postgresql://bi_readonly:readonly_pass@localhost:5433/bi_warehouse"

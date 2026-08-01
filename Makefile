@@ -121,13 +121,20 @@ tts-models: ## Download / refresh bundled Piper en_US-amy-low voice (~60MB)
 	@ls -lh $(BACKEND_DIR)/models/piper/en_US-amy-low.onnx
 	@echo "Voice ready at $(BACKEND_DIR)/models/piper/ (same file for local + prod)."
 
+.PHONY: lint
+lint: ## Backend ruff lint (E/F/I/UP/B)
+	$(RUN_PY) -m ruff check app tests
+
 .PHONY: test
-test: ## Run backend test suite
+test: ## Backend pytest suite
 	$(RUN_PY) -m pytest tests -v
 
 .PHONY: test-cov
-test-cov: ## Run tests with coverage report
+test-cov: ## Backend pytest with coverage report
 	$(RUN_PY) -m pytest tests -v --cov=app --cov-report=term-missing
+
+.PHONY: backend-check
+backend-check: lint test ## Backend quality gate (ruff + pytest)
 
 # ---------------------------------------------------------------------------
 # Project DB — ORM migrations (Alembic)
@@ -199,6 +206,21 @@ frontend-dev: ## Run Next.js dev server (port 3000)
 frontend-build: ## Production build of the Next.js app
 	cd $(FRONTEND_DIR) && npm run build
 
+.PHONY: frontend-lint
+frontend-lint: ## Frontend ESLint (next lint)
+	cd $(FRONTEND_DIR) && npm run lint
+
+.PHONY: frontend-typecheck
+frontend-typecheck: ## Frontend TypeScript check (tsc --noEmit)
+	cd $(FRONTEND_DIR) && npm run typecheck
+
+.PHONY: frontend-test
+frontend-test: ## Frontend unit tests (vitest)
+	cd $(FRONTEND_DIR) && npm test
+
+.PHONY: frontend-check
+frontend-check: frontend-lint frontend-typecheck frontend-test ## Frontend quality gate (eslint + tsc + vitest)
+
 .PHONY: frontend-e2e-install
 frontend-e2e-install: ## Install Playwright Chromium browser (once per machine)
 	cd $(FRONTEND_DIR) && npx playwright install chromium
@@ -210,6 +232,12 @@ frontend-e2e: ## Run Playwright UI E2E tests (mocked API)
 .PHONY: frontend-e2e-ui
 frontend-e2e-ui: ## Open Playwright UI mode
 	cd $(FRONTEND_DIR) && npm run test:e2e:ui
+
+.PHONY: check
+check: backend-check frontend-check ## Full quality gate (backend + frontend, no E2E)
+
+.PHONY: check-all
+check-all: check frontend-e2e ## Full quality gate including Playwright E2E
 
 # ---------------------------------------------------------------------------
 # Full local setup

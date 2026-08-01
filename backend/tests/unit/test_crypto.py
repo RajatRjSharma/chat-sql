@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from cryptography.fernet import InvalidToken
 
 from app.security.crypto import decrypt_credential, encrypt_credential
 
@@ -19,5 +20,5 @@ class TestCredentialCrypto:
         assert "secret-value" not in encrypted
 
     def test_decrypt_invalid_token_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidToken):
             decrypt_credential("not-a-valid-token")

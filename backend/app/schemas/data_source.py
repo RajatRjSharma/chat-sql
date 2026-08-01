@@ -1,6 +1,5 @@
 """User-provided warehouse / analytics database connection input."""
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -21,7 +20,7 @@ class WarehouseConnectRequest(BaseModel):
     host: str = Field(..., min_length=1, max_length=255, examples=["localhost"])
     port: int = Field(default=5432, ge=1, le=65535)
     database: str = Field(..., min_length=1, max_length=100, examples=["bi_warehouse"])
-    schema_name: Optional[str] = Field(
+    schema_name: str | None = Field(
         default=None,
         max_length=100,
         description="Target schema. Leave empty to use the PostgreSQL connection default.",
@@ -43,7 +42,7 @@ class WarehouseConnectResponse(BaseModel):
     host: str
     port: int
     database: str
-    schema_name: Optional[str] = None
+    schema_name: str | None = None
     status: str = "connected"
 
 
@@ -53,7 +52,7 @@ class DataSourceSummary(BaseModel):
     host: str
     port: int
     database: str
-    schema_name: Optional[str] = None
+    schema_name: str | None = None
     db_type: str
     is_readonly: bool
     is_active: bool

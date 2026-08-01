@@ -11,7 +11,6 @@ from app.models.data_source import DataSource
 from app.schemas.data_source import WarehouseConnectRequest
 from app.services.data_source_service import DataSourceService
 from app.warehouse.credentials import WarehouseConnectionInfo, WarehouseCredentials
-
 from tests.conftest import DEMO_SOURCE_ID
 
 

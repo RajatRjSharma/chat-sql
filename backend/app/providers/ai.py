@@ -8,8 +8,8 @@ from __future__ import annotations
 import logging
 import re
 import time
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Sequence
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel

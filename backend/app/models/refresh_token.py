@@ -49,4 +49,4 @@ class RefreshToken(Base):
     # Optional note field kept small for debugging revoke reason.
     revoke_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")

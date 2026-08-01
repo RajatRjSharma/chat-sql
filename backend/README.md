@@ -127,13 +127,15 @@ make tts-models   # download/refresh en_US-amy-low into models/piper/
 
 Tuned for small hosts: `TTS_MAX_CHARS` (per-chunk size — full answers are chunked, not truncated), `TTS_LENGTH_SCALE` (<1 = faster), `TTS_ONNX_THREADS=1`, and a one-shot warmup after preload. No network calls at speak time.
 
-On Render free tier, enable the keep-alive workflow secret `KEEPALIVE_HEALTH_URL` so the dyno (and loaded Piper model) stay warm.
+On Render free tier, set secret `KEEPALIVE_HEALTH_URL` so `.github/workflows/keep-alive.yml` can ping `/health` every 5 minutes (GitHub Actions only).
 
-## Tests
+## Tests / quality
 
 ```bash
-make test
-make test-cov
+make lint           # ruff
+make test           # pytest
+make backend-check  # ruff + pytest (CI backend job)
+make check          # backend + frontend quality (no E2E)
 ```
 
 ## Scripts

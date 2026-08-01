@@ -145,7 +145,7 @@ async def health_warehouse(
         }
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
+    except Exception:
         return _health_error(
             GENERIC_INTERNAL,
             data_source_id=str(data_source_id),

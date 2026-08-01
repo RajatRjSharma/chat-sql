@@ -44,4 +44,4 @@ class EmailOtp(Base):
         nullable=False,
     )
 
-    user: Mapped["User"] = relationship(back_populates="email_otps")
+    user: Mapped[User] = relationship(back_populates="email_otps")

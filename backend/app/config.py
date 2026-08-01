@@ -2,7 +2,6 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,7 +38,7 @@ class Settings(BaseSettings):
     app_db_user: str = Field(default="postgres", alias="APP_DB_USER")
     app_db_password: SecretStr = Field(default="postgres", alias="APP_DB_PASSWORD")
     # Optional — leave empty to use PostgreSQL default schema (public)
-    app_db_schema: Optional[str] = Field(default=None, alias="APP_DB_SCHEMA")
+    app_db_schema: str | None = Field(default=None, alias="APP_DB_SCHEMA")
 
     # Encrypts user-provided warehouse passwords stored in app.data_sources
     credentials_secret: SecretStr = Field(alias="CREDENTIALS_SECRET")
@@ -139,7 +138,10 @@ class Settings(BaseSettings):
     auth_cookie_samesite: str = Field(
         default="lax",
         alias="AUTH_COOKIE_SAMESITE",
-        description="lax with same-origin proxy; none only for direct cross-site API (needs Secure)",
+        description=(
+            "lax with same-origin proxy; none only for direct cross-site API "
+            "(needs Secure)"
+        ),
     )
     auth_cookie_secure: bool | None = Field(
         default=None,
@@ -245,7 +247,7 @@ class Settings(BaseSettings):
         return validate_optional_schema(value)
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property

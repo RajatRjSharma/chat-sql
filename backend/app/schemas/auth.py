@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator, model_validator
@@ -85,7 +85,7 @@ class LoginRequest(BaseModel):
 class RefreshRequest(BaseModel):
     """Optional body fallback for API clients; browsers send the refresh cookie."""
 
-    refresh_token: Optional[str] = Field(default=None, min_length=20)
+    refresh_token: str | None = Field(default=None, min_length=20)
 
 
 class UserPublic(BaseModel):
@@ -94,7 +94,7 @@ class UserPublic(BaseModel):
     username: str
     role: str
     email_verified: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
