@@ -66,6 +66,16 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 7. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 8. **Switch warehouse** returns to the connect screen to open another saved source
 
+### Scope guard (relevance)
+
+Before SQL generation, chat runs a **layered warehouse-scope gate** (`assess_relevance`):
+
+1. **Schema overlap** — if the question mentions a table/column (including short forms / plurals like `sale`→`sales`, `customer`→`customers`), treat as **answerable** (no LLM refuse).
+2. **Analytics intent** — cues like `db`, `orders`, `count`, `revenue` keep the question on the SQL path.
+3. **Clarification** — ultra-vague asks with no entity (`summary`, `help`) get a short prompt to name a table/measure instead of a hard refuse.
+4. **LLM classifier** — only for remaining cases; **unsure → answerable**. **Out of scope** is reserved for clear world-knowledge / off-domain asks (trivia, weather, coding help, etc.).
+5. **Defense in depth** — the SQL generator may still emit `UNANSWERABLE`; empty result sets use a fixed “no rows” message (no invented facts).
+
 ### Offline text-to-speech
 
 Summaries are spoken with **Piper** on the API (local ONNX, no cloud TTS at request time). The English voice `en_US-amy-low` is committed under `backend/models/piper/` and used for local, Docker, and production.

@@ -53,6 +53,9 @@ class TestRouting:
     def test_relevance_out_of_scope_ends(self) -> None:
         assert route_after_relevance(_base_state(scope="out_of_scope")) == "end"
 
+    def test_relevance_clarify_ends(self) -> None:
+        assert route_after_relevance(_base_state(scope="needs_clarification")) == "end"
+
     def test_relevance_answerable_generates(self) -> None:
         assert route_after_relevance(_base_state(scope="answerable")) == "generate"
 
@@ -108,6 +111,23 @@ class TestNodes:
             )
         assert out["scope"] == "out_of_scope"
         assert out["answer"] == OUT_OF_SCOPE_MESSAGE
+        assert out["status"] == "ok"
+
+    def test_assess_relevance_clarifies(self) -> None:
+        with patch(
+            "app.graph.nodes.ScopeGuard.assess",
+            return_value="needs_clarification",
+        ):
+            out = assess_relevance_node(
+                _base_state(
+                    question="summary",
+                    schema_context="Table: sales.customers",
+                    allowed_tables=["customers"],
+                ),
+            )
+        assert out["scope"] == "needs_clarification"
+        assert "too broad" in out["answer"].lower()
+        assert "customers" in out["answer"].lower()
         assert out["status"] == "ok"
 
     def test_summarize_empty_rows_skips_llm(self) -> None:

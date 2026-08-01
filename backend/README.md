@@ -86,11 +86,14 @@ SSE events:
 ## Chat pipeline (LangGraph)
 
 ```text
-retrieve (RAG) → generate_sql → validate (sqlglot)
-       ↑______________| (retry ≤ SQL_MAX_ATTEMPTS)
-                      ↓
-                   execute → summarize
+retrieve (RAG) → assess_relevance → generate_sql → validate (sqlglot)
+                      │                    ↑______________| (retry ≤ SQL_MAX_ATTEMPTS)
+                      │ out_of_scope /     ↓
+                      │ needs_clarification → END
+                      └─ answerable ──→ execute → summarize
 ```
+
+**Scope gate** (before SQL): schema-name overlap and analytics cues → answerable; ultra-vague asks → clarification; LLM only when still ambiguous (unsure → answerable). Hard refuse is for clear off-warehouse questions. SQL may still return `UNANSWERABLE`.
 
 Only `SELECT` is allowed. Warehouse runs as the connected (preferably readonly) user.
 
