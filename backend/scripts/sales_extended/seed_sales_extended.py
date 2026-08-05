@@ -13,8 +13,9 @@ from __future__ import annotations
 import argparse
 import random
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+
 import psycopg2
 from psycopg2.extras import execute_values
 
@@ -720,7 +721,7 @@ def seed(args: argparse.Namespace) -> None:
                         random.choice(employee_ids),
                         random.choice(["receive", "ship", "adjust"]),
                         random.choice([-20, -10, -5, 5, 10, 25, 50]),
-                        datetime.now(timezone.utc) - timedelta(days=random.randint(0, 200)),
+                        datetime.now(UTC) - timedelta(days=random.randint(0, 200)),
                         "demo movement",
                     )
                     for _ in range(400)
@@ -779,7 +780,7 @@ def seed(args: argparse.Namespace) -> None:
                     (
                         random.choice(campaign_ids),
                         random.choice(customer_ids),
-                        datetime.now(timezone.utc) - timedelta(days=random.randint(0, 400)),
+                        datetime.now(UTC) - timedelta(days=random.randint(0, 400)),
                         random.choice(["email", "ad", "sms", "call"]),
                     )
                     for _ in range(min(600, len(customer_ids) * 15))
@@ -913,7 +914,7 @@ def seed(args: argparse.Namespace) -> None:
                         (
                             oid,
                             "pending",
-                            datetime.combine(od, datetime.min.time()).replace(tzinfo=timezone.utc),
+                            datetime.combine(od, datetime.min.time()).replace(tzinfo=UTC),
                             random.choice(employee_ids),
                         )
                     )
@@ -923,7 +924,7 @@ def seed(args: argparse.Namespace) -> None:
                                 oid,
                                 mapped,
                                 datetime.combine(od + timedelta(days=1), datetime.min.time()).replace(
-                                    tzinfo=timezone.utc
+                                    tzinfo=UTC
                                 ),
                                 random.choice(employee_ids),
                             )
@@ -944,7 +945,7 @@ def seed(args: argparse.Namespace) -> None:
                             oid,
                             random.choice(payment_method_ids),
                             Decimal(str(amt)),
-                            datetime.combine(od, datetime.min.time()).replace(tzinfo=timezone.utc)
+                            datetime.combine(od, datetime.min.time()).replace(tzinfo=UTC)
                             + timedelta(hours=random.randint(1, 48)),
                             "captured",
                         )
@@ -988,8 +989,8 @@ def seed(args: argparse.Namespace) -> None:
                             random.choice(warehouse_ids),
                             random.choice(carrier_ids),
                             f"TRK{oid:08d}",
-                            datetime.combine(shipped, datetime.min.time()).replace(tzinfo=timezone.utc),
-                            datetime.combine(delivered, datetime.min.time()).replace(tzinfo=timezone.utc)
+                            datetime.combine(shipped, datetime.min.time()).replace(tzinfo=UTC),
+                            datetime.combine(delivered, datetime.min.time()).replace(tzinfo=UTC)
                             if delivered
                             else None,
                             "delivered" if delivered else "shipped",
@@ -1024,7 +1025,7 @@ def seed(args: argparse.Namespace) -> None:
                         oid,
                         cid,
                         datetime.combine(od + timedelta(days=random.randint(5, 30)), datetime.min.time()).replace(
-                            tzinfo=timezone.utc
+                            tzinfo=UTC
                         ),
                         random.choice(["requested", "approved", "refunded"]),
                         random.choice(["damaged", "wrong size", "changed mind"]),
@@ -1066,7 +1067,7 @@ def seed(args: argparse.Namespace) -> None:
                                 cpn,
                                 oid,
                                 cid,
-                                datetime.combine(od, datetime.min.time()).replace(tzinfo=timezone.utc),
+                                datetime.combine(od, datetime.min.time()).replace(tzinfo=UTC),
                             )
                         )
                         discount_rows.append((oid, cpn, disc))
@@ -1154,7 +1155,7 @@ def seed(args: argparse.Namespace) -> None:
                         ),
                         random.choice(["open", "open", "pending", "closed"]),
                         random.choice(["low", "medium", "high"]),
-                        datetime.now(timezone.utc) - timedelta(days=random.randint(0, 300)),
+                        datetime.now(UTC) - timedelta(days=random.randint(0, 300)),
                     )
                     for _ in range(120)
                 ]
@@ -1174,7 +1175,7 @@ def seed(args: argparse.Namespace) -> None:
                 msg_rows = []
                 for tid in ticket_ids:
                     msg_rows.append(
-                        (tid, None, True, "Customer: I need help with my recent order.", datetime.now(timezone.utc))
+                        (tid, None, True, "Customer: I need help with my recent order.", datetime.now(UTC))
                     )
                     msg_rows.append(
                         (
@@ -1182,7 +1183,7 @@ def seed(args: argparse.Namespace) -> None:
                             random.choice(employee_ids),
                             False,
                             "Agent: Thanks for reaching out — looking into this now.",
-                            datetime.now(timezone.utc),
+                            datetime.now(UTC),
                         )
                     )
                 execute_values(
