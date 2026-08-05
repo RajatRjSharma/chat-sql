@@ -4,6 +4,8 @@ Adds ~47 related tables **into the existing `sales` schema** (keeps `customers`,
 
 Works against any Postgres warehouse that already has the base `sales` tables.
 
+Architecture / join linking: [docs/architecture.md](../../../docs/architecture.md)
+
 ## What you get
 
 | Area | Tables (examples) |
@@ -16,6 +18,8 @@ Works against any Postgres warehouse that already has the base `sales` tables.
 | Support / finance | `tickets`, `invoices`, `ledger_entries`, `exchange_rates` |
 
 Existing tables are **altered** (nullable FKs): `customers.segment_id`, `products.category_id`, `orders.channel_id`, etc. Old columns (`region`, `category`, `product_id` on orders) stay for compatibility.
+
+FK edges in this schema are what the app’s **FK neighborhood expand** walks after cosine RAG — so multi-table demo questions work more reliably after you re-index.
 
 ## Steps
 
@@ -53,11 +57,13 @@ Flags:
 - `--extra-orders N` — add N more orders (default `500`; use `0` to only enrich existing rows)
 - Requires base `sales.customers` (and ideally products/orders) already present
 
-### 3) App reconnect + re-embed
+### 3) App reconnect + refresh schema index
 
 1. In the app, connect to the same warehouse (`schema=sales`).
-2. Run **embed schema** (on connect) or use **Refresh schema index** in the Evidence panel if already connected.
-3. Try join questions, e.g. revenue by channel, tickets by segment, campaign touches → orders.
+2. On connect, embed runs automatically; if already connected, use **Refresh schema index** in the Evidence panel.
+3. Try join questions, e.g. revenue by channel + segment, tickets by customer, campaign touches → orders.
+
+Re-indexing also stores structured `foreign_keys` in chunk metadata (content FK lines still work for older embeddings).
 
 ## Local Docker warehouse
 

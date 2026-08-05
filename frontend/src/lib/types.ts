@@ -104,6 +104,8 @@ export type SourceMetadata = {
   llm_model: string;
   llm_model_fallback: string;
   rag_top_k: number;
+  rag_expand_hops?: number;
+  rag_max_tables?: number;
 };
 
 export type ChatStreamStage = {

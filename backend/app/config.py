@@ -65,6 +65,9 @@ class Settings(BaseSettings):
 
     # Chat / RAG pipeline knobs
     rag_top_k: int = Field(default=5, alias="RAG_TOP_K", ge=1, le=20)
+    rag_expand_hops: int = Field(default=1, alias="RAG_EXPAND_HOPS", ge=0, le=3)
+    rag_max_tables: int = Field(default=15, alias="RAG_MAX_TABLES", ge=1, le=50)
+    rag_expand_on_retry: bool = Field(default=True, alias="RAG_EXPAND_ON_RETRY")
     sql_max_attempts: int = Field(default=3, alias="SQL_MAX_ATTEMPTS", ge=1, le=5)
     warehouse_max_rows: int = Field(default=500, alias="WAREHOUSE_MAX_ROWS", ge=1, le=5000)
     chat_history_limit: int = Field(default=5, alias="CHAT_HISTORY_LIMIT", ge=0, le=20)

@@ -49,6 +49,8 @@ class TestBuildSourceMetadata:
         assert "orders" in meta["tables_in_context"]
         assert "embedding_model" in meta
         assert "llm_model" in meta
+        assert meta["rag_expand_hops"] >= 0
+        assert meta["rag_max_tables"] >= 1
         assert "password" not in meta
         assert "connection_url" not in str(meta)
 

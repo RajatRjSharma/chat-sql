@@ -36,6 +36,10 @@ Copy from `.env.example` at repo root. Important keys:
 | `AI_API_KEY` / `AI_BASE_URL` | AI provider endpoint and credentials |
 | `LLM_MODEL` / `LLM_MODEL_FALLBACK` | Primary and fallback chat models |
 | `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | Schema embeddings |
+| `RAG_TOP_K` | Cosine seed count for schema RAG (default 5) |
+| `RAG_EXPAND_HOPS` | FK neighborhood depth after seeds (default 1) |
+| `RAG_MAX_TABLES` | Cap on tables in schema context (default 15) |
+| `RAG_EXPAND_ON_RETRY` | One expand-and-retry on allowlist miss (default true) |
 | `EMAIL_OTP_ENABLED` | `true` locally (SMTP OTP); `false` on Render when SMTP is blocked |
 | `SMTP_*` | Required only when `EMAIL_OTP_ENABLED=true` |
 | `UPLOAD_MAX_BYTES` / `UPLOAD_MAX_ROWS` | CSV/Excel limits |
@@ -58,8 +62,8 @@ Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 | `POST` | `/api/data/upload` | CSV/Excel → isolated schema + data source |
 | `GET` | `/api/data/sources` | List data sources |
 | `GET` | `/api/data/sources/{id}/suggested-questions` | Schema-aware prompt suggestions |
-| `POST` | `/api/data/embed-schema` | Introspect + embed schema chunks |
-| `POST` | `/api/chat` | NL question → SQL → rows → summary |
+| `POST` | `/api/data/embed-schema` | Introspect + embed schema chunks (also used by Evidence **Refresh schema index**) |
+| `POST` | `/api/chat` | NL question → prepare (RAG + FK expand) → SQL → rows → summary |
 | `POST` | `/api/chat/stream` | Same pipeline over SSE (`stage` / `result` / `error`) |
 | `GET` | `/api/chat/sessions` | List sessions for a data source |
 | `GET` | `/api/chat/sessions/{id}` | Session history |
@@ -83,17 +87,28 @@ SSE events:
 - `result` — full chat response payload
 - `error` — `{ "detail": "..." }`
 
-## Chat pipeline (LangGraph)
+## Chat pipeline (prepare + LangGraph)
 
 ```text
-retrieve (RAG) → assess_relevance → generate_sql → validate (sqlglot)
-                      │                    ↑______________| (retry ≤ SQL_MAX_ATTEMPTS)
-                      │ out_of_scope /     ↓
-                      │ needs_clarification → END
-                      └─ answerable ──→ execute → summarize
+prepare (ChatService)
+  cosine top-K RAG  →  FK neighborhood expand  →  allowlist + schema_context
+       │
+       ▼
+LangGraph
+  assess_relevance → generate_sql → validate (sqlglot)
+         │                    ↑______________| (retry ≤ SQL_MAX_ATTEMPTS)
+         │ out_of_scope /     ↓
+         │ needs_clarification → END
+         └─ answerable ──→ execute → summarize
+
+On allowlist miss after failure: one expand-and-retry (RAG_EXPAND_ON_RETRY), then re-run graph.
 ```
 
+See [docs/architecture.md](../docs/architecture.md) for the system diagram.
+
 **Scope gate** (before SQL): schema-name overlap and analytics cues → answerable; ultra-vague asks → clarification; LLM only when still ambiguous (unsure → answerable). Hard refuse is for clear off-warehouse questions. SQL may still return `UNANSWERABLE`.
+
+**Schema linking:** seeds stay small (`RAG_TOP_K`); FK expand grows context up to `RAG_MAX_TABLES` so multi-table joins are not limited to cosine top-K alone.
 
 Only `SELECT` is allowed. Warehouse runs as the connected (preferably readonly) user.
 
@@ -106,13 +121,15 @@ backend/
 │   ├── config.py
 │   ├── providers/        # AI client
 │   ├── graph/            # LangGraph nodes + state
-│   ├── services/         # RAG, SQL, warehouse, chat
+│   ├── services/         # RAG, schema linker, SQL, warehouse, chat
 │   ├── routes/           # /api/data, /api/chat, /api/voice
 │   ├── models/           # SQLAlchemy ORM
 │   └── security/         # credential encryption
 ├── models/piper/         # Bundled offline Piper voice (en_US-amy-low)
 ├── alembic/              # migrations
-├── scripts/              # warehouse init/seed/check
+├── scripts/
+│   ├── init_warehouse.sql / seed_warehouse.py
+│   └── sales_extended/   # ~50-table sales schema + seeder
 └── tests/
 ```
 
@@ -144,4 +161,8 @@ make check          # backend + frontend quality (no E2E)
 |--------|-----|
 | Init warehouse schema | `make warehouse-init` |
 | Seed demo sales data | `make warehouse-seed` |
+| Extend sales schema (~50 tables) | `make warehouse-extend` |
+| Seed extended sales dims/joins | `make warehouse-seed-extended` |
 | CLI warehouse check | `make warehouse-check-cli` |
+
+Extended warehouse docs: [scripts/sales_extended/README.md](scripts/sales_extended/README.md).

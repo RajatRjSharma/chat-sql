@@ -110,12 +110,14 @@ def build_source_metadata(
         "access_mode": "read_only_select",
         "tables_in_context": tables,
         "chunks_retrieved": int(chunks_retrieved),
-        "context_mode": context_mode,  # rag | introspection_fallback | empty
+        "context_mode": context_mode,  # rag | rag_expanded | introspection_fallback | empty
         "embedding_model": settings.embedding_model,
         "embedding_dimensions": settings.embedding_dimensions,
         "llm_model": settings.llm_model,
         "llm_model_fallback": settings.llm_model_fallback,
         "rag_top_k": settings.rag_top_k,
+        "rag_expand_hops": settings.rag_expand_hops,
+        "rag_max_tables": settings.rag_max_tables,
     }
 
 

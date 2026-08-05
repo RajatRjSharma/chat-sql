@@ -56,4 +56,11 @@ class TestSchemaChunker:
         content, metadata = chunks[0]
         assert metadata["qualified_name"] == "sales.orders"
         assert metadata["engine"] == "PostgreSQL"
+        assert metadata["foreign_keys"] == [
+            {
+                "column": "customer_id",
+                "referenced_table": "customers",
+                "referenced_column": "customer_id",
+            }
+        ]
         assert "sales.orders" in content

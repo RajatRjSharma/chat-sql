@@ -10,6 +10,10 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 
 ## Architecture
 
+![System architecture](docs/architecture.png)
+
+See [docs/architecture.md](docs/architecture.md) for the layer map. The poster is the high-level deploy/pipeline view; **schema linking** (RAG + FK expand) and refresh-index behavior are documented there in text.
+
 | Database | Port (local) | Role |
 |----------|----------------|------|
 | `bi_app` | 5432 | Users, sessions, messages, RAG embeddings, encrypted data sources, **CSV upload tables** (`u_<id>` schemas) |
@@ -17,7 +21,18 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 
 - **Connect:** user supplies external warehouse credentials at runtime (stored encrypted in `bi_app`).
 - **Upload:** CSV/Excel is parsed and loaded into an isolated schema on the **project database** (`APP_DB_*`). Removing the source drops that `u_*` schema. No second warehouse service is required.
+- **Schema index:** embeddings power RAG; after warehouse schema changes, use **Refresh schema index** in the Evidence panel (or `POST /api/data/embed-schema`). Chat prepare expands cosine seeds via **FK neighborhood** so multi-table joins are not limited to top-K alone.
 - Project DB credentials live in `.env` (`APP_DB_*`).
+
+### Docs map
+
+| Doc | Contents |
+|-----|----------|
+| [docs/architecture.md](docs/architecture.md) | Layers, schema linking, E2E (+ diagram) |
+| [backend/README.md](backend/README.md) | API, prepare + LangGraph, env, scripts |
+| [frontend/README.md](frontend/README.md) | UI flow, Evidence refresh, Playwright |
+| [backend/scripts/sales_extended/README.md](backend/scripts/sales_extended/README.md) | Extended `sales` warehouse (~50 tables) |
+| [backend/models/piper/README.md](backend/models/piper/README.md) | Offline Piper voice bundle |
 
 ## Quick start (local)
 
@@ -59,12 +74,16 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
 1. **Register / sign in**
 2. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
-3. Schema indexing runs when needed (`POST /api/data/embed-schema`)
+3. Schema indexing runs when needed (`POST /api/data/embed-schema`); re-run anytime via **Refresh schema index** in Evidence
 4. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
-5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; `POST /api/chat` still works)
+5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; prepare does **schema RAG + FK expand**, then LangGraph SQL)
 6. **Play** any answer summary (chat bubble or insight panel) via offline Piper TTS (`POST /api/voice/speak`)
 7. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 8. **Switch warehouse** returns to the connect screen to open another saved source
+
+### Schema linking (multi-table joins)
+
+Before SQL generation, prepare retrieves cosine **top-K** schema chunks, then **expands FK neighbors** into context and the validator allowlist (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`). If validation fails because a table was missing from the allowlist, the service does **one** expand-and-retry. See [docs/architecture.md](docs/architecture.md).
 
 ### Scope guard (relevance)
 

@@ -66,6 +66,14 @@ def chunk_tables(
             "schema": table.schema_name,
             "table": table.table_name,
             "qualified_name": table.qualified_name,
+            "foreign_keys": [
+                {
+                    "column": fk.column,
+                    "referenced_table": fk.referenced_table,
+                    "referenced_column": fk.referenced_column,
+                }
+                for fk in table.foreign_keys
+            ],
         }
         if engine_meta:
             metadata.update(
