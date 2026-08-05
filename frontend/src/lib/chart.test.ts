@@ -62,9 +62,26 @@ describe("deriveChart", () => {
 });
 
 describe("pickDefaultKind", () => {
-  it("prefers line for long series", () => {
-    const data = Array.from({ length: 13 }, (_, i) => ({
-      name: `D${i}`,
+  it("prefers pie for small non-negative shares", () => {
+    const data = [
+      { name: "North", value: 10 },
+      { name: "South", value: 20 },
+      { name: "East", value: 5 },
+    ];
+    expect(pickDefaultKind(data)).toBe("pie");
+  });
+
+  it("prefers bar for long categorical rankings (not line)", () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({
+      name: `table_${i}`,
+      value: 100 - i,
+    }));
+    expect(pickDefaultKind(data)).toBe("bar");
+  });
+
+  it("prefers line for time-like labels", () => {
+    const data = Array.from({ length: 12 }, (_, i) => ({
+      name: `2024-${String(i + 1).padStart(2, "0")}-01`,
       value: i + 1,
     }));
     expect(pickDefaultKind(data)).toBe("line");

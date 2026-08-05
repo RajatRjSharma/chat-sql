@@ -21,9 +21,16 @@ const EMPTY_SERIES: ChartSeries = {
 /** Hard cap so charts stay readable; excess rows are truncated (top / first). */
 const MAX_CHART_POINTS = 40;
 const PIE_MAX_CATEGORIES = 8;
-const LINE_MIN_ROWS = 13;
+const LINE_MIN_ROWS = 8;
 /** Skip text columns whose typical values would crush axis labels (e.g. STRING_AGG dumps). */
 const MAX_AVG_CATEGORY_LABEL_LEN = 48;
+
+const MONTH_RE =
+  /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*(\s|-|_|\/|\.|'|\d|$)/i;
+const DATE_RE =
+  /^\d{4}([-/.]\d{1,2}){1,2}$|^\d{1,2}([-/.]\d{1,2})([-/.]\d{2,4})$/;
+const YEAR_RE = /^(19|20)\d{2}$/;
+const QUARTER_RE = /^q[1-4]([-'’]?\s?\d{2,4})?$/i;
 
 function isNumeric(value: unknown): boolean {
   if (typeof value === "number" && Number.isFinite(value)) return true;
@@ -66,6 +73,25 @@ function shortCategoryColumns(
   );
 }
 
+/** True when labels look like a time / ordered sequence (line chart). */
+export function looksTemporalLabels(names: string[]): boolean {
+  if (names.length < LINE_MIN_ROWS) return false;
+  const sample = names.slice(0, Math.min(names.length, 16));
+  let hits = 0;
+  for (const raw of sample) {
+    const name = raw.trim();
+    if (
+      DATE_RE.test(name) ||
+      YEAR_RE.test(name) ||
+      MONTH_RE.test(name) ||
+      QUARTER_RE.test(name)
+    ) {
+      hits += 1;
+    }
+  }
+  return hits / sample.length >= 0.6;
+}
+
 function finish(categoryKey: string, valueKey: string, data: ChartPoint[]): ChartSeries {
   const cleaned = data
     .map((d) => ({
@@ -84,12 +110,18 @@ function finish(categoryKey: string, valueKey: string, data: ChartPoint[]): Char
   };
 }
 
-/** Default visualization when the user has not picked a chart type. */
+/**
+ * Pick the default visualization from the result shape.
+ * User can still switch Bar / Line / Pie in the UI.
+ *
+ * - Small non-negative shares → pie
+ * - Time-like / sequential labels → line
+ * - Everything else (rankings, table counts, regions, …) → bar
+ */
 export function pickDefaultKind(data: ChartPoint[]): ChartDisplayKind {
   const uniqueNames = new Set(data.map((d) => d.name));
   const allNonNegative = data.every((d) => Number.isFinite(d.value) && d.value >= 0);
 
-  // Small categorical shares → pie; longer series → line; otherwise bar.
   if (
     uniqueNames.size >= 2 &&
     uniqueNames.size <= PIE_MAX_CATEGORIES &&
@@ -98,7 +130,9 @@ export function pickDefaultKind(data: ChartPoint[]): ChartDisplayKind {
   ) {
     return "pie";
   }
-  if (data.length >= LINE_MIN_ROWS) return "line";
+  if (looksTemporalLabels(data.map((d) => d.name))) {
+    return "line";
+  }
   return "bar";
 }
 
