@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,7 +24,7 @@ def _embed_result(*, chunks: int = 3, tables: int = 3, previous: int = 0) -> Sch
         chunks_embedded=chunks,
         tables_indexed=tables,
         previous_chunks=previous,
-        indexed_at=datetime(2026, 8, 5, 12, 0, tzinfo=timezone.utc),
+        indexed_at=datetime(2026, 8, 5, 12, 0, tzinfo=UTC),
     )
 
 
