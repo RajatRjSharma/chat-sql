@@ -24,6 +24,7 @@ DEMO_WH_USER ?= bi_readonly
 DEMO_WH_PASSWORD ?= readonly_pass
 DEMO_WH_ADMIN_USER ?= postgres
 DEMO_WH_ADMIN_PASSWORD ?= postgres
+EXTRA_ORDERS ?= 500
 
 WH_CREDS = --name "$(DEMO_WH_NAME)" --host $(DEMO_WH_HOST) --port $(DEMO_WH_PORT) \
 	--database $(DEMO_WH_DATABASE) --schema $(DEMO_WH_SCHEMA) \
@@ -171,6 +172,14 @@ warehouse-init: ## Apply warehouse SQL schema (sales + readonly + uploader roles
 .PHONY: warehouse-seed
 warehouse-seed: ## Seed demo sales data (pass creds via DEMO_WH_* make vars)
 	$(RUN_PY) scripts/seed_warehouse.py $(WH_CREDS)
+
+.PHONY: warehouse-extend
+warehouse-extend: ## Add ~50 related tables into existing sales schema (local warehouse_db)
+	docker exec -i $(WAREHOUSE_DB_CONTAINER) psql -U postgres -d bi_warehouse < $(BACKEND_DIR)/scripts/sales_extended/01_extend_sales_schema.sql
+
+.PHONY: warehouse-seed-extended
+warehouse-seed-extended: ## Seed extended sales dims + joins (DEMO_WH_* / EXTRA_ORDERS=N)
+	$(RUN_PY) scripts/sales_extended/seed_sales_extended.py $(WH_CREDS) --extra-orders $(EXTRA_ORDERS)
 
 .PHONY: warehouse-check-cli
 warehouse-check-cli: ## Inspect warehouse using CLI credentials (no project DB)
