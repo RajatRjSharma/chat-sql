@@ -1,6 +1,7 @@
 """User-provided warehouse / analytics database connection input."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -45,6 +46,8 @@ class WarehouseConnectResponse(BaseModel):
     database: str
     schema_name: str | None = None
     status: str = "connected"
+    # Connection provenance for Evidence panel (available before first chat).
+    source_metadata: dict[str, Any] | None = None
 
 
 class DataSourceSummary(BaseModel):
@@ -61,5 +64,6 @@ class DataSourceSummary(BaseModel):
     tables_indexed: int | None = None
     schema_indexed_at: datetime | None = None
     session_count: int = 0
+    source_metadata: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}

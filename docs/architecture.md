@@ -27,12 +27,18 @@ Related docs:
 
 Before the graph runs, `ChatService` prepare does industry-style linking:
 
-1. **Cosine top-K** (`RAG_TOP_K`, default 5) — seed table chunks (what the diagram labels `retrieve_schema` / schema RAG).
-2. **FK expand** (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`) — neighboring tables into context + allowlist.
-3. LangGraph SQL loop against that allowlist (retries as in the diagram).
-4. On allowlist miss, **one** expand-and-retry (`RAG_EXPAND_ON_RETRY`).
+1. **Cosine top-K** (`RAG_TOP_K`, default 5) — seed chunks from the schema index.
+   Index stores **one chunk per table** plus two warehouse-wide overview chunks:
+   - `catalog_overview` — full table inventory (summary / all-tables asks)
+   - `relationship_graph` — ER / FK edge list (join-path asks)
+2. **FK expand** (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`) — neighboring tables into context + allowlist
+   (overview chunks do not consume the real-table budget).
+3. **Catalog overview path** — NL like “summary of db” *or* retrieval of the catalog
+   overview chunk → allowlist **every** indexed table (not capped at `RAG_MAX_TABLES`).
+4. LangGraph SQL loop against that allowlist (retries as in the diagram).
+5. On allowlist miss, **one** expand-and-retry (`RAG_EXPAND_ON_RETRY`).
 
-In the UI, **Refresh schema index** (Evidence panel → `POST /api/data/embed-schema`) re-indexes after warehouse DDL so RAG + FK metadata stay current.
+In the UI, **Refresh schema index** (Evidence panel → `POST /api/data/embed-schema`) re-indexes after warehouse DDL so RAG + FK metadata stay current. After this chunking change, refresh once so the two overview chunks are embedded.
 
 ## End-to-end
 

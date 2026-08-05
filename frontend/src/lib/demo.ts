@@ -1,4 +1,4 @@
-import type { WarehouseConnectRequest } from "./types";
+import type { SourceMetadata, WarehouseConnectRequest } from "./types";
 
 /** Local Makefile demo warehouse — matches `make warehouse-seed` defaults. */
 export const DEMO_WAREHOUSE: WarehouseConnectRequest = {
@@ -29,6 +29,8 @@ export type PersistedWorkspace = {
   chunksEmbedded: number | null;
   tablesIndexed: number | null;
   schemaIndexedAt: string | null;
+  /** Connection provenance — Evidence panel before first chat. */
+  sourceMetadata: SourceMetadata | null;
 };
 
 export function loadWorkspace(): PersistedWorkspace | null {
@@ -44,6 +46,7 @@ export function loadWorkspace(): PersistedWorkspace | null {
       chunksEmbedded: parsed.chunksEmbedded ?? null,
       tablesIndexed: parsed.tablesIndexed ?? null,
       schemaIndexedAt: parsed.schemaIndexedAt ?? null,
+      sourceMetadata: parsed.sourceMetadata ?? null,
     };
   } catch {
     return null;

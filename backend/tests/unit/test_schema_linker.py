@@ -81,6 +81,22 @@ class TestParseHelpers:
         )
         assert edges == [("orders", "customers")]
 
+    def test_parse_fk_edges_uses_from_table_on_overview_chunk(self) -> None:
+        edges = parse_fk_edges_from_metadata(
+            "__relationships__",
+            {
+                "foreign_keys": [
+                    {
+                        "column": "customer_id",
+                        "from_table": "orders",
+                        "referenced_table": "customers",
+                        "referenced_column": "customer_id",
+                    }
+                ]
+            },
+        )
+        assert edges == [("orders", "customers")]
+
     def test_parse_allowlist_miss_tables(self) -> None:
         err = "Table 'channels' is not in the allowed table set."
         assert parse_allowlist_miss_tables(err) == ["channels"]
@@ -161,3 +177,24 @@ class TestSchemaLinkerExpand:
         c = _chunk("channels")
         merged = SchemaLinker.merge_chunks([a], [b, c, a], max_tables=2)
         assert [x.table for x in merged] == ["orders", "customers"]
+
+    def test_overview_seed_does_not_consume_max_tables(self) -> None:
+        catalog_chunk = SchemaChunk(
+            content="Database catalog / schema inventory (2 tables).",
+            table="__catalog__",
+            schema_name="sales",
+            metadata={"chunk_kind": "catalog_overview", "table": "__catalog__"},
+        )
+        orders = _chunk("orders", fks=[("customer_id", "customers")])
+        customers = _chunk("customers")
+        expanded = SchemaLinker.expand(
+            [catalog_chunk, orders],
+            [catalog_chunk, orders, customers],
+            hops=1,
+            max_tables=2,
+        )
+        names = [c.table for c in expanded]
+        assert names[0] == "__catalog__"
+        assert "orders" in names
+        assert "customers" in names
+        assert len([n for n in names if not n.startswith("__")]) == 2

@@ -20,9 +20,17 @@ from app.graph.chat_graph import (
     run_chat_graph,
 )
 from app.providers.ai import AIClient, get_ai_client
+from app.services.catalog_overview import (
+    format_catalog_inventory,
+    is_catalog_overview_question,
+)
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
 from app.services.rag_service import RagService
+from app.services.schema_chunker import (
+    is_catalog_overview_chunk_metadata,
+    is_synthetic_table,
+)
 from app.services.schema_introspection import SchemaIntrospectionService
 from app.services.schema_linker import (
     SchemaChunk,
@@ -204,20 +212,29 @@ class ChatService:
         )
         context_mode = "rag" if seed_rows else "empty"
         linked_chunks = list(seed_rows)
+        overview = is_catalog_overview_question(question) or any(
+            is_catalog_overview_chunk_metadata(c.metadata) for c in seed_rows
+        )
 
-        if seed_rows:
+        if seed_rows or overview:
             catalog = await RagService.load_catalog(session, data_source_id)
-            expanded = SchemaLinker.expand(
-                seed_rows,
-                catalog,
-                hops=settings.rag_expand_hops,
-                max_tables=settings.rag_max_tables,
-            )
-            seed_names = {c.table for c in seed_rows}
-            if any(c.table not in seed_names for c in expanded):
-                context_mode = "rag_expanded"
-            linked_chunks = expanded
-        else:
+            if overview and catalog:
+                # Full inventory: allowlist every indexed table (RAG_MAX_TABLES does not apply).
+                linked_chunks = catalog
+                context_mode = "catalog_overview"
+            elif seed_rows:
+                expanded = SchemaLinker.expand(
+                    seed_rows,
+                    catalog,
+                    hops=settings.rag_expand_hops,
+                    max_tables=settings.rag_max_tables,
+                )
+                seed_names = {c.table for c in seed_rows}
+                if any(c.table not in seed_names for c in expanded):
+                    context_mode = "rag_expanded"
+                linked_chunks = expanded
+
+        if not linked_chunks:
             try:
                 tables = await asyncio.to_thread(
                     SchemaIntrospectionService.introspect, info
@@ -230,8 +247,12 @@ class ChatService:
                     if parsed:
                         fallback.append(parsed)
                 if fallback:
-                    linked_chunks = fallback[: settings.rag_max_tables]
-                    context_mode = "introspection_fallback"
+                    if overview:
+                        linked_chunks = fallback
+                        context_mode = "catalog_overview"
+                    else:
+                        linked_chunks = fallback[: settings.rag_max_tables]
+                        context_mode = "introspection_fallback"
             except SchemaEmbeddingError:
                 linked_chunks = []
                 context_mode = "empty"
@@ -262,8 +283,19 @@ class ChatService:
         context_mode: str,
     ) -> dict[str, Any]:
         contents = [c.content for c in linked_chunks]
-        schema_context = RagService.format_context(contents)
-        allowed_tables = ChatService._extract_allowed_tables(contents, info.schema_name)
+        allowed_tables = ChatService._extract_allowed_tables(
+            contents,
+            info.schema_name,
+            linked_chunks=linked_chunks,
+        )
+        if context_mode == "catalog_overview":
+            # Names-only inventory (full DDL for 50+ tables blows the planner context).
+            schema_context = format_catalog_inventory(
+                schema_name=info.schema_name,
+                table_names=allowed_tables,
+            )
+        else:
+            schema_context = RagService.format_context(contents)
         source_metadata = build_source_metadata(
             data_source,
             tables_in_context=allowed_tables,
@@ -569,14 +601,26 @@ class ChatService:
         return hydrated
 
     @staticmethod
-    def _extract_allowed_tables(chunks: list[str], schema_name: str | None) -> list[str]:
+    def _extract_allowed_tables(
+        chunks: list[str],
+        schema_name: str | None,
+        *,
+        linked_chunks: list[SchemaChunk] | None = None,
+    ) -> list[str]:
         tables: set[str] = set()
+        if linked_chunks:
+            for chunk in linked_chunks:
+                if chunk.table and not is_synthetic_table(chunk.table):
+                    tables.add(chunk.table)
         for chunk in chunks:
             for line in chunk.splitlines():
                 if line.startswith("Table:"):
                     qualified = line.split(":", 1)[1].strip()
-                    if "." in qualified:
-                        tables.add(qualified.split(".", 1)[1])
-                    else:
-                        tables.add(qualified)
+                    name = (
+                        qualified.split(".", 1)[1]
+                        if "." in qualified
+                        else qualified
+                    )
+                    if name and not is_synthetic_table(name):
+                        tables.add(name)
         return sorted(tables)

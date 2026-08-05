@@ -26,6 +26,31 @@ export const demoSource = {
   is_active: true,
   chunks_embedded: 3,
   session_count: 2,
+  source_metadata: {
+    source_name: "Demo Sales Warehouse",
+    data_source_id: DEMO_SOURCE_ID,
+    db_type: "postgres",
+    engine: "PostgreSQL",
+    vendor: "PostgreSQL Global Development Group",
+    sql_dialect: "postgres",
+    supports_schemas: true,
+    identifier_quoting: "double_quote",
+    dialect_notes: "Use schema.table qualification when schema is set.",
+    host: "localhost",
+    port: 5433,
+    database: "bi_warehouse",
+    schema_name: "sales",
+    is_readonly: true,
+    access_mode: "read_only_select",
+    tables_in_context: [] as string[],
+    chunks_retrieved: 0,
+    context_mode: "connection",
+    embedding_model: "test-embed",
+    embedding_dimensions: 2048,
+    llm_model: "test-llm",
+    llm_model_fallback: "test-llm-fallback",
+    rag_top_k: 5,
+  },
 };
 
 export const demoSourceNeedsEmbed = {
@@ -34,6 +59,11 @@ export const demoSourceNeedsEmbed = {
   name: "Unindexed Warehouse",
   chunks_embedded: 0,
   session_count: 0,
+  source_metadata: {
+    ...demoSource.source_metadata,
+    source_name: "Unindexed Warehouse",
+    data_source_id: DEMO_SOURCE_B_ID,
+  },
 };
 
 export const connectResponse = {
@@ -44,6 +74,7 @@ export const connectResponse = {
   database: "bi_warehouse",
   schema_name: "sales",
   status: "connected",
+  source_metadata: demoSource.source_metadata,
 };
 
 export const embedResponse = {
@@ -67,6 +98,11 @@ export const uploadResponse = {
   columns: ["region", "amount"],
   file_kind: "csv" as const,
   status: "loaded",
+  source_metadata: {
+    ...demoSource.source_metadata,
+    source_name: "sales (upload)",
+    schema_name: "u_demo12345678",
+  },
 };
 
 export const chatOkResponse = {

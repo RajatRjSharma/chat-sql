@@ -319,6 +319,7 @@ export async function seedWorkspace(
     chunksEmbedded: number | null;
     tablesIndexed?: number | null;
     schemaIndexedAt?: string | null;
+    sourceMetadata?: Record<string, unknown> | null;
   },
 ) {
   await page.addInitScript((value) => {
@@ -327,6 +328,7 @@ export async function seedWorkspace(
       JSON.stringify({
         tablesIndexed: null,
         schemaIndexedAt: null,
+        sourceMetadata: null,
         ...value,
       }),
     );

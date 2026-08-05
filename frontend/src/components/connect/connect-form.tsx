@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError } from "@/lib/api";
 import { DEMO_WAREHOUSE } from "@/lib/demo";
-import type { WarehouseConnectRequest } from "@/lib/types";
+import type { SourceMetadata, WarehouseConnectRequest } from "@/lib/types";
 
 type ConnectFormProps = {
   onConnected: (payload: {
@@ -15,6 +15,7 @@ type ConnectFormProps = {
     chunksEmbedded: number;
     tablesIndexed: number | null;
     schemaIndexedAt: string | null;
+    sourceMetadata: SourceMetadata | null;
   }) => void;
 };
 
@@ -54,6 +55,7 @@ export function ConnectForm({ onConnected }: ConnectFormProps) {
         chunksEmbedded: embedded.chunks_embedded,
         tablesIndexed: embedded.tables_indexed ?? null,
         schemaIndexedAt: embedded.indexed_at ?? null,
+        sourceMetadata: connected.source_metadata ?? null,
       });
     } catch (err) {
       setPhase("idle");

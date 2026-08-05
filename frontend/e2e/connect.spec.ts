@@ -19,6 +19,10 @@ test.describe("Connect warehouse", () => {
     await expect(page.getByText("Ask anything about the warehouse")).toBeVisible();
     await expect(page.getByText("Evidence panel")).toBeVisible();
     await expect(page.getByText("Demo Sales Warehouse", { exact: true })).toBeVisible();
+    // Connection provenance is available immediately (no chat required).
+    await expect(page.getByText("Engine")).toBeVisible();
+    await expect(page.getByText(/PostgreSQL · postgres/)).toBeVisible();
+    await expect(page.getByText("read-only SELECT")).toBeVisible();
   });
 
   test("shows connect error and stays on connect screen", async ({ page }) => {

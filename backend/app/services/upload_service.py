@@ -69,4 +69,5 @@ class UploadService:
             "columns": load.columns,
             "file_kind": parsed.file_kind,
             "status": "loaded",
+            "source_metadata": connected.source_metadata,
         }
