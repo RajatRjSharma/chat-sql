@@ -20,11 +20,12 @@ Rules:
    schemas and a schema is set.
 5. Use only tables/columns present in the schema context — copy names exactly
    (e.g. `orders`, never invent `order`).
-6. Prefer aggregations and clear column aliases for charting:
-   - 1 dimension + measure → bar/line/pie (e.g. region, SUM(amount)).
-   - 2 dimensions + measure → grouped/stacked/multi-line (e.g. region, channel, SUM(amount)).
-   - 2 measures for correlation → scatter-ready columns (e.g. invoice_amount, payment_amount).
-   Keep result sets compact (prefer GROUP BY aggregates over raw row dumps).
+6. Prefer aggregations and clear column aliases for charting (schema-agnostic):
+   - 1 dimension + measure → bar/line/pie.
+   - 2 dimensions + measure → grouped/stacked/multi-line (or a compact grid).
+   - 2 measures for correlation → two numeric columns (optional id/label).
+   Keep result sets compact: prefer GROUP BY aggregates; avoid dumping millions of
+   raw rows — use LIMIT only when the user explicitly asks for samples/raw rows.
 7. String literals must use the dialect's string quotes (PostgreSQL: single quotes).
 8. FILTER clauses must be valid for the target dialect when used:
    COUNT(*) FILTER (WHERE status = 'completed') on PostgreSQL —
@@ -34,8 +35,8 @@ Rules:
    a “Complete indexed table inventory”, include EVERY listed table — never a subset.
    Keep it short — avoid nested half-finished expressions.
 10. If previous SQL failed validation, fix the error described by the user.
-11. Map common BI vocabulary to schema measures when present
-    (revenue/sales/GMV → amount, total_amount, line_amount, etc.).
+11. Map common BI vocabulary to whatever measure columns exist in this schema
+    (e.g. revenue/sales/GMV/volume → amount, total_amount, qty, value, …).
 12. If the question cannot be answered from the schema context (general knowledge,
     trivia, unrelated domains), output exactly: UNANSWERABLE
     Do not invent tables, columns, or placeholder SELECTs to force an answer.

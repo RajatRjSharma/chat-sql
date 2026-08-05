@@ -348,7 +348,7 @@ def parse_columns_from_chunk(content: str) -> list[str]:
 
 
 # Prefer these table-name hints when linking via measure synonyms only
-# (avoid attaching every amount-bearing dim/lookup table).
+# (avoid attaching every lookup table that happens to share a column name).
 _FACTISH_TABLE_HINTS = (
     "order",
     "invoice",
@@ -358,6 +358,13 @@ _FACTISH_TABLE_HINTS = (
     "transaction",
     "ledger",
     "line",
+    "event",
+    "fact",
+    "metric",
+    "usage",
+    "shipment",
+    "booking",
+    "ticket",
 )
 
 
