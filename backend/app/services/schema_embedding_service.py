@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -115,7 +115,7 @@ class SchemaEmbeddingService:
         if len(vectors) != len(chunks):
             raise SchemaEmbeddingError("Embedding count does not match chunk count.")
 
-        indexed_at = datetime.now(timezone.utc)
+        indexed_at = datetime.now(UTC)
 
         await session.execute(
             delete(SchemaEmbedding).where(SchemaEmbedding.data_source_id == data_source_id)

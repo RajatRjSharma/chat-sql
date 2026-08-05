@@ -46,12 +46,12 @@ test.describe("Schema index refresh", () => {
     await page.goto("/");
 
     await expect(page.getByText("Evidence panel")).toBeVisible();
-    await expect(page.getByText(/3 chunks/)).toBeVisible();
+    await expect(page.getByText("3 chunks · 3 tables")).toBeVisible();
 
     await page.getByRole("button", { name: "Refresh schema index" }).click();
 
-    await expect(page.getByText(/12 chunks/)).toBeVisible();
-    await expect(page.getByText(/3 → 12 chunks/)).toBeVisible();
+    await expect(page.getByText("12 chunks · 12 tables")).toBeVisible();
+    await expect(page.getByText("Index refreshed · 3 → 12 chunks")).toBeVisible();
     expect(embedCalls).toBe(1);
   });
 });
