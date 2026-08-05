@@ -254,18 +254,18 @@ function ChartCarousel({
 
   return (
     <section className="animate-fade-in space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 shrink truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
           Session charts
         </p>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             aria-label="Previous chart"
             disabled={index <= 0}
             onClick={() => onIndexChange(Math.max(0, index - 1))}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border-card)] bg-[var(--bg-card)]",
+              "inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-card)] bg-[var(--bg-card)]",
               "text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-user)]",
               "disabled:pointer-events-none disabled:opacity-35",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
@@ -273,7 +273,7 @@ function ChartCarousel({
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="min-w-[3.5rem] text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+          <span className="min-w-[3.25rem] text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
             {index + 1} / {items.length}
           </span>
           <button
@@ -282,7 +282,7 @@ function ChartCarousel({
             disabled={index >= items.length - 1}
             onClick={() => onIndexChange(Math.min(items.length - 1, index + 1))}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border-card)] bg-[var(--bg-card)]",
+              "inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-card)] bg-[var(--bg-card)]",
               "text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-user)]",
               "disabled:pointer-events-none disabled:opacity-35",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
@@ -294,9 +294,9 @@ function ChartCarousel({
       </div>
 
       {current ? (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <p
-            className="break-words text-[12px] leading-snug text-[var(--text-secondary)]"
+            className="line-clamp-2 break-words text-[12px] leading-snug text-[var(--text-secondary)]"
             title={current.turn.question}
           >
             <span className="font-medium text-[var(--text-primary)]">
@@ -304,7 +304,7 @@ function ChartCarousel({
             </span>{" "}
             {current.turn.question}
           </p>
-          <div className="w-full min-w-0">
+          <div className="w-full min-w-0 overflow-hidden">
             <ResultChart
               key={current.turn.id}
               columns={current.turn.columns}

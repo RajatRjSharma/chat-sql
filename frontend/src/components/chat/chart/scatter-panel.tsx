@@ -16,6 +16,7 @@ import {
   formatValue,
   formatYTick,
   TOOLTIP_STYLE,
+  truncateLabel,
 } from "./chart-shared";
 
 export function ScatterPanel({ series }: { series: ChartSeries }) {
@@ -24,9 +25,12 @@ export function ScatterPanel({ series }: { series: ChartSeries }) {
   const yKey = series.yKey ?? "y";
   if (data.length < 2) return null;
 
+  const xLabel = truncateLabel(xKey, 18);
+  const yLabel = truncateLabel(yKey, 18);
+
   return (
     <ResponsiveContainer width="100%" height="100%" debounce={50}>
-      <ScatterChart margin={{ top: 12, right: 16, left: 4, bottom: 12 }}>
+      <ScatterChart margin={{ top: 12, right: 20, left: 8, bottom: 28 }}>
         <CartesianGrid stroke="var(--border-card)" strokeDasharray="3 6" />
         <XAxis
           type="number"
@@ -35,11 +39,13 @@ export function ScatterPanel({ series }: { series: ChartSeries }) {
           tick={AXIS_TICK}
           axisLine={false}
           tickLine={false}
+          tickMargin={8}
+          height={40}
           tickFormatter={(value) => formatYTick(Number(value))}
           label={{
-            value: xKey,
+            value: xLabel,
             position: "insideBottom",
-            offset: -4,
+            offset: -2,
             fill: "var(--text-secondary)",
             fontSize: 11,
           }}
@@ -51,13 +57,14 @@ export function ScatterPanel({ series }: { series: ChartSeries }) {
           tick={AXIS_TICK}
           axisLine={false}
           tickLine={false}
-          width={56}
+          width={64}
+          tickMargin={6}
           tickFormatter={(value) => formatYTick(Number(value))}
           label={{
-            value: yKey,
+            value: yLabel,
             angle: -90,
             position: "insideLeft",
-            offset: 8,
+            offset: 4,
             fill: "var(--text-secondary)",
             fontSize: 11,
           }}

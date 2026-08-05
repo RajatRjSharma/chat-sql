@@ -42,6 +42,38 @@ export const DENSE_CATEGORY_COUNT = 8;
 /** Visible chars on axis ticks; full label stays in tooltip / native title. */
 export const MAX_TICK_CHARS = 14;
 
+/** Shared cartesian margins — keeps ticks/legend inside the plot box. */
+export function cartesianPlotMargin(options: {
+  angled: boolean;
+  maxLabelChars: number;
+  legendTop?: boolean;
+  legendBottom?: boolean;
+  extraRight?: number;
+}): { top: number; right: number; left: number; bottom: number } {
+  const {
+    angled,
+    maxLabelChars,
+    legendTop = false,
+    legendBottom = false,
+    extraRight = 0,
+  } = options;
+  return {
+    top: legendTop ? 4 : 10,
+    right: Math.max(14, 10 + extraRight),
+    left: 4,
+    bottom: angled
+      ? Math.min(20, 10 + Math.floor(maxLabelChars * 0.35)) + (legendBottom ? 28 : 4)
+      : legendBottom
+        ? 32
+        : 10,
+  };
+}
+
+export function xAxisTickHeight(angled: boolean, maxLabelChars: number): number {
+  if (!angled) return 28;
+  return Math.min(72, Math.max(40, 18 + maxLabelChars * 2.2));
+}
+
 export function truncateLabel(label: string, maxChars = MAX_TICK_CHARS): string {
   const text = label.trim();
   if (text.length <= maxChars) return text;

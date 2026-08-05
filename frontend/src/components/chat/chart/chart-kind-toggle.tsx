@@ -8,18 +8,22 @@ export function ChartKindToggle({
   value,
   onChange,
   options,
+  compact = false,
 }: {
   value: ChartDisplayKind;
   onChange: (kind: ChartDisplayKind) => void;
   options: ChartDisplayKind[];
+  compact?: boolean;
 }) {
   if (options.length <= 1) {
     return (
       <span
         className={cn(
-          "inline-flex min-h-11 items-center rounded-lg border border-[var(--border-card)]",
-          "bg-[var(--bg-shell)] px-3 py-2 text-[12px] font-medium text-[var(--text-on-dark)]",
-          "sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px]",
+          "inline-flex items-center rounded-lg border border-[var(--border-card)]",
+          "bg-[var(--bg-shell)] font-medium text-[var(--text-on-dark)]",
+          compact
+            ? "h-8 px-2.5 text-[11px]"
+            : "min-h-11 px-3 py-2 text-[12px] sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px]",
         )}
         aria-label="Chart type"
       >
@@ -30,7 +34,9 @@ export function ChartKindToggle({
 
   return (
     <div
-      className="flex max-w-full shrink-0 rounded-lg border border-[var(--border-card)] bg-[var(--bg-card)] p-0.5"
+      className={cn(
+        "flex max-w-full shrink-0 flex-wrap justify-end rounded-lg border border-[var(--border-card)] bg-[var(--bg-card)] p-0.5",
+      )}
       role="group"
       aria-label="Chart type"
     >
@@ -43,8 +49,11 @@ export function ChartKindToggle({
             onClick={() => onChange(id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-11 rounded-md px-3 py-2 text-[12px] font-medium transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px]",
+              "rounded-md font-medium transition-colors",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+              compact
+                ? "h-8 px-2 text-[11px]"
+                : "min-h-11 px-3 py-2 text-[12px] sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px]",
               selected
                 ? "bg-[var(--bg-shell)] text-[var(--text-on-dark)]"
                 : "text-[var(--text-secondary)] hover:bg-[var(--bg-user)] hover:text-[var(--text-primary)]",
