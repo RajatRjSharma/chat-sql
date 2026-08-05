@@ -23,6 +23,10 @@ class SchemaEmbeddingError(AppError):
     """Schema introspection or embedding failed."""
 
 
+class SchemaIndexInProgressError(AppError):
+    """Concurrent schema index rebuild rejected."""
+
+
 class ChatPipelineError(AppError):
     """Chat graph pipeline failed after retries or hard error."""
 

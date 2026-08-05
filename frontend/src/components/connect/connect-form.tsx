@@ -13,6 +13,8 @@ type ConnectFormProps = {
     dataSourceId: string;
     dataSourceName: string;
     chunksEmbedded: number;
+    tablesIndexed: number | null;
+    schemaIndexedAt: string | null;
   }) => void;
 };
 
@@ -50,6 +52,8 @@ export function ConnectForm({ onConnected }: ConnectFormProps) {
         dataSourceId: connected.data_source_id,
         dataSourceName: connected.name,
         chunksEmbedded: embedded.chunks_embedded,
+        tablesIndexed: embedded.tables_indexed ?? null,
+        schemaIndexedAt: embedded.indexed_at ?? null,
       });
     } catch (err) {
       setPhase("idle");

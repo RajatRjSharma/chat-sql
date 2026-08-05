@@ -1,5 +1,6 @@
 """User-provided warehouse / analytics database connection input."""
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -57,6 +58,8 @@ class DataSourceSummary(BaseModel):
     is_readonly: bool
     is_active: bool
     chunks_embedded: int = 0
+    tables_indexed: int | None = None
+    schema_indexed_at: datetime | None = None
     session_count: int = 0
 
     model_config = {"from_attributes": True}

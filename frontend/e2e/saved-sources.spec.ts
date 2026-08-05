@@ -43,6 +43,9 @@ test.describe("Saved warehouses", () => {
         body: JSON.stringify({
           data_source_id: demoSourceNeedsEmbed.id,
           chunks_embedded: 2,
+          tables_indexed: 2,
+          previous_chunks: 0,
+          indexed_at: "2026-08-05T12:00:00.000Z",
           status: "ok",
         }),
       });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Composer } from "@/components/chat/composer";
 import {
   InsightPanel,
@@ -10,14 +11,22 @@ import { SessionHistory } from "@/components/chat/session-history";
 import { WorkspaceHeader } from "@/components/workspace/workspace-header";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useWorkspaceChat } from "@/hooks/use-workspace-chat";
+import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 type WorkspaceProps = {
   dataSourceId: string;
   dataSourceName: string;
   chunksEmbedded: number | null;
+  tablesIndexed: number | null;
+  schemaIndexedAt: string | null;
   sessionId: string | null;
   onSessionChange: (sessionId: string | null) => void;
+  onSchemaIndexChange: (update: {
+    chunksEmbedded: number;
+    tablesIndexed: number | null;
+    schemaIndexedAt: string | null;
+  }) => void;
   onDisconnect: () => void;
   onLogout: () => void;
   userLabel: string;
@@ -27,8 +36,11 @@ export function Workspace({
   dataSourceId,
   dataSourceName,
   chunksEmbedded,
+  tablesIndexed,
+  schemaIndexedAt,
   sessionId,
   onSessionChange,
+  onSchemaIndexChange,
   onDisconnect,
   onLogout,
   userLabel,
@@ -53,11 +65,63 @@ export function Workspace({
     handleNewChat,
     busy,
     suggestionTexts,
+    refreshSuggestions,
   } = useWorkspaceChat({
     dataSourceId,
     sessionId,
     onSessionChange,
   });
+
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+
+  async function handleRefreshSchemaIndex() {
+    const confirmed = window.confirm(
+      "Re-scan the connected database and rebuild the schema index used for RAG?\n\nExisting chats stay; new answers will use the updated schema.",
+    );
+    if (!confirmed) return;
+
+    setRefreshBusy(true);
+    setRefreshError(null);
+    setRefreshMessage(null);
+    try {
+      const embedded = await api.embedSchema(dataSourceId);
+      onSchemaIndexChange({
+        chunksEmbedded: embedded.chunks_embedded,
+        tablesIndexed: embedded.tables_indexed ?? null,
+        schemaIndexedAt: embedded.indexed_at ?? null,
+      });
+      const previous = embedded.previous_chunks;
+      const next = embedded.chunks_embedded;
+      setRefreshMessage(
+        previous === next
+          ? `Index refreshed · ${next} chunk${next === 1 ? "" : "s"}`
+          : `Index refreshed · ${previous} → ${next} chunks`,
+      );
+      void refreshSuggestions();
+    } catch (err) {
+      setRefreshError(
+        err instanceof ApiError
+          ? err.detail
+          : "Could not refresh the schema index",
+      );
+    } finally {
+      setRefreshBusy(false);
+    }
+  }
+
+  const schemaIndexProps = {
+    chunksEmbedded,
+    tablesIndexed,
+    schemaIndexedAt,
+    refreshBusy,
+    refreshError,
+    refreshMessage,
+    onRefreshSchemaIndex: () => {
+      void handleRefreshSchemaIndex();
+    },
+  };
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] text-[var(--text-on-dark)]">
@@ -67,7 +131,7 @@ export function Workspace({
         sessionId={sessionId}
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
-        busy={busy}
+        busy={busy || refreshBusy}
         onNewChat={handleNewChat}
         onDisconnect={onDisconnect}
         onLogout={onLogout}
@@ -83,7 +147,7 @@ export function Workspace({
             sessions={sessions}
             activeSessionId={sessionId}
             loading={sessionsLoading}
-            disabled={busy}
+            disabled={busy || refreshBusy}
             onSelect={handleSelectSession}
             onNewChat={handleNewChat}
           />
@@ -102,7 +166,7 @@ export function Workspace({
                   <li key={q}>
                     <button
                       type="button"
-                      disabled={busy}
+                      disabled={busy || refreshBusy}
                       onClick={() => ask(q)}
                       className="w-full break-words rounded-lg border border-transparent px-3 py-2 text-left text-[12px] leading-snug text-[var(--text-on-dark)]/90 transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--text-on-dark)] disabled:opacity-40"
                     >
@@ -153,7 +217,7 @@ export function Workspace({
               <MobileInsightDrawer
                 turns={turns}
                 dataSourceName={dataSourceName}
-                chunksEmbedded={chunksEmbedded}
+                {...schemaIndexProps}
               />
             ) : null}
 
@@ -165,7 +229,7 @@ export function Workspace({
                     <button
                       key={session.session_id}
                       type="button"
-                      disabled={busy}
+                      disabled={busy || refreshBusy}
                       title={title}
                       onClick={() => handleSelectSession(session.session_id)}
                       className={
@@ -185,7 +249,7 @@ export function Workspace({
                   <button
                     key={q}
                     type="button"
-                    disabled={busy}
+                    disabled={busy || refreshBusy}
                     title={q}
                     onClick={() => ask(q)}
                     className="min-h-11 max-w-[min(80vw,280px)] shrink-0 whitespace-normal break-words rounded-2xl border border-[var(--border-card)] bg-[var(--bg-card)] px-3 py-2 text-left text-xs leading-snug text-[var(--text-secondary)] disabled:opacity-40"
@@ -200,7 +264,7 @@ export function Workspace({
               value={draft}
               onChange={setDraft}
               onSubmit={ask}
-              disabled={busy}
+              disabled={busy || refreshBusy}
             />
           </div>
         </main>
@@ -210,7 +274,7 @@ export function Workspace({
             <InsightPanel
               turns={turns}
               dataSourceName={dataSourceName}
-              chunksEmbedded={chunksEmbedded}
+              {...schemaIndexProps}
             />
           </div>
         ) : null}

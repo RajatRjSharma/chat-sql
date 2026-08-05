@@ -149,6 +149,9 @@ class DataSourceService:
         )
         summaries: list[dict[str, Any]] = []
         for source, chunks_embedded, sessions in result.all():
+            extra = source.extra_config or {}
+            table_count = extra.get("schema_table_count")
+            indexed_at = extra.get("schema_indexed_at")
             summaries.append(
                 {
                     "id": source.id,
@@ -161,6 +164,8 @@ class DataSourceService:
                     "is_readonly": source.is_readonly,
                     "is_active": source.is_active,
                     "chunks_embedded": int(chunks_embedded or 0),
+                    "tables_indexed": int(table_count) if table_count is not None else None,
+                    "schema_indexed_at": indexed_at,
                     "session_count": int(sessions or 0),
                 }
             )

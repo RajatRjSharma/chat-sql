@@ -317,10 +317,19 @@ export async function seedWorkspace(
     dataSourceName: string;
     sessionId: string | null;
     chunksEmbedded: number | null;
+    tablesIndexed?: number | null;
+    schemaIndexedAt?: string | null;
   },
 ) {
   await page.addInitScript((value) => {
-    sessionStorage.setItem("vda.workspace.v1", JSON.stringify(value));
+    sessionStorage.setItem(
+      "vda.workspace.v1",
+      JSON.stringify({
+        tablesIndexed: null,
+        schemaIndexedAt: null,
+        ...value,
+      }),
+    );
   }, workspace);
 }
 

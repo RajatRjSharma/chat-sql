@@ -12,6 +12,8 @@ type UploadFormProps = {
     dataSourceId: string;
     dataSourceName: string;
     chunksEmbedded: number;
+    tablesIndexed: number | null;
+    schemaIndexedAt: string | null;
   }) => void;
 };
 
@@ -64,6 +66,8 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
         dataSourceId: uploaded.data_source_id,
         dataSourceName: uploaded.name,
         chunksEmbedded: embedded.chunks_embedded,
+        tablesIndexed: embedded.tables_indexed ?? null,
+        schemaIndexedAt: embedded.indexed_at ?? null,
       });
     } catch (err) {
       setPhase("idle");

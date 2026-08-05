@@ -261,5 +261,6 @@ export function useWorkspaceChat({
     latest,
     busy,
     suggestionTexts,
+    refreshSuggestions,
   };
 }

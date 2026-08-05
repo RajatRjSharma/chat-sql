@@ -3,19 +3,42 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.core.exceptions import AIProviderError, ChatPipelineError, SchemaEmbeddingError
+from app.core.exceptions import (
+    AIProviderError,
+    ChatPipelineError,
+    SchemaEmbeddingError,
+    SchemaIndexInProgressError,
+)
+from app.services.schema_embedding_service import SchemaEmbedResult
 from tests.conftest import DEMO_SOURCE_ID
 
 
+def _embed_result(*, chunks: int = 3, tables: int = 3, previous: int = 0) -> SchemaEmbedResult:
+    return SchemaEmbedResult(
+        chunks_embedded=chunks,
+        tables_indexed=tables,
+        previous_chunks=previous,
+        indexed_at=datetime(2026, 8, 5, 12, 0, tzinfo=timezone.utc),
+    )
+
+
 class TestEmbedSchemaRoute:
+    @pytest.fixture(autouse=True)
+    def _clear_embed_rate_buckets(self) -> None:
+        from app.security.rate_limit import _limiter
+
+        _limiter._hits.clear()
+
     def test_embed_schema_success(self, client: TestClient) -> None:
         with patch(
             "app.routes.data.SchemaEmbeddingService.embed_data_source",
-            new=AsyncMock(return_value=3),
+            new=AsyncMock(return_value=_embed_result(chunks=3, tables=3, previous=1)),
         ):
             response = client.post(
                 "/api/data/embed-schema",
@@ -24,6 +47,9 @@ class TestEmbedSchemaRoute:
         assert response.status_code == 200
         body = response.json()
         assert body["chunks_embedded"] == 3
+        assert body["tables_indexed"] == 3
+        assert body["previous_chunks"] == 1
+        assert body["indexed_at"] is not None
         assert body["status"] == "ok"
 
     def test_embed_schema_not_found_returns_404(self, client: TestClient) -> None:
@@ -37,6 +63,22 @@ class TestEmbedSchemaRoute:
             )
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+    def test_embed_schema_in_progress_returns_409(self, client: TestClient) -> None:
+        with patch(
+            "app.routes.data.SchemaEmbeddingService.embed_data_source",
+            new=AsyncMock(
+                side_effect=SchemaIndexInProgressError(
+                    "Schema index rebuild already in progress for this data source."
+                )
+            ),
+        ):
+            response = client.post(
+                "/api/data/embed-schema",
+                json={"data_source_id": str(DEMO_SOURCE_ID)},
+            )
+        assert response.status_code == 409
+        assert "already in progress" in response.json()["detail"].lower()
 
     def test_embed_schema_ai_error_returns_502(self, client: TestClient) -> None:
         with patch(

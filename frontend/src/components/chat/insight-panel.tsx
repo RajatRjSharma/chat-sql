@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { SpeakButton } from "@/components/chat/speak-button";
+import { Button } from "@/components/ui/button";
 import {
   buildSessionBrief,
   chartCarouselIdentity,
@@ -19,13 +20,32 @@ const ResultChart = dynamic(
   { ssr: false },
 );
 
+type SchemaIndexProps = {
+  chunksEmbedded: number | null;
+  tablesIndexed: number | null;
+  schemaIndexedAt: string | null;
+  refreshBusy?: boolean;
+  refreshError?: string | null;
+  refreshMessage?: string | null;
+  onRefreshSchemaIndex?: () => void;
+};
+
 type InsightPanelProps = {
   turns: ChatTurn[];
   dataSourceName: string;
-  chunksEmbedded: number | null;
   /** Inline panel for mobile (no full-height aside chrome). */
   embedded?: boolean;
-};
+} & SchemaIndexProps;
+
+function formatIndexedAt(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
@@ -41,14 +61,77 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SchemaIndexBlock({
+  chunksEmbedded,
+  tablesIndexed,
+  schemaIndexedAt,
+  refreshBusy = false,
+  refreshError = null,
+  refreshMessage = null,
+  onRefreshSchemaIndex,
+}: SchemaIndexProps) {
+  const indexedLabel = formatIndexedAt(schemaIndexedAt);
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-[var(--border-card)] pt-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+        Schema index
+      </p>
+      {chunksEmbedded != null ? (
+        <p className="font-mono text-[11px] text-[var(--text-secondary)]">
+          {chunksEmbedded} chunk{chunksEmbedded === 1 ? "" : "s"}
+          {tablesIndexed != null
+            ? ` · ${tablesIndexed} table${tablesIndexed === 1 ? "" : "s"}`
+            : ""}
+        </p>
+      ) : (
+        <p className="font-mono text-[11px] text-[var(--text-secondary)]">
+          Not indexed yet
+        </p>
+      )}
+      {indexedLabel ? (
+        <p className="text-[11px] text-[var(--text-secondary)]">
+          Last indexed {indexedLabel}
+        </p>
+      ) : null}
+      {onRefreshSchemaIndex ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-1 h-9 w-full justify-center border border-[var(--border-card)] text-[var(--text-primary)] hover:bg-black/[0.04]"
+          disabled={refreshBusy}
+          onClick={onRefreshSchemaIndex}
+        >
+          <RefreshCw
+            className={cn("h-3.5 w-3.5", refreshBusy && "animate-spin")}
+            aria-hidden
+          />
+          {refreshBusy ? "Refreshing index…" : "Refresh schema index"}
+        </Button>
+      ) : null}
+      {refreshMessage ? (
+        <p className="text-[11px] text-[var(--text-secondary)]" role="status">
+          {refreshMessage}
+        </p>
+      ) : null}
+      {refreshError ? (
+        <p className="text-[11px] text-[var(--error)]" role="alert">
+          {refreshError}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function SourceMetadataBlock({
   meta,
   fallbackName,
-  chunksEmbedded,
+  schemaIndex,
 }: {
   meta: SourceMetadata | null | undefined;
   fallbackName: string;
-  chunksEmbedded: number | null;
+  schemaIndex: SchemaIndexProps;
 }) {
   if (!meta) {
     return (
@@ -56,11 +139,7 @@ function SourceMetadataBlock({
         <p className="mt-2 break-words text-[15px] font-medium text-[var(--text-primary)]">
           {fallbackName}
         </p>
-        {chunksEmbedded != null ? (
-          <p className="mt-1 font-mono text-xs text-[var(--text-secondary)]">
-            {chunksEmbedded} schema chunk{chunksEmbedded === 1 ? "" : "s"} indexed
-          </p>
-        ) : null}
+        <SchemaIndexBlock {...schemaIndex} />
       </>
     );
   }
@@ -82,11 +161,7 @@ function SourceMetadataBlock({
         label="Access"
         value={meta.is_readonly ? "read-only SELECT" : meta.access_mode}
       />
-      {chunksEmbedded != null ? (
-        <p className="pt-1 font-mono text-[11px] text-[var(--text-secondary)]">
-          {chunksEmbedded} schema chunk{chunksEmbedded === 1 ? "" : "s"} indexed
-        </p>
-      ) : null}
+      <SchemaIndexBlock {...schemaIndex} />
     </div>
   );
 }
@@ -244,7 +319,7 @@ function ChartCarousel({
 function InsightBody({
   turns,
   dataSourceName,
-  chunksEmbedded,
+  ...schemaIndex
 }: Omit<InsightPanelProps, "embedded">) {
   const items = useMemo(() => listChartableTurns(turns), [turns]);
   const identity = chartCarouselIdentity(items);
@@ -274,7 +349,7 @@ function InsightBody({
         <SourceMetadataBlock
           meta={warehouseMeta}
           fallbackName={dataSourceName}
-          chunksEmbedded={chunksEmbedded}
+          schemaIndex={schemaIndex}
         />
       </section>
 
@@ -293,16 +368,30 @@ export function InsightPanel({
   turns,
   dataSourceName,
   chunksEmbedded,
+  tablesIndexed,
+  schemaIndexedAt,
+  refreshBusy,
+  refreshError,
+  refreshMessage,
+  onRefreshSchemaIndex,
   embedded = false,
 }: InsightPanelProps) {
+  const bodyProps = {
+    turns,
+    dataSourceName,
+    chunksEmbedded,
+    tablesIndexed,
+    schemaIndexedAt,
+    refreshBusy,
+    refreshError,
+    refreshMessage,
+    onRefreshSchemaIndex,
+  };
+
   if (embedded) {
     return (
       <div className="min-w-0 bg-[var(--bg-surface)] text-[var(--text-primary)]">
-        <InsightBody
-          turns={turns}
-          dataSourceName={dataSourceName}
-          chunksEmbedded={chunksEmbedded}
-        />
+        <InsightBody {...bodyProps} />
       </div>
     );
   }
@@ -322,11 +411,7 @@ export function InsightPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
-        <InsightBody
-          turns={turns}
-          dataSourceName={dataSourceName}
-          chunksEmbedded={chunksEmbedded}
-        />
+        <InsightBody {...bodyProps} />
       </div>
     </aside>
   );
@@ -337,6 +422,12 @@ export function MobileInsightDrawer({
   turns,
   dataSourceName,
   chunksEmbedded,
+  tablesIndexed,
+  schemaIndexedAt,
+  refreshBusy,
+  refreshError,
+  refreshMessage,
+  onRefreshSchemaIndex,
 }: Omit<InsightPanelProps, "embedded">) {
   const hasContent = turns.some((t) => t.status === "ok");
 
@@ -361,6 +452,12 @@ export function MobileInsightDrawer({
           turns={turns}
           dataSourceName={dataSourceName}
           chunksEmbedded={chunksEmbedded}
+          tablesIndexed={tablesIndexed}
+          schemaIndexedAt={schemaIndexedAt}
+          refreshBusy={refreshBusy}
+          refreshError={refreshError}
+          refreshMessage={refreshMessage}
+          onRefreshSchemaIndex={onRefreshSchemaIndex}
           embedded
         />
       </div>
