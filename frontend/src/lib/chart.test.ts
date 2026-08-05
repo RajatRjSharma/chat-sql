@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { deriveChart, pickDefaultKind } from "@/lib/chart";
+import {
+  availableChartKinds,
+  chartAxisLabel,
+  deriveChart,
+  pickDefaultKind,
+} from "@/lib/chart";
 
 describe("deriveChart", () => {
   it("builds a category + value series and defaults to pie for small shares", () => {
@@ -12,6 +17,7 @@ describe("deriveChart", () => {
       ],
     );
     expect(series.kind).toBe("pie");
+    expect(series.family).toBe("single");
     expect(series.categoryKey).toBe("region");
     expect(series.valueKey).toBe("revenue");
     expect(series.data).toHaveLength(3);
@@ -58,6 +64,101 @@ describe("deriveChart", () => {
 
   it("returns none for empty input", () => {
     expect(deriveChart([], []).kind).toBe("none");
+  });
+
+  it("pivots two categoricals + measure into a multi-series chart", () => {
+    const series = deriveChart(
+      ["region", "channel", "revenue"],
+      [
+        { region: "North", channel: "web", revenue: 10 },
+        { region: "North", channel: "store", revenue: 5 },
+        { region: "South", channel: "web", revenue: 20 },
+        { region: "South", channel: "store", revenue: 8 },
+      ],
+    );
+    expect(series.family).toBe("multi");
+    expect(series.kind).toBe("grouped");
+    expect(series.categoryKey).toBe("region");
+    expect(series.seriesKey).toBe("channel");
+    expect(series.seriesKeys).toEqual(["web", "store"]);
+    expect(series.multiData).toHaveLength(2);
+    expect(series.multiData?.[0]).toMatchObject({
+      name: "North",
+      web: 10,
+      store: 5,
+    });
+    expect(availableChartKinds(series)).toEqual(["grouped", "stacked", "line"]);
+    expect(chartAxisLabel(series)).toContain("region × channel");
+  });
+
+  it("defaults multi-series with 3+ keys to stacked", () => {
+    const regions = ["North", "South", "East", "West"];
+    const channels = ["web", "store", "partner"];
+    const rows = regions.flatMap((region) =>
+      channels.map((channel) => ({
+        region,
+        channel,
+        revenue: region.length + channel.length,
+      })),
+    );
+    const series = deriveChart(["region", "channel", "revenue"], rows);
+    expect(series.family).toBe("multi");
+    expect(series.categoryKey).toBe("region");
+    expect(series.seriesKeys).toHaveLength(3);
+    expect(series.kind).toBe("stacked");
+  });
+
+  it("defaults temporal multi-series to line", () => {
+    const months = [
+      "2024-01-01",
+      "2024-02-01",
+      "2024-03-01",
+      "2024-04-01",
+      "2024-05-01",
+      "2024-06-01",
+      "2024-07-01",
+      "2024-08-01",
+    ];
+    const rows = months.flatMap((month) => [
+      { month, segment: "A", revenue: 10 },
+      { month, segment: "B", revenue: 7 },
+    ]);
+    const series = deriveChart(["month", "segment", "revenue"], rows);
+    expect(series.family).toBe("multi");
+    expect(series.kind).toBe("line");
+    expect(series.categoryKey).toBe("month");
+  });
+
+  it("builds a heatmap for dense category grids", () => {
+    const regions = ["N", "S", "E", "W", "C", "NE"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+    const rows = regions.flatMap((region) =>
+      months.map((month, i) => ({
+        region,
+        month,
+        orders: region.length + i,
+      })),
+    );
+    const series = deriveChart(["region", "month", "orders"], rows);
+    expect(series.family).toBe("heatmap");
+    expect(series.kind).toBe("heatmap");
+    expect(series.heatRows?.length).toBe(6);
+    expect(series.heatCols?.length).toBe(6);
+    expect(availableChartKinds(series)).toEqual(["heatmap"]);
+  });
+
+  it("builds a scatter from two numeric columns", () => {
+    const rows = Array.from({ length: 8 }, (_, i) => ({
+      invoice_amount: 100 + i * 10,
+      payment_amount: 90 + i * 9,
+    }));
+    const series = deriveChart(["invoice_amount", "payment_amount"], rows);
+    expect(series.family).toBe("scatter");
+    expect(series.kind).toBe("scatter");
+    expect(series.xKey).toBe("invoice_amount");
+    expect(series.yKey).toBe("payment_amount");
+    expect(series.scatterData).toHaveLength(8);
+    expect(chartAxisLabel(series)).toBe("payment_amount vs invoice_amount");
   });
 });
 

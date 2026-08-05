@@ -1,7 +1,13 @@
 "use client";
 
 import { Expand } from "lucide-react";
-import type { ChartDisplayKind, ChartSeries } from "@/lib/chart";
+import {
+  availableChartKinds,
+  chartAxisLabel,
+  chartVisibleCount,
+  type ChartDisplayKind,
+  type ChartSeries,
+} from "@/lib/chart";
 import { cn } from "@/lib/cn";
 import { ChartPlot } from "./cartesian";
 import { ChartKindToggle } from "./chart-kind-toggle";
@@ -27,6 +33,10 @@ export function ChartShell({
   onExpand?: () => void;
   expanded?: boolean;
 }) {
+  const axisLabel = chartAxisLabel(series);
+  const visible = chartVisibleCount(series);
+  const kindOptions = availableChartKinds(series);
+
   return (
     <div
       className={cn(
@@ -48,19 +58,23 @@ export function ChartShell({
             Visualization
             {showTruncationNote ? (
               <span className="ml-1.5 font-normal normal-case tracking-normal">
-                (first {series.data.length} of {rowCount})
+                (first {visible} of {rowCount})
               </span>
             ) : null}
           </p>
           <p
             className="break-words font-mono text-[11px] leading-snug text-[var(--text-secondary)]"
-            title={`${series.valueKey} · ${series.categoryKey}`}
+            title={axisLabel}
           >
-            {series.valueKey} · {series.categoryKey}
+            {axisLabel}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <ChartKindToggle value={activeKind} onChange={onKindChange} />
+          <ChartKindToggle
+            value={activeKind}
+            onChange={onKindChange}
+            options={kindOptions}
+          />
           {onExpand ? (
             <button
               type="button"

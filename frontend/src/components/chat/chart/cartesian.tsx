@@ -21,7 +21,10 @@ import {
   TOOLTIP_STYLE,
   truncateLabel,
 } from "./chart-shared";
+import { HeatmapPanel } from "./heatmap-panel";
+import { MultiSeriesPlot } from "./multi-series";
 import { PiePanel } from "./pie-panel";
+import { ScatterPanel } from "./scatter-panel";
 
 export function ChartPlot({
   kind,
@@ -36,6 +39,30 @@ export function ChartPlot({
 }) {
   if (kind === "pie") {
     return <PiePanel data={series.data} compact={compact} expanded={expanded} />;
+  }
+
+  if (kind === "scatter" || series.family === "scatter") {
+    return <ScatterPanel series={series} />;
+  }
+
+  if (kind === "heatmap" || series.family === "heatmap") {
+    return <HeatmapPanel series={series} compact={compact} />;
+  }
+
+  if (
+    series.family === "multi" &&
+    (kind === "grouped" || kind === "stacked" || kind === "line")
+  ) {
+    return <MultiSeriesPlot kind={kind} series={series} />;
+  }
+
+  // Classic single-series bar / line (and multi falling back if mis-routed)
+  if (kind === "grouped" || kind === "stacked") {
+    return (
+      <ResponsiveContainer width="100%" height="100%" debounce={50}>
+        <BarBody data={series.data} />
+      </ResponsiveContainer>
+    );
   }
 
   return (
@@ -57,7 +84,6 @@ function cartesianChrome(data: ChartPoint[]) {
   const dense = data.length >= DENSE_CATEGORY_COUNT;
   const longLabels = maxLen > 8;
   const angled = dense || longLabels || data.length >= 5;
-  // Height from truncated labels only — keeps the plot area visible.
   const xAxisHeight = angled
     ? Math.min(88, Math.max(48, 22 + maxLen * 2.6))
     : 32;

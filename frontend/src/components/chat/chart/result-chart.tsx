@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import {
+  availableChartKinds,
   chartSeriesIdentity,
+  chartVisibleCount,
   deriveChart,
   type ChartDisplayKind,
 } from "@/lib/chart";
@@ -31,11 +33,19 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
 
   if (series.kind === "none") return null;
 
-  const activeKind: ChartDisplayKind = pickedKind ?? series.kind;
+  const kindOptions = availableChartKinds(series);
+  const fallbackKind = kindOptions.includes(series.kind as ChartDisplayKind)
+    ? (series.kind as ChartDisplayKind)
+    : kindOptions[0];
+  const activeKind: ChartDisplayKind =
+    pickedKind && kindOptions.includes(pickedKind) ? pickedKind : fallbackKind;
+  const visible = chartVisibleCount(series);
   const showTruncationNote =
-    series.valueKey !== "count" && rows.length > series.data.length;
+    series.valueKey !== "count" &&
+    series.family !== "heatmap" &&
+    rows.length > visible;
 
-  // Responsive heights: taller on phones when pie stacks; room for axis labels on bar/line.
+  // Responsive heights: pie stacks taller; heatmaps need grid room; multi needs legend.
   const height =
     activeKind === "pie"
       ? isNarrow
@@ -45,13 +55,29 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
         : compact
           ? 330
           : 380
-      : isNarrow
-        ? compact
-          ? 260
-          : 300
-        : compact
-          ? 240
-          : 320;
+      : activeKind === "heatmap"
+        ? isNarrow
+          ? compact
+            ? 320
+            : 380
+          : compact
+            ? 300
+            : 360
+        : series.family === "multi"
+          ? isNarrow
+            ? compact
+              ? 290
+              : 330
+            : compact
+              ? 280
+              : 340
+          : isNarrow
+            ? compact
+              ? 260
+              : 300
+            : compact
+              ? 240
+              : 320;
 
   return (
     <>
