@@ -7,6 +7,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.schema_chunker import is_synthetic_table
+
 _TABLE_LINE_RE = re.compile(r"^Table:\s*(\S+)\s*$", re.MULTILINE)
 # Matches: customer_id -> sales.customers.customer_id  (or bare customers.customer_id)
 _FK_LINE_RE = re.compile(
@@ -82,8 +84,15 @@ def parse_fk_edges_from_metadata(
         if not isinstance(item, dict):
             continue
         referenced = item.get("referenced_table")
-        if isinstance(referenced, str) and referenced and referenced != table:
-            edges.append((table, referenced))
+        from_table = item.get("from_table")
+        source = from_table if isinstance(from_table, str) and from_table else table
+        if (
+            isinstance(referenced, str)
+            and referenced
+            and source
+            and referenced != source
+        ):
+            edges.append((source, referenced))
     return edges
 
 
@@ -127,9 +136,12 @@ class SchemaLinker:
             if not edges:
                 edges = parse_fk_edges_from_chunk(chunk.content, table=chunk.table)
             for a, b in edges:
+                if is_synthetic_table(a) or is_synthetic_table(b):
+                    continue
                 adjacency[a].add(b)
                 adjacency[b].add(a)
-            adjacency.setdefault(chunk.table, set())
+            if not is_synthetic_table(chunk.table):
+                adjacency.setdefault(chunk.table, set())
         return adjacency
 
     @staticmethod
@@ -144,7 +156,9 @@ class SchemaLinker:
         BFS from seed tables over the FK graph.
 
         Seeds are kept in retrieval order first; neighbors follow by BFS order.
-        Stops at `max_tables`. When hops=0, returns seeds only (still capped).
+        Stops at `max_tables` **real** tables. Synthetic overview chunks
+        (catalog / ER) are preserved when present in seeds but do not consume
+        the real-table budget.
         """
         if not seeds:
             return []
@@ -155,9 +169,15 @@ class SchemaLinker:
         for chunk in seeds:
             by_table[chunk.table] = chunk
 
-        seed_tables = [c.table for c in seeds]
-        if hops <= 0:
-            return SchemaLinker._cap_chunks(seeds, by_table, seed_tables, max_tables)
+        overview_seeds = [c for c in seeds if is_synthetic_table(c.table)]
+        real_seeds = [c for c in seeds if not is_synthetic_table(c.table)]
+        seed_tables = [c.table for c in real_seeds]
+
+        if hops <= 0 or not real_seeds:
+            real_capped = SchemaLinker._cap_chunks(
+                real_seeds, by_table, seed_tables, max_tables
+            )
+            return SchemaLinker._with_overview(overview_seeds, real_capped)
 
         adjacency = SchemaLinker.build_graph(list(by_table.values()))
         selected: list[str] = []
@@ -178,7 +198,7 @@ class SchemaLinker:
             for neighbor in sorted(adjacency.get(current, ())):
                 if neighbor in seen:
                     continue
-                if neighbor not in by_table:
+                if neighbor not in by_table or is_synthetic_table(neighbor):
                     continue
                 seen.add(neighbor)
                 selected.append(neighbor)
@@ -186,7 +206,20 @@ class SchemaLinker:
                 if len(selected) >= max_tables:
                     break
 
-        return [by_table[name] for name in selected if name in by_table]
+        real_chunks = [by_table[name] for name in selected if name in by_table]
+        return SchemaLinker._with_overview(overview_seeds, real_chunks)
+
+    @staticmethod
+    def _with_overview(
+        overview_seeds: list[SchemaChunk],
+        real_chunks: list[SchemaChunk],
+    ) -> list[SchemaChunk]:
+        """Keep overview seed content without displacing real tables."""
+        if not overview_seeds:
+            return real_chunks
+        seen = {c.table for c in real_chunks}
+        extras = [c for c in overview_seeds if c.table not in seen]
+        return extras + real_chunks
 
     @staticmethod
     def _cap_chunks(
@@ -198,7 +231,7 @@ class SchemaLinker:
         out: list[SchemaChunk] = []
         seen: set[str] = set()
         for name in seed_tables:
-            if name in seen or name not in by_table:
+            if name in seen or name not in by_table or is_synthetic_table(name):
                 continue
             seen.add(name)
             out.append(by_table[name])
@@ -213,12 +246,14 @@ class SchemaLinker:
         *,
         max_tables: int,
     ) -> list[SchemaChunk]:
-        """Union chunks preserving existing order, then extras, capped."""
+        """Union chunks preserving existing order, then extras, capped on real tables."""
         by_table: dict[str, SchemaChunk] = {}
         order: list[str] = []
         for chunk in existing + extra:
             if chunk.table not in by_table:
                 order.append(chunk.table)
             by_table[chunk.table] = chunk
-        selected = order[:max_tables]
-        return [by_table[name] for name in selected]
+
+        overview = [by_table[n] for n in order if is_synthetic_table(n)]
+        real = [by_table[n] for n in order if not is_synthetic_table(n)][:max_tables]
+        return overview + real

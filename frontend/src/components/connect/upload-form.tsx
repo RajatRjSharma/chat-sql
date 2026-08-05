@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import type { SourceMetadata } from "@/lib/types";
 
 type UploadFormProps = {
   onUploaded: (payload: {
@@ -14,6 +15,7 @@ type UploadFormProps = {
     chunksEmbedded: number;
     tablesIndexed: number | null;
     schemaIndexedAt: string | null;
+    sourceMetadata: SourceMetadata | null;
   }) => void;
 };
 
@@ -68,6 +70,7 @@ export function UploadForm({ onUploaded }: UploadFormProps) {
         chunksEmbedded: embedded.chunks_embedded,
         tablesIndexed: embedded.tables_indexed ?? null,
         schemaIndexedAt: embedded.indexed_at ?? null,
+        sourceMetadata: uploaded.source_metadata ?? null,
       });
     } catch (err) {
       setPhase("idle");

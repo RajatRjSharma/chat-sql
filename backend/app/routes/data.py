@@ -198,7 +198,10 @@ async def get_data_source(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    return DataSourceSummary.model_validate(source)
+    summary = DataSourceSummary.model_validate(source)
+    return summary.model_copy(
+        update={"source_metadata": DataSourceService.connection_metadata(source)}
+    )
 
 
 @router.delete("/sources/{data_source_id}", status_code=status.HTTP_204_NO_CONTENT)

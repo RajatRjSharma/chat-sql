@@ -14,6 +14,7 @@ from app.models import ChatSession, DataSource, SchemaEmbedding
 from app.schemas.data_source import WarehouseConnectRequest, WarehouseConnectResponse
 from app.security import encrypt_credential
 from app.security.ssrf import assert_safe_warehouse_host
+from app.services.source_metadata import build_source_metadata
 from app.services.table_loader import TableLoader
 from app.warehouse import WarehouseConnectionInfo, WarehouseCredentials
 from app.warehouse.connect import connect_warehouse
@@ -23,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 class DataSourceService:
     """Manage warehouse connections supplied by users."""
+
+    @staticmethod
+    def connection_metadata(data_source: DataSource) -> dict[str, Any]:
+        """Stable warehouse provenance for Evidence / clients (pre-chat)."""
+        return build_source_metadata(data_source, context_mode="connection")
 
     @staticmethod
     def test_connection(credentials: WarehouseCredentials) -> None:
@@ -85,6 +91,7 @@ class DataSourceService:
             database=data_source.database,
             schema_name=data_source.schema_name,
             status="connected",
+            source_metadata=DataSourceService.connection_metadata(data_source),
         )
 
     @staticmethod
@@ -167,6 +174,7 @@ class DataSourceService:
                     "tables_indexed": int(table_count) if table_count is not None else None,
                     "schema_indexed_at": indexed_at,
                     "session_count": int(sessions or 0),
+                    "source_metadata": DataSourceService.connection_metadata(source),
                 }
             )
         return summaries

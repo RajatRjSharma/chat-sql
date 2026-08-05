@@ -110,7 +110,8 @@ def build_source_metadata(
         "access_mode": "read_only_select",
         "tables_in_context": tables,
         "chunks_retrieved": int(chunks_retrieved),
-        "context_mode": context_mode,  # rag | rag_expanded | introspection_fallback | empty
+        "context_mode": context_mode,
+        # connection | rag | rag_expanded | catalog_overview | introspection_fallback | empty
         "embedding_model": settings.embedding_model,
         "embedding_dimensions": settings.embedding_dimensions,
         "llm_model": settings.llm_model,

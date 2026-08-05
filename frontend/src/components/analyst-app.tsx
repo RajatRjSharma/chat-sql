@@ -21,7 +21,8 @@ import {
   saveWorkspace,
   type PersistedWorkspace,
 } from "@/lib/demo";
-import type { DataSourceSummary } from "@/lib/types";
+import { connectionMetadataFromSource } from "@/lib/source-metadata";
+import type { DataSourceSummary, SourceMetadata } from "@/lib/types";
 
 export function AnalystApp() {
   const [ready, setReady] = useState(false);
@@ -48,6 +49,18 @@ export function AnalystApp() {
     try {
       const list = await api.listSources();
       setSources(list);
+      // Hydrate connection metadata for a restored workspace that predates this field.
+      setWorkspace((prev) => {
+        if (!prev || prev.sourceMetadata) return prev;
+        const match = list.find((s) => s.id === prev.dataSourceId);
+        if (!match) return prev;
+        const next = {
+          ...prev,
+          sourceMetadata: connectionMetadataFromSource(match),
+        };
+        saveWorkspace(next);
+        return next;
+      });
     } catch (err) {
       // Session already invalidated by api layer — stay empty until login.
       if (err instanceof ApiError && err.status === 401) {
@@ -112,6 +125,7 @@ export function AnalystApp() {
     chunksEmbedded: number;
     tablesIndexed?: number | null;
     schemaIndexedAt?: string | null;
+    sourceMetadata?: SourceMetadata | null;
   }) {
     const next: PersistedWorkspace = {
       dataSourceId: payload.dataSourceId,
@@ -120,6 +134,7 @@ export function AnalystApp() {
       chunksEmbedded: payload.chunksEmbedded,
       tablesIndexed: payload.tablesIndexed ?? null,
       schemaIndexedAt: payload.schemaIndexedAt ?? null,
+      sourceMetadata: payload.sourceMetadata ?? null,
     };
     saveWorkspace(next);
     setWorkspace(next);
@@ -132,6 +147,7 @@ export function AnalystApp() {
     chunksEmbedded: number;
     tablesIndexed: number | null;
     schemaIndexedAt: string | null;
+    sourceMetadata: SourceMetadata | null;
   }) {
     openWorkspace(payload);
   }
@@ -157,6 +173,7 @@ export function AnalystApp() {
         chunksEmbedded: chunks,
         tablesIndexed,
         schemaIndexedAt,
+        sourceMetadata: connectionMetadataFromSource(source),
       });
     } catch (err) {
       setSelectError(
@@ -241,6 +258,7 @@ export function AnalystApp() {
         chunksEmbedded={workspace.chunksEmbedded}
         tablesIndexed={workspace.tablesIndexed}
         schemaIndexedAt={workspace.schemaIndexedAt}
+        sourceMetadata={workspace.sourceMetadata}
         sessionId={workspace.sessionId}
         onSessionChange={handleSessionChange}
         onSchemaIndexChange={handleSchemaIndexChange}

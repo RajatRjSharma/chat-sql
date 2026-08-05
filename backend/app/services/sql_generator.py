@@ -25,8 +25,9 @@ Rules:
 8. FILTER clauses must be valid for the target dialect when used:
    COUNT(*) FILTER (WHERE status = 'completed') on PostgreSQL —
    never glue FILTER fragments to casts.
-9. For broad questions (“highlights”, “overview”, “all tables”), return ONE readable
-   summary query (row counts by table via UNION ALL, or top metrics from the main fact table).
+9. For broad questions (“highlights”, “overview”, “all tables”, “summary of db”), return ONE
+   readable summary query (row counts by table via UNION ALL). When the schema context includes
+   a “Complete indexed table inventory”, include EVERY listed table — never a subset.
    Keep it short — avoid nested half-finished expressions.
 10. If previous SQL failed validation, fix the error described by the user.
 11. If the question cannot be answered from the schema context (general knowledge,
@@ -86,5 +87,5 @@ class SqlGenerator:
                     messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": "\n".join(user_parts)})
 
-        raw = ai.complete(messages, temperature=0.0, max_tokens=1024)
+        raw = ai.complete(messages, temperature=0.0, max_tokens=2048)
         return extract_sql(raw)

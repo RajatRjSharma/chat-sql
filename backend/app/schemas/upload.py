@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -21,3 +21,4 @@ class UploadResponse(BaseModel):
     file_kind: Literal["csv", "xlsx"]
     status: str = "loaded"
     message: str | None = None
+    source_metadata: dict[str, Any] | None = None

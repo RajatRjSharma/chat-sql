@@ -20,6 +20,7 @@ export type WarehouseConnectResponse = {
   database: string;
   schema_name: string | null;
   status: string;
+  source_metadata?: SourceMetadata | null;
 };
 
 export type EmbedSchemaResponse = {
@@ -43,6 +44,7 @@ export type UploadResponse = {
   columns: string[];
   file_kind: "csv" | "xlsx";
   status: string;
+  source_metadata?: SourceMetadata | null;
 };
 
 export type DataSourceSummary = {
@@ -59,6 +61,7 @@ export type DataSourceSummary = {
   tables_indexed?: number | null;
   schema_indexed_at?: string | null;
   session_count: number;
+  source_metadata?: SourceMetadata | null;
 };
 
 export type ChatRequest = {

@@ -57,3 +57,20 @@ class TestBuildSourceMetadata:
         text = format_metadata_for_llm(meta)
         assert "PostgreSQL" in text
         assert "sales" in text
+
+    def test_connection_mode_for_pre_chat_evidence(self) -> None:
+        source = SimpleNamespace(
+            id=uuid.uuid4(),
+            name="Demo Sales Warehouse",
+            db_type="postgres",
+            host="db.example.com",
+            port=5432,
+            database="analytics",
+            schema_name="sales",
+            is_readonly=True,
+        )
+        meta = build_source_metadata(source, context_mode="connection")  # type: ignore[arg-type]
+        assert meta["context_mode"] == "connection"
+        assert meta["host"] == "db.example.com"
+        assert meta["tables_in_context"] == []
+        assert meta["chunks_retrieved"] == 0

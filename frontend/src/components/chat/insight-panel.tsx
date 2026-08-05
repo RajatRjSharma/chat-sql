@@ -33,6 +33,8 @@ type SchemaIndexProps = {
 type InsightPanelProps = {
   turns: ChatTurn[];
   dataSourceName: string;
+  /** Connection-scoped warehouse provenance (available immediately after connect). */
+  sourceMetadata?: SourceMetadata | null;
   /** Inline panel for mobile (no full-height aside chrome). */
   embedded?: boolean;
 } & SchemaIndexProps;
@@ -319,6 +321,7 @@ function ChartCarousel({
 function InsightBody({
   turns,
   dataSourceName,
+  sourceMetadata = null,
   ...schemaIndex
 }: Omit<InsightPanelProps, "embedded">) {
   const items = useMemo(() => listChartableTurns(turns), [turns]);
@@ -332,13 +335,14 @@ function InsightBody({
 
   const safeIndex = items.length ? Math.min(chartIndex, items.length - 1) : 0;
 
-  // Warehouse meta is connection-scoped — reuse the latest turn that has it.
+  // Prefer connection-scoped metadata; fall back to latest turn (legacy / chat overlay).
   const warehouseMeta = useMemo(() => {
+    if (sourceMetadata) return sourceMetadata;
     for (let i = turns.length - 1; i >= 0; i -= 1) {
       if (turns[i]?.source_metadata) return turns[i].source_metadata;
     }
     return null;
-  }, [turns]);
+  }, [sourceMetadata, turns]);
 
   return (
     <div className="space-y-5">
@@ -367,6 +371,7 @@ function InsightBody({
 export function InsightPanel({
   turns,
   dataSourceName,
+  sourceMetadata = null,
   chunksEmbedded,
   tablesIndexed,
   schemaIndexedAt,
@@ -379,6 +384,7 @@ export function InsightPanel({
   const bodyProps = {
     turns,
     dataSourceName,
+    sourceMetadata,
     chunksEmbedded,
     tablesIndexed,
     schemaIndexedAt,
@@ -421,6 +427,7 @@ export function InsightPanel({
 export function MobileInsightDrawer({
   turns,
   dataSourceName,
+  sourceMetadata = null,
   chunksEmbedded,
   tablesIndexed,
   schemaIndexedAt,
@@ -451,6 +458,7 @@ export function MobileInsightDrawer({
         <InsightPanel
           turns={turns}
           dataSourceName={dataSourceName}
+          sourceMetadata={sourceMetadata}
           chunksEmbedded={chunksEmbedded}
           tablesIndexed={tablesIndexed}
           schemaIndexedAt={schemaIndexedAt}

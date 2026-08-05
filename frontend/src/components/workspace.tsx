@@ -13,6 +13,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useWorkspaceChat } from "@/hooks/use-workspace-chat";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import type { SourceMetadata } from "@/lib/types";
 
 type WorkspaceProps = {
   dataSourceId: string;
@@ -20,6 +21,7 @@ type WorkspaceProps = {
   chunksEmbedded: number | null;
   tablesIndexed: number | null;
   schemaIndexedAt: string | null;
+  sourceMetadata: SourceMetadata | null;
   sessionId: string | null;
   onSessionChange: (sessionId: string | null) => void;
   onSchemaIndexChange: (update: {
@@ -38,6 +40,7 @@ export function Workspace({
   chunksEmbedded,
   tablesIndexed,
   schemaIndexedAt,
+  sourceMetadata,
   sessionId,
   onSessionChange,
   onSchemaIndexChange,
@@ -121,6 +124,13 @@ export function Workspace({
     onRefreshSchemaIndex: () => {
       void handleRefreshSchemaIndex();
     },
+  };
+
+  const evidenceProps = {
+    turns,
+    dataSourceName,
+    sourceMetadata,
+    ...schemaIndexProps,
   };
 
   return (
@@ -214,11 +224,7 @@ export function Workspace({
             ) : null}
 
             {!isDesktop ? (
-              <MobileInsightDrawer
-                turns={turns}
-                dataSourceName={dataSourceName}
-                {...schemaIndexProps}
-              />
+              <MobileInsightDrawer {...evidenceProps} />
             ) : null}
 
             {sessions.length > 0 ? (
@@ -271,11 +277,7 @@ export function Workspace({
 
         {isDesktop ? (
           <div className="min-h-0 min-w-0">
-            <InsightPanel
-              turns={turns}
-              dataSourceName={dataSourceName}
-              {...schemaIndexProps}
-            />
+            <InsightPanel {...evidenceProps} />
           </div>
         ) : null}
       </div>

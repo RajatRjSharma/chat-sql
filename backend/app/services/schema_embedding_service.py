@@ -107,6 +107,7 @@ class SchemaEmbeddingService:
             tables,
             warehouse_header=warehouse_header,
             engine_meta=source_meta,
+            include_overview_chunks=True,
         )
         # Embed before mutating the index so a provider failure leaves the old
         # vectors intact.
