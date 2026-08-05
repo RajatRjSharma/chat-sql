@@ -15,6 +15,7 @@ import {
 import type { ChartDisplayKind, ChartSeries, MultiSeriesRow } from "@/lib/chart";
 import {
   AXIS_TICK,
+  cartesianPlotMargin,
   DENSE_CATEGORY_COUNT,
   formatValue,
   formatYTick,
@@ -22,6 +23,7 @@ import {
   seriesColor,
   TOOLTIP_STYLE,
   truncateLabel,
+  xAxisTickHeight,
 } from "./chart-shared";
 
 export function MultiSeriesPlot({
@@ -53,6 +55,14 @@ function displayLen(data: MultiSeriesRow[]) {
   );
 }
 
+function angledMeta(data: MultiSeriesRow[]) {
+  const maxLen = displayLen(data);
+  const dense = data.length >= DENSE_CATEGORY_COUNT;
+  const longLabels = maxLen > 8;
+  const angled = dense || longLabels || data.length >= 5;
+  return { maxLen, angled };
+}
+
 function CategoryTick({
   x = 0,
   y = 0,
@@ -70,10 +80,10 @@ function CategoryTick({
     <g transform={`translate(${x},${y})`}>
       <title>{label}</title>
       <text
-        dy={angled ? 4 : 12}
-        dx={angled ? -2 : 0}
+        dy={angled ? 6 : 10}
+        dx={angled ? -1 : 0}
         textAnchor={angled ? "end" : "middle"}
-        transform={angled ? "rotate(-38)" : undefined}
+        transform={angled ? "rotate(-35)" : undefined}
         fill="var(--text-secondary)"
         fontSize={11}
         style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
@@ -85,13 +95,7 @@ function CategoryTick({
 }
 
 function multiChrome(data: MultiSeriesRow[]) {
-  const maxLen = displayLen(data);
-  const dense = data.length >= DENSE_CATEGORY_COUNT;
-  const longLabels = maxLen > 8;
-  const angled = dense || longLabels || data.length >= 5;
-  const xAxisHeight = angled
-    ? Math.min(88, Math.max(48, 22 + maxLen * 2.6))
-    : 32;
+  const { maxLen, angled } = angledMeta(data);
 
   return [
     <CartesianGrid
@@ -106,17 +110,19 @@ function multiChrome(data: MultiSeriesRow[]) {
       tick={<CategoryTick angled={angled} />}
       axisLine={false}
       tickLine={false}
-      interval={data.length <= 14 ? 0 : "preserveStartEnd"}
-      minTickGap={angled ? 2 : 8}
-      height={xAxisHeight}
-      tickMargin={angled ? 6 : 8}
+      interval={data.length <= 12 ? 0 : "preserveStartEnd"}
+      minTickGap={angled ? 4 : 10}
+      height={xAxisTickHeight(angled, maxLen)}
+      tickMargin={angled ? 8 : 6}
+      padding={{ left: 8, right: 8 }}
     />,
     <YAxis
       key="y"
       tick={AXIS_TICK}
       axisLine={false}
       tickLine={false}
-      width={52}
+      width={56}
+      tickMargin={6}
       tickFormatter={(value) => formatYTick(Number(value))}
     />,
     <Tooltip
@@ -131,27 +137,20 @@ function multiChrome(data: MultiSeriesRow[]) {
     />,
     <Legend
       key="legend"
+      verticalAlign="top"
+      align="right"
+      layout="horizontal"
+      height={28}
       wrapperStyle={{
         fontSize: 11,
         color: "var(--text-secondary)",
-        paddingTop: 4,
+        paddingBottom: 4,
+        lineHeight: "16px",
       }}
       iconType="circle"
       iconSize={8}
     />,
   ];
-}
-
-function multiMargin(data: MultiSeriesRow[]) {
-  const maxLen = displayLen(data);
-  const angled =
-    data.length >= DENSE_CATEGORY_COUNT || maxLen > 8 || data.length >= 5;
-  return {
-    top: 8,
-    right: 12,
-    left: 0,
-    bottom: angled ? Math.min(28, 8 + Math.floor(maxLen * 0.4)) : 8,
-  };
 }
 
 function MultiBarBody({
@@ -163,8 +162,16 @@ function MultiBarBody({
   keys: string[];
   stacked: boolean;
 }) {
+  const { maxLen, angled } = angledMeta(data);
   return (
-    <BarChart data={data} margin={multiMargin(data)}>
+    <BarChart
+      data={data}
+      margin={cartesianPlotMargin({
+        angled,
+        maxLabelChars: maxLen,
+        legendTop: true,
+      })}
+    >
       {multiChrome(data)}
       {keys.map((key, index) => (
         <Bar
@@ -188,8 +195,16 @@ function MultiLineBody({
   data: MultiSeriesRow[];
   keys: string[];
 }) {
+  const { maxLen, angled } = angledMeta(data);
   return (
-    <LineChart data={data} margin={multiMargin(data)}>
+    <LineChart
+      data={data}
+      margin={cartesianPlotMargin({
+        angled,
+        maxLabelChars: maxLen,
+        legendTop: true,
+      })}
+    >
       {multiChrome(data)}
       {keys.map((key, index) => (
         <Line

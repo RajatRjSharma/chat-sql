@@ -14,12 +14,14 @@ import {
 import type { ChartDisplayKind, ChartPoint, ChartSeries } from "@/lib/chart";
 import {
   AXIS_TICK,
+  cartesianPlotMargin,
   DENSE_CATEGORY_COUNT,
   formatValue,
   formatYTick,
   MAX_TICK_CHARS,
   TOOLTIP_STYLE,
   truncateLabel,
+  xAxisTickHeight,
 } from "./chart-shared";
 import { HeatmapPanel } from "./heatmap-panel";
 import { MultiSeriesPlot } from "./multi-series";
@@ -79,51 +81,12 @@ function displayLen(data: ChartPoint[]) {
   );
 }
 
-function cartesianChrome(data: ChartPoint[]) {
+function angledMeta(data: ChartPoint[]) {
   const maxLen = displayLen(data);
   const dense = data.length >= DENSE_CATEGORY_COUNT;
   const longLabels = maxLen > 8;
   const angled = dense || longLabels || data.length >= 5;
-  const xAxisHeight = angled
-    ? Math.min(88, Math.max(48, 22 + maxLen * 2.6))
-    : 32;
-
-  return [
-    <CartesianGrid
-      key="grid"
-      stroke="var(--border-card)"
-      strokeDasharray="3 6"
-      vertical={false}
-    />,
-    <XAxis
-      key="x"
-      dataKey="name"
-      tick={<CategoryTick angled={angled} />}
-      axisLine={false}
-      tickLine={false}
-      interval={data.length <= 14 ? 0 : "preserveStartEnd"}
-      minTickGap={angled ? 2 : 8}
-      height={xAxisHeight}
-      tickMargin={angled ? 6 : 8}
-    />,
-    <YAxis
-      key="y"
-      tick={AXIS_TICK}
-      axisLine={false}
-      tickLine={false}
-      width={52}
-      tickFormatter={(value) => formatYTick(Number(value))}
-    />,
-    <Tooltip
-      key="tooltip"
-      contentStyle={TOOLTIP_STYLE}
-      wrapperStyle={{ outline: "none", zIndex: 1 }}
-      formatter={(value) =>
-        typeof value === "number" ? formatValue(value) : String(value ?? "")
-      }
-      labelFormatter={(label) => String(label)}
-    />,
-  ];
+  return { maxLen, angled };
 }
 
 function CategoryTick({
@@ -143,10 +106,10 @@ function CategoryTick({
     <g transform={`translate(${x},${y})`}>
       <title>{label}</title>
       <text
-        dy={angled ? 4 : 12}
-        dx={angled ? -2 : 0}
+        dy={angled ? 6 : 10}
+        dx={angled ? -1 : 0}
         textAnchor={angled ? "end" : "middle"}
-        transform={angled ? "rotate(-38)" : undefined}
+        transform={angled ? "rotate(-35)" : undefined}
         fill="var(--text-secondary)"
         fontSize={11}
         style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
@@ -157,21 +120,56 @@ function CategoryTick({
   );
 }
 
-function cartesianMargin(data: ChartPoint[]) {
-  const maxLen = displayLen(data);
-  const angled =
-    data.length >= DENSE_CATEGORY_COUNT || maxLen > 8 || data.length >= 5;
-  return {
-    top: 8,
-    right: 12,
-    left: 0,
-    bottom: angled ? Math.min(28, 8 + Math.floor(maxLen * 0.4)) : 8,
-  };
+function cartesianChrome(data: ChartPoint[]) {
+  const { maxLen, angled } = angledMeta(data);
+
+  return [
+    <CartesianGrid
+      key="grid"
+      stroke="var(--border-card)"
+      strokeDasharray="3 6"
+      vertical={false}
+    />,
+    <XAxis
+      key="x"
+      dataKey="name"
+      tick={<CategoryTick angled={angled} />}
+      axisLine={false}
+      tickLine={false}
+      interval={data.length <= 12 ? 0 : "preserveStartEnd"}
+      minTickGap={angled ? 4 : 10}
+      height={xAxisTickHeight(angled, maxLen)}
+      tickMargin={angled ? 8 : 6}
+      padding={{ left: 8, right: 8 }}
+    />,
+    <YAxis
+      key="y"
+      tick={AXIS_TICK}
+      axisLine={false}
+      tickLine={false}
+      width={56}
+      tickMargin={6}
+      tickFormatter={(value) => formatYTick(Number(value))}
+    />,
+    <Tooltip
+      key="tooltip"
+      contentStyle={TOOLTIP_STYLE}
+      wrapperStyle={{ outline: "none", zIndex: 1 }}
+      formatter={(value) =>
+        typeof value === "number" ? formatValue(value) : String(value ?? "")
+      }
+      labelFormatter={(label) => String(label)}
+    />,
+  ];
 }
 
 function BarBody({ data }: { data: ChartPoint[] }) {
+  const { maxLen, angled } = angledMeta(data);
   return (
-    <BarChart data={data} margin={cartesianMargin(data)}>
+    <BarChart
+      data={data}
+      margin={cartesianPlotMargin({ angled, maxLabelChars: maxLen })}
+    >
       {cartesianChrome(data)}
       <Bar dataKey="value" fill="var(--chart-1)" radius={[4, 4, 0, 0]} maxBarSize={48} />
     </BarChart>
@@ -179,8 +177,12 @@ function BarBody({ data }: { data: ChartPoint[] }) {
 }
 
 function LineBody({ data }: { data: ChartPoint[] }) {
+  const { maxLen, angled } = angledMeta(data);
   return (
-    <LineChart data={data} margin={cartesianMargin(data)}>
+    <LineChart
+      data={data}
+      margin={cartesianPlotMargin({ angled, maxLabelChars: maxLen })}
+    >
       {cartesianChrome(data)}
       <Line
         type="monotone"

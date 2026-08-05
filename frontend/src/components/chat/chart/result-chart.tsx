@@ -45,39 +45,47 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
     series.family !== "heatmap" &&
     rows.length > visible;
 
-  // Responsive heights: pie stacks taller; heatmaps need grid room; multi needs legend.
+  // Responsive heights: header is two rows; pie/heatmap/multi need extra plot room.
   const height =
     activeKind === "pie"
       ? isNarrow
         ? compact
-          ? 420
-          : 460
+          ? 440
+          : 480
         : compact
-          ? 330
-          : 380
+          ? 350
+          : 400
       : activeKind === "heatmap"
         ? isNarrow
           ? compact
+            ? 340
+            : 400
+          : compact
             ? 320
             : 380
-          : compact
-            ? 300
-            : 360
         : series.family === "multi"
           ? isNarrow
             ? compact
-              ? 290
-              : 330
+              ? 320
+              : 360
             : compact
-              ? 280
-              : 340
-          : isNarrow
-            ? compact
-              ? 260
-              : 300
-            : compact
-              ? 240
-              : 320;
+              ? 310
+              : 370
+          : activeKind === "scatter"
+            ? isNarrow
+              ? compact
+                ? 300
+                : 340
+              : compact
+                ? 290
+                : 350
+            : isNarrow
+              ? compact
+                ? 290
+                : 330
+              : compact
+                ? 280
+                : 350;
 
   return (
     <>

@@ -67,7 +67,7 @@ export function HeatmapPanel({
                 <th
                   title={row}
                   className={cn(
-                    "sticky left-0 z-[1] bg-[var(--bg-card)] pr-2 text-left",
+                    "sticky left-0 z-[1] max-w-[7.5rem] bg-[var(--bg-card)] pr-2 text-left",
                     "font-mono text-[10px] font-medium text-[var(--text-secondary)]",
                   )}
                 >

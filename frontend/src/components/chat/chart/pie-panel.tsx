@@ -55,8 +55,8 @@ export function PiePanel({
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={expanded ? "45%" : compact ? "38%" : "42%"}
-              outerRadius={expanded ? "84%" : compact ? "88%" : "82%"}
+              innerRadius={expanded ? "44%" : compact ? "36%" : "40%"}
+              outerRadius={expanded ? "78%" : compact ? "80%" : "76%"}
               paddingAngle={data.length > 1 ? 2 : 0}
               stroke="var(--bg-card)"
               strokeWidth={expanded ? 4 : 3}
