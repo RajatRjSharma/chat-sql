@@ -51,15 +51,23 @@ const EMPTY_SERIES: ChartSeries = {
   data: [],
 };
 
-/** Hard cap so charts stay readable; excess rows are truncated (top / first). */
+/** Hard caps so charts stay readable from hundreds → millions of input rows. */
 const MAX_CHART_POINTS = 40;
 const MAX_SERIES_KEYS = 8;
 const MAX_HEAT_DIM = 20;
 const MAX_SCATTER_POINTS = 200;
 const PIE_MAX_CATEGORIES = 8;
 const LINE_MIN_ROWS = 8;
+/** Multi-series can default to line with fewer periods than classic single series. */
+const MULTI_LINE_MIN_ROWS = 4;
 /** Skip text columns whose typical values would crush axis labels (e.g. STRING_AGG dumps). */
 const MAX_AVG_CATEGORY_LABEL_LEN = 48;
+/** Rows used to infer numeric vs categorical columns. */
+const TYPE_SAMPLE_SIZE = 64;
+/** Stop discovering new category labels (cardinality probe). */
+const UNIQUE_LABEL_CAP = MAX_HEAT_DIM * 4;
+/** Max rows scanned when aggregating into a capped chart (guards huge dumps). */
+const MAX_ROW_SCAN = 50_000;
 
 const MONTH_RE =
   /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*(\s|-|_|\/|\.|'|\d|$)/i;
@@ -87,19 +95,38 @@ function labelOf(value: unknown, fallback: string): string {
   return String(value);
 }
 
+/** Evenly spaced sample — representative without scanning millions of rows. */
+function sampleRows(
+  rows: Record<string, unknown>[],
+  size: number,
+): Record<string, unknown>[] {
+  if (rows.length <= size) return rows;
+  const out: Record<string, unknown>[] = [];
+  const step = rows.length / size;
+  for (let i = 0; i < size; i += 1) {
+    out.push(rows[Math.min(rows.length - 1, Math.floor(i * step))]);
+  }
+  return out;
+}
+
+function scanLimit(rowCount: number): number {
+  return Math.min(rowCount, MAX_ROW_SCAN);
+}
+
 function averageLabelLength(
   rows: Record<string, unknown>[],
   column: string,
 ): number {
-  if (!rows.length) return 0;
+  const sample = sampleRows(rows, Math.min(TYPE_SAMPLE_SIZE, rows.length));
+  if (!sample.length) return 0;
   let total = 0;
-  for (const row of rows) {
+  for (const row of sample) {
     total += String(row[column] ?? "").length;
   }
-  return total / rows.length;
+  return total / sample.length;
 }
 
-/** Prefer short categorical labels (region, status) over blob columns (sample_names). */
+/** Prefer short categorical labels over blob columns (STRING_AGG dumps). */
 function shortCategoryColumns(
   columns: string[],
   rows: Record<string, unknown>[],
@@ -112,28 +139,46 @@ function shortCategoryColumns(
 function uniqueLabels(
   rows: Record<string, unknown>[],
   column: string,
+  maxUnique = UNIQUE_LABEL_CAP,
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const row of rows) {
-    const name = labelOf(row[column], "—");
+  const limit = scanLimit(rows.length);
+  for (let i = 0; i < limit; i += 1) {
+    const name = labelOf(rows[i][column], "—");
     if (!seen.has(name)) {
       seen.add(name);
       out.push(name);
+      if (out.length >= maxUnique) break;
     }
   }
   return out;
 }
 
+function uniqueCount(
+  rows: Record<string, unknown>[],
+  column: string,
+  maxUnique = UNIQUE_LABEL_CAP,
+): number {
+  return uniqueLabels(rows, column, maxUnique).length;
+}
+
 /** True when labels look like a time / ordered sequence (line chart). */
-export function looksTemporalLabels(names: string[]): boolean {
-  if (names.length < LINE_MIN_ROWS) return false;
+export function looksTemporalLabels(
+  names: string[],
+  options?: { minRows?: number },
+): boolean {
+  const minRows = options?.minRows ?? LINE_MIN_ROWS;
+  if (names.length < minRows) return false;
   const sample = names.slice(0, Math.min(names.length, 16));
   let hits = 0;
   for (const raw of sample) {
     const name = raw.trim();
+    // Also accept ISO timestamps: 2024-01-01T00:00:00
+    const head = name.slice(0, 10);
     if (
       DATE_RE.test(name) ||
+      DATE_RE.test(head) ||
       YEAR_RE.test(name) ||
       MONTH_RE.test(name) ||
       QUARTER_RE.test(name)
@@ -142,6 +187,40 @@ export function looksTemporalLabels(names: string[]): boolean {
     }
   }
   return hits / sample.length >= 0.6;
+}
+
+/** High-cardinality id-like labels (bad as a bar axis; good as scatter point labels). */
+function isHighCardinalityLabel(
+  rows: Record<string, unknown>[],
+  column: string,
+): boolean {
+  const uniq = uniqueCount(rows, column);
+  if (uniq < 8) return false;
+  const probed = Math.min(rows.length, MAX_ROW_SCAN);
+  return uniq >= 12 || uniq / Math.max(probed, 1) >= 0.45;
+}
+
+function aggregateHeatCells(
+  rows: Record<string, unknown>[],
+  rowKey: string,
+  colKey: string,
+  valueKey: string,
+): HeatCell[] {
+  const cellMap = new Map<string, number>();
+  const limit = scanLimit(rows.length);
+  for (let i = 0; i < limit; i += 1) {
+    const row = rows[i];
+    const r = labelOf(row[rowKey], "—");
+    const c = labelOf(row[colKey], "—");
+    const key = `${r}\0${c}`;
+    cellMap.set(key, (cellMap.get(key) ?? 0) + toNumber(row[valueKey]));
+  }
+  const heatData: HeatCell[] = [];
+  for (const [key, value] of cellMap) {
+    const [r, c] = key.split("\0");
+    heatData.push({ row: r, col: c, value });
+  }
+  return heatData;
 }
 
 /**
@@ -170,7 +249,9 @@ function pickMultiDefaultKind(
   categoryLabels: string[],
   seriesKeys: string[],
 ): Extract<ChartDisplayKind, "grouped" | "stacked" | "line"> {
-  if (looksTemporalLabels(categoryLabels)) return "line";
+  if (looksTemporalLabels(categoryLabels, { minRows: MULTI_LINE_MIN_ROWS })) {
+    return "line";
+  }
   if (seriesKeys.length >= 3) return "stacked";
   return "grouped";
 }
@@ -308,14 +389,15 @@ function tryMultiOrHeat(
   const labelsB = uniqueLabels(rows, catB);
   if (labelsA.length < 2 || labelsB.length < 2) return null;
 
-  const aTemporal = looksTemporalLabels(labelsA);
-  const bTemporal = looksTemporalLabels(labelsB);
+  const aTemporal = looksTemporalLabels(labelsA, { minRows: MULTI_LINE_MIN_ROWS });
+  const bTemporal = looksTemporalLabels(labelsB, { minRows: MULTI_LINE_MIN_ROWS });
 
   let categoryKey: string;
   let seriesKey: string;
   let categoryLabels: string[];
   let seriesLabels: string[];
 
+  // Shape rule: put the time axis on X when present (domain-agnostic).
   if (aTemporal && !bTemporal) {
     categoryKey = catA;
     seriesKey = catB;
@@ -338,34 +420,37 @@ function tryMultiOrHeat(
     seriesLabels = labelsA;
   }
 
-  const preferHeat =
-    categoryLabels.length >= 3 &&
-    seriesLabels.length >= 3 &&
+  const minDim = Math.min(categoryLabels.length, seriesLabels.length);
+  const maxDim = Math.max(categoryLabels.length, seriesLabels.length);
+  const gridSize = categoryLabels.length * seriesLabels.length;
+  const dimsFitHeat =
+    minDim >= 3 &&
+    maxDim >= 6 &&
+    gridSize >= 24 &&
     categoryLabels.length <= MAX_HEAT_DIM &&
-    seriesLabels.length <= MAX_HEAT_DIM &&
-    (seriesLabels.length > MAX_SERIES_KEYS ||
-      (categoryLabels.length >= 6 && seriesLabels.length >= 6));
+    seriesLabels.length <= MAX_HEAT_DIM;
+
+  const categoryIsTemporal = looksTemporalLabels(categoryLabels, {
+    minRows: MULTI_LINE_MIN_ROWS,
+  });
+
+  // Time × few series → multi-line (any measure). Dense cat×cat → heatmap.
+  const preferMultiLine =
+    categoryIsTemporal && seriesLabels.length <= MAX_SERIES_KEYS;
+
+  const preferHeat =
+    dimsFitHeat &&
+    !preferMultiLine &&
+    (seriesLabels.length > MAX_SERIES_KEYS || maxDim >= 8 || minDim >= 4);
 
   if (preferHeat) {
-    const cellMap = new Map<string, number>();
-    for (const row of rows) {
-      const r = labelOf(row[categoryKey], "—");
-      const c = labelOf(row[seriesKey], "—");
-      const key = `${r}\0${c}`;
-      cellMap.set(key, (cellMap.get(key) ?? 0) + toNumber(row[valueKey]));
-    }
-    const heatData: HeatCell[] = [];
-    for (const [key, value] of cellMap) {
-      const [r, c] = key.split("\0");
-      heatData.push({ row: r, col: c, value });
-    }
     return finishHeatmap(
       categoryKey,
       seriesKey,
       valueKey,
       categoryLabels,
       seriesLabels,
-      heatData,
+      aggregateHeatCells(rows, categoryKey, seriesKey, valueKey),
     );
   }
 
@@ -373,6 +458,16 @@ function tryMultiOrHeat(
     seriesLabels.length > MAX_SERIES_KEYS ||
     categoryLabels.length > MAX_CHART_POINTS * 2
   ) {
+    if (dimsFitHeat) {
+      return finishHeatmap(
+        categoryKey,
+        seriesKey,
+        valueKey,
+        categoryLabels,
+        seriesLabels,
+        aggregateHeatCells(rows, categoryKey, seriesKey, valueKey),
+      );
+    }
     return null;
   }
 
@@ -388,7 +483,9 @@ function tryMultiOrHeat(
     pivot.set(name, row);
   }
 
-  for (const row of rows) {
+  const limit = scanLimit(rows.length);
+  for (let i = 0; i < limit; i += 1) {
+    const row = rows[i];
     const cat = labelOf(row[categoryKey], "—");
     const series = labelOf(row[seriesKey], "—");
     if (!catSet.has(cat) || !keySet.has(series)) continue;
@@ -412,25 +509,47 @@ function tryScatter(
   numericCols: string[],
 ): ChartSeries | null {
   if (numericCols.length < 2 || rows.length < 5) return null;
-  // Correlation / measure-vs-measure: only when there is no categorical axis.
-  if (usableCategoryCols.length > 0) return null;
 
   const xKey = numericCols[0];
   const yKey = numericCols[1];
-  const points: ScatterPoint[] = rows.map((row, index) => ({
-    x: toNumber(row[xKey]),
-    y: toNumber(row[yKey]),
-    label: `Row ${index + 1}`,
-  }));
-  return finishScatter(xKey, yKey, points);
+  const sampled = sampleRows(rows, MAX_SCATTER_POINTS);
+
+  // Pure numeric correlation.
+  if (usableCategoryCols.length === 0) {
+    const points: ScatterPoint[] = sampled.map((row, index) => ({
+      x: toNumber(row[xKey]),
+      y: toNumber(row[yKey]),
+      label: `Row ${index + 1}`,
+    }));
+    return finishScatter(xKey, yKey, points);
+  }
+
+  // Optional id/label column + two measures. High cardinality ⇒ scatter, not bar.
+  if (usableCategoryCols.length === 1) {
+    const labelCol = usableCategoryCols[0];
+    if (!isHighCardinalityLabel(rows, labelCol)) return null;
+
+    const points: ScatterPoint[] = sampled.map((row, index) => ({
+      x: toNumber(row[xKey]),
+      y: toNumber(row[yKey]),
+      label: labelOf(row[labelCol], `Row ${index + 1}`),
+    }));
+    return finishScatter(xKey, yKey, points, labelCol);
+  }
+
+  return null;
 }
 
 /**
- * Build a chart for any non-empty result set.
+ * Build a chart for any non-empty result set (schema-agnostic, size-safe).
+ *
+ * Decisions use result *shape* only (cardinalities, temporal labels, numeric
+ * columns) — not domain vocabulary — so the same rules work for sales,
+ * logistics, finance, IoT, etc., from dozens to millions of rows.
  *
  * Strategies (first match wins):
- * 1. Two categoricals + measure → grouped/stacked/multi-line or heatmap
- * 2. Two numerics, no category → scatter
+ * 1. Two categoricals + measure → multi-line / grouped / stacked / heatmap
+ * 2. Two numerics (optional high-card label) → scatter
  * 3. Category + numeric (classic series)
  * 4. Single row metrics → one bar per numeric column
  * 5. Multi-row all-numeric → row labels + first numeric
@@ -444,12 +563,12 @@ export function deriveChart(
     return EMPTY_SERIES;
   }
 
-  const sample = rows.slice(0, Math.min(rows.length, 12));
+  const probe = sampleRows(rows, TYPE_SAMPLE_SIZE);
   const numericCols = columns.filter((col) =>
-    sample.every((row) => row[col] == null || row[col] === "" || isNumeric(row[col])),
+    probe.every((row) => row[col] == null || row[col] === "" || isNumeric(row[col])),
   );
   const categoryCols = columns.filter((col) => !numericCols.includes(col));
-  const usableCategoryCols = shortCategoryColumns(categoryCols, sample);
+  const usableCategoryCols = shortCategoryColumns(categoryCols, probe);
 
   const multi = tryMultiOrHeat(rows, usableCategoryCols, numericCols);
   if (multi && multi.kind !== "none") return multi;
@@ -457,11 +576,12 @@ export function deriveChart(
   const scatter = tryScatter(rows, usableCategoryCols, numericCols);
   if (scatter && scatter.kind !== "none") return scatter;
 
-  // Classic: short label + value
+  // Classic: short label + value (cap points for huge dumps)
   if (numericCols.length && usableCategoryCols.length) {
     const categoryKey = usableCategoryCols[0];
     const valueKey = numericCols[0];
-    const data = rows.map((row, index) => ({
+    const limit = Math.min(rows.length, MAX_CHART_POINTS);
+    const data = rows.slice(0, limit).map((row, index) => ({
       name: labelOf(row[categoryKey], `Row ${index + 1}`),
       value: toNumber(row[valueKey]),
     }));
@@ -485,7 +605,8 @@ export function deriveChart(
       (categoryCols.length === 0 ? columns[0] : null);
     const valueKey =
       (labelCol && numericCols.find((c) => c !== labelCol)) ?? numericCols[0];
-    const data = rows.map((row, index) => ({
+    const limit = Math.min(rows.length, MAX_CHART_POINTS);
+    const data = rows.slice(0, limit).map((row, index) => ({
       name:
         labelCol && labelCol !== valueKey
           ? labelOf(row[labelCol], `Row ${index + 1}`)
@@ -499,12 +620,14 @@ export function deriveChart(
     );
   }
 
-  // Text-only: frequency of the first column
+  // Text-only: frequency of the first column (capped)
   const categoryKey = columns[0];
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const name = labelOf(row[categoryKey], "—");
+  const limit = scanLimit(rows.length);
+  for (let i = 0; i < limit; i += 1) {
+    const name = labelOf(rows[i][categoryKey], "—");
     counts.set(name, (counts.get(name) ?? 0) + 1);
+    if (counts.size > MAX_CHART_POINTS * 4) break;
   }
   const data = [...counts.entries()]
     .map(([name, value]) => ({ name, value }))

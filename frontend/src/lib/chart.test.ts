@@ -129,22 +129,57 @@ describe("deriveChart", () => {
     expect(series.categoryKey).toBe("month");
   });
 
-  it("builds a heatmap for dense category grids", () => {
-    const regions = ["N", "S", "E", "W", "C", "NE"];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+  it("smoke: monthly measure by segment → multi-line (not heatmap)", () => {
+    const months = Array.from({ length: 12 }, (_, i) => `2024-${String(i + 1).padStart(2, "0")}`);
+    const segments = ["Consumer", "Enterprise", "SMB", "Startup"];
+    const rows = months.flatMap((month) =>
+      segments.map((segment) => ({
+        month,
+        segment,
+        total_sales: 1000,
+      })),
+    );
+    const series = deriveChart(["month", "segment", "total_sales"], rows);
+    expect(series.family).toBe("multi");
+    expect(series.kind).toBe("line");
+    expect(series.categoryKey).toBe("month");
+  });
+
+  it("builds a heatmap for dense non-temporal category grids", () => {
+    const sites = ["S1", "S2", "S3", "S4", "S5", "S6"];
+    const products = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"];
+    const rows = sites.flatMap((site) =>
+      products.map((product, i) => ({
+        site,
+        product,
+        metric: site.length + i,
+      })),
+    );
+    const series = deriveChart(["site", "product", "metric"], rows);
+    expect(series.family).toBe("heatmap");
+    expect(series.kind).toBe("heatmap");
+    expect(
+      new Set([...(series.heatRows ?? []), ...(series.heatCols ?? [])]).size,
+    ).toBe(14);
+    expect(availableChartKinds(series)).toEqual(["heatmap"]);
+  });
+
+  it("smoke: time × region counts → multi-line (shape rule, any domain)", () => {
+    const regions = ["East", "North", "South", "West"];
+    const months = Array.from({ length: 12 }, (_, i) =>
+      `2024-${String(i + 1).padStart(2, "0")}`,
+    );
     const rows = regions.flatMap((region) =>
       months.map((month, i) => ({
         region,
         month,
-        orders: region.length + i,
+        order_count: 10 + i,
       })),
     );
-    const series = deriveChart(["region", "month", "orders"], rows);
-    expect(series.family).toBe("heatmap");
-    expect(series.kind).toBe("heatmap");
-    expect(series.heatRows?.length).toBe(6);
-    expect(series.heatCols?.length).toBe(6);
-    expect(availableChartKinds(series)).toEqual(["heatmap"]);
+    const series = deriveChart(["region", "month", "order_count"], rows);
+    expect(series.family).toBe("multi");
+    expect(series.kind).toBe("line");
+    expect(series.categoryKey).toBe("month");
   });
 
   it("builds a scatter from two numeric columns", () => {
@@ -159,6 +194,46 @@ describe("deriveChart", () => {
     expect(series.yKey).toBe("payment_amount");
     expect(series.scatterData).toHaveLength(8);
     expect(chartAxisLabel(series)).toBe("payment_amount vs invoice_amount");
+  });
+
+  it("smoke: high-card label + two measures → scatter", () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      record_id: `REC-${String(i + 1).padStart(6, "0")}`,
+      measure_a: 100 + i * 5,
+      measure_b: 90 + i * 5,
+    }));
+    const series = deriveChart(["record_id", "measure_a", "measure_b"], rows);
+    expect(series.family).toBe("scatter");
+    expect(series.kind).toBe("scatter");
+    expect(series.xKey).toBe("measure_a");
+    expect(series.yKey).toBe("measure_b");
+    expect(availableChartKinds(series)).toEqual(["scatter"]);
+  });
+
+  it("smoke: two low-card dims + measure stays grouped/stacked multi", () => {
+    const dimA = ["East", "North", "South", "West"];
+    const dimB = ["Web", "Store", "Partner", "Phone", "Other"];
+    const rows = dimA.flatMap((a) =>
+      dimB.map((b) => ({
+        dim_a: a,
+        dim_b: b,
+        metric: 1000,
+      })),
+    );
+    const series = deriveChart(["dim_a", "dim_b", "metric"], rows);
+    expect(series.family).toBe("multi");
+    expect(["grouped", "stacked"]).toContain(series.kind);
+    expect(series.kind).not.toBe("heatmap");
+  });
+
+  it("caps classic series for very large row dumps", () => {
+    const rows = Array.from({ length: 5000 }, (_, i) => ({
+      label: `row_${i}`,
+      value: i,
+    }));
+    const series = deriveChart(["label", "value"], rows);
+    expect(series.family).toBe("single");
+    expect(series.data.length).toBeLessThanOrEqual(40);
   });
 });
 
