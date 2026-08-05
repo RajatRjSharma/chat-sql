@@ -109,7 +109,7 @@ class SqlValidator:
                     f"Table {table_schema}.{table_name} is outside allowed schema {schema!r}."
                 )
 
-            if allowed_tables and table_name not in allowed_tables:
+            if allowed_tables is not None and table_name not in allowed_tables:
                 raise SqlValidationError(
                     f"Table {table_name!r} is not in the allowed table set."
                 )

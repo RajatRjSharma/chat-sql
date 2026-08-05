@@ -33,12 +33,18 @@ Before the graph runs, `ChatService` prepare does industry-style linking:
    - `relationship_graph` — ER / FK edge list (join-path asks)
 2. **FK expand** (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`) — neighboring tables into context + allowlist
    (overview chunks do not consume the real-table budget).
-3. **Catalog overview path** — NL like “summary of db” *or* retrieval of the catalog
-   overview chunk → allowlist **every** indexed table (not capped at `RAG_MAX_TABLES`).
-4. LangGraph SQL loop against that allowlist (retries as in the diagram).
-5. On allowlist miss, **one** expand-and-retry (`RAG_EXPAND_ON_RETRY`).
+3. **Catalog overview path** — NL like “summary of db” only (not merely retrieving the
+   catalog overview chunk) → allowlist **every** indexed table with a names-only inventory
+   context suited to row-count / all-tables SQL.
+4. **Mention linking** — table names appearing in the question are force-included from the
+   catalog so column DDL stays available (avoids false UNANSWERABLE on asks like
+   “amounts in invoices”).
+5. LangGraph SQL loop against that allowlist (retries as in the diagram).
+6. On allowlist miss, **one** expand-and-retry (`RAG_EXPAND_ON_RETRY`).
 
 In the UI, **Refresh schema index** (Evidence panel → `POST /api/data/embed-schema`) re-indexes after warehouse DDL so RAG + FK metadata stay current. After this chunking change, refresh once so the two overview chunks are embedded.
+
+Offline linking/routing eval (Spider/BIRD-inspired, CI-safe): `make eval` → `backend/tests/eval/`.
 
 ## End-to-end
 

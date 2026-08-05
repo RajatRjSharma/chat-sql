@@ -23,14 +23,12 @@ from app.providers.ai import AIClient, get_ai_client
 from app.services.catalog_overview import (
     format_catalog_inventory,
     is_catalog_overview_question,
+    tables_mentioned_in_question,
 )
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
 from app.services.rag_service import RagService
-from app.services.schema_chunker import (
-    is_catalog_overview_chunk_metadata,
-    is_synthetic_table,
-)
+from app.services.schema_chunker import is_synthetic_table
 from app.services.schema_introspection import SchemaIntrospectionService
 from app.services.schema_linker import (
     SchemaChunk,
@@ -212,17 +210,30 @@ class ChatService:
         )
         context_mode = "rag" if seed_rows else "empty"
         linked_chunks = list(seed_rows)
-        overview = is_catalog_overview_question(question) or any(
-            is_catalog_overview_chunk_metadata(c.metadata) for c in seed_rows
-        )
+        # Names-only full inventory ONLY for explicit warehouse-wide NL.
+        # Do not trigger on retrieving the catalog overview chunk — that path
+        # strips column DDL and makes asks like "amounts in invoices" fail.
+        overview = is_catalog_overview_question(question)
 
         if seed_rows or overview:
             catalog = await RagService.load_catalog(session, data_source_id)
             if overview and catalog:
-                # Full inventory: allowlist every indexed table (RAG_MAX_TABLES does not apply).
                 linked_chunks = catalog
                 context_mode = "catalog_overview"
             elif seed_rows:
+                # Mention linking: force tables named in the question into seeds.
+                catalog_names = [c.table for c in catalog]
+                mentioned = tables_mentioned_in_question(question, catalog_names)
+                if mentioned:
+                    by_table = {c.table.lower(): c for c in catalog}
+                    seed_by = {c.table.lower(): c for c in seed_rows}
+                    for name in mentioned:
+                        chunk = by_table.get(name.lower())
+                        if chunk and name.lower() not in seed_by:
+                            seed_rows = [*seed_rows, chunk]
+                            seed_by[name.lower()] = chunk
+                    context_mode = "rag_mentioned"
+
                 expanded = SchemaLinker.expand(
                     seed_rows,
                     catalog,
@@ -231,7 +242,11 @@ class ChatService:
                 )
                 seed_names = {c.table for c in seed_rows}
                 if any(c.table not in seed_names for c in expanded):
-                    context_mode = "rag_expanded"
+                    context_mode = (
+                        "rag_expanded"
+                        if context_mode != "rag_mentioned"
+                        else "rag_mentioned_expanded"
+                    )
                 linked_chunks = expanded
 
         if not linked_chunks:
@@ -282,7 +297,11 @@ class ChatService:
         linked_chunks: list[SchemaChunk],
         context_mode: str,
     ) -> dict[str, Any]:
-        contents = [c.content for c in linked_chunks]
+        contents = [
+            c.content
+            for c in linked_chunks
+            if context_mode == "catalog_overview" or not is_synthetic_table(c.table)
+        ]
         allowed_tables = ChatService._extract_allowed_tables(
             contents,
             info.schema_name,
@@ -295,6 +314,7 @@ class ChatService:
                 table_names=allowed_tables,
             )
         else:
+            # Never inject catalog/ER overview prose into column-level SQL planning.
             schema_context = RagService.format_context(contents)
         source_metadata = build_source_metadata(
             data_source,
