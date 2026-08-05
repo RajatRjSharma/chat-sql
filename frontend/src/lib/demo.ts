@@ -27,6 +27,8 @@ export type PersistedWorkspace = {
   dataSourceName: string;
   sessionId: string | null;
   chunksEmbedded: number | null;
+  tablesIndexed: number | null;
+  schemaIndexedAt: string | null;
 };
 
 export function loadWorkspace(): PersistedWorkspace | null {
@@ -34,7 +36,15 @@ export function loadWorkspace(): PersistedWorkspace | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as PersistedWorkspace;
+    const parsed = JSON.parse(raw) as PersistedWorkspace;
+    return {
+      dataSourceId: parsed.dataSourceId,
+      dataSourceName: parsed.dataSourceName,
+      sessionId: parsed.sessionId ?? null,
+      chunksEmbedded: parsed.chunksEmbedded ?? null,
+      tablesIndexed: parsed.tablesIndexed ?? null,
+      schemaIndexedAt: parsed.schemaIndexedAt ?? null,
+    };
   } catch {
     return null;
   }

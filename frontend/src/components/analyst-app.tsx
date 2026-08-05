@@ -110,12 +110,16 @@ export function AnalystApp() {
     dataSourceId: string;
     dataSourceName: string;
     chunksEmbedded: number;
+    tablesIndexed?: number | null;
+    schemaIndexedAt?: string | null;
   }) {
     const next: PersistedWorkspace = {
       dataSourceId: payload.dataSourceId,
       dataSourceName: payload.dataSourceName,
       sessionId: null,
       chunksEmbedded: payload.chunksEmbedded,
+      tablesIndexed: payload.tablesIndexed ?? null,
+      schemaIndexedAt: payload.schemaIndexedAt ?? null,
     };
     saveWorkspace(next);
     setWorkspace(next);
@@ -126,6 +130,8 @@ export function AnalystApp() {
     dataSourceId: string;
     dataSourceName: string;
     chunksEmbedded: number;
+    tablesIndexed: number | null;
+    schemaIndexedAt: string | null;
   }) {
     openWorkspace(payload);
   }
@@ -136,15 +142,21 @@ export function AnalystApp() {
 
     try {
       let chunks = source.chunks_embedded;
+      let tablesIndexed = source.tables_indexed ?? null;
+      let schemaIndexedAt = source.schema_indexed_at ?? null;
       if (chunks <= 0) {
         const embedded = await api.embedSchema(source.id);
         chunks = embedded.chunks_embedded;
+        tablesIndexed = embedded.tables_indexed ?? null;
+        schemaIndexedAt = embedded.indexed_at ?? null;
       }
 
       openWorkspace({
         dataSourceId: source.id,
         dataSourceName: source.name,
         chunksEmbedded: chunks,
+        tablesIndexed,
+        schemaIndexedAt,
       });
     } catch (err) {
       setSelectError(
@@ -183,6 +195,25 @@ export function AnalystApp() {
     });
   }
 
+  function handleSchemaIndexChange(update: {
+    chunksEmbedded: number;
+    tablesIndexed: number | null;
+    schemaIndexedAt: string | null;
+  }) {
+    setWorkspace((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        chunksEmbedded: update.chunksEmbedded,
+        tablesIndexed: update.tablesIndexed,
+        schemaIndexedAt: update.schemaIndexedAt,
+      };
+      saveWorkspace(next);
+      return next;
+    });
+    void refreshSources();
+  }
+
   function handleSwitchWarehouse() {
     clearWorkspace();
     setWorkspace(null);
@@ -208,8 +239,11 @@ export function AnalystApp() {
         dataSourceId={workspace.dataSourceId}
         dataSourceName={workspace.dataSourceName}
         chunksEmbedded={workspace.chunksEmbedded}
+        tablesIndexed={workspace.tablesIndexed}
+        schemaIndexedAt={workspace.schemaIndexedAt}
         sessionId={workspace.sessionId}
         onSessionChange={handleSessionChange}
+        onSchemaIndexChange={handleSchemaIndexChange}
         onDisconnect={handleSwitchWarehouse}
         onLogout={() => void handleLogout()}
         userLabel={auth.user.username}

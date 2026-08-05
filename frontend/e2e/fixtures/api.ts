@@ -49,6 +49,9 @@ export const connectResponse = {
 export const embedResponse = {
   data_source_id: DEMO_SOURCE_ID,
   chunks_embedded: 3,
+  tables_indexed: 3,
+  previous_chunks: 0,
+  indexed_at: "2026-08-05T12:00:00.000Z",
   status: "ok",
 };
 

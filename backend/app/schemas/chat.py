@@ -35,6 +35,9 @@ class EmbedSchemaRequest(BaseModel):
 class EmbedSchemaResponse(BaseModel):
     data_source_id: UUID
     chunks_embedded: int
+    tables_indexed: int = 0
+    previous_chunks: int = 0
+    indexed_at: datetime | None = None
     status: str = "ok"
 
 

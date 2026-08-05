@@ -2,18 +2,36 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.exceptions import SchemaEmbeddingError
+from app.core.exceptions import SchemaEmbeddingError, SchemaIndexInProgressError
 from app.models import SchemaEmbedding
 from app.providers.ai import AIClient, get_ai_client
 from app.services.data_source_service import DataSourceService
 from app.services.schema_chunker import chunk_tables
 from app.services.schema_introspection import SchemaIntrospectionService
 from app.services.source_metadata import build_source_metadata
+
+# Per-process guard against overlapping rebuilds for the same source.
+_indexing_lock = asyncio.Lock()
+_indexing_sources: set[uuid.UUID] = set()
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaEmbedResult:
+    """Outcome of a schema index rebuild."""
+
+    chunks_embedded: int
+    tables_indexed: int
+    previous_chunks: int
+    indexed_at: datetime
 
 
 class SchemaEmbeddingService:
@@ -26,11 +44,41 @@ class SchemaEmbeddingService:
         *,
         user_id: uuid.UUID | None = None,
         client: AIClient | None = None,
-    ) -> int:
+    ) -> SchemaEmbedResult:
+        async with _indexing_lock:
+            if data_source_id in _indexing_sources:
+                raise SchemaIndexInProgressError(
+                    "Schema index rebuild already in progress for this data source."
+                )
+            _indexing_sources.add(data_source_id)
+
+        try:
+            return await SchemaEmbeddingService._embed_unlocked(
+                session,
+                data_source_id,
+                user_id=user_id,
+                client=client,
+            )
+        finally:
+            async with _indexing_lock:
+                _indexing_sources.discard(data_source_id)
+
+    @staticmethod
+    async def _embed_unlocked(
+        session: AsyncSession,
+        data_source_id: uuid.UUID,
+        *,
+        user_id: uuid.UUID | None = None,
+        client: AIClient | None = None,
+    ) -> SchemaEmbedResult:
         data_source = await DataSourceService.get_active(
             session, data_source_id, user_id=user_id
         )
         info = DataSourceService.connection_info_from_record(data_source)
+
+        previous_chunks = await SchemaEmbeddingService.count_embeddings(
+            session, data_source_id
+        )
 
         tables = SchemaIntrospectionService.introspect(info)
         if not tables:
@@ -60,10 +108,14 @@ class SchemaEmbeddingService:
             warehouse_header=warehouse_header,
             engine_meta=source_meta,
         )
+        # Embed before mutating the index so a provider failure leaves the old
+        # vectors intact.
         ai = client or get_ai_client()
         vectors = ai.embed([content for content, _ in chunks])
         if len(vectors) != len(chunks):
             raise SchemaEmbeddingError("Embedding count does not match chunk count.")
+
+        indexed_at = datetime.now(timezone.utc)
 
         await session.execute(
             delete(SchemaEmbedding).where(SchemaEmbedding.data_source_id == data_source_id)
@@ -78,12 +130,28 @@ class SchemaEmbeddingService:
                     metadata_=metadata,
                 )
             )
+
+        cfg = dict(data_source.extra_config or {})
+        cfg["schema_indexed_at"] = indexed_at.isoformat()
+        cfg["schema_table_count"] = len(tables)
+        cfg["schema_chunk_count"] = len(chunks)
+        data_source.extra_config = cfg
+        flag_modified(data_source, "extra_config")
+        session.add(data_source)
+
         await session.flush()
-        return len(chunks)
+        return SchemaEmbedResult(
+            chunks_embedded=len(chunks),
+            tables_indexed=len(tables),
+            previous_chunks=previous_chunks,
+            indexed_at=indexed_at,
+        )
 
     @staticmethod
     async def count_embeddings(session: AsyncSession, data_source_id: uuid.UUID) -> int:
         result = await session.execute(
-            select(SchemaEmbedding.id).where(SchemaEmbedding.data_source_id == data_source_id)
+            select(func.count())
+            .select_from(SchemaEmbedding)
+            .where(SchemaEmbedding.data_source_id == data_source_id)
         )
-        return len(result.scalars().all())
+        return int(result.scalar_one())

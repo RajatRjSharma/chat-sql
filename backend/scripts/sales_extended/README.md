@@ -56,7 +56,7 @@ Flags:
 ### 3) App reconnect + re-embed
 
 1. In the app, connect to the same warehouse (`schema=sales`).
-2. Run **embed schema** again so RAG sees the new tables.
+2. Run **embed schema** (on connect) or use **Refresh schema index** in the Evidence panel if already connected.
 3. Try join questions, e.g. revenue by channel, tickets by segment, campaign touches → orders.
 
 ## Local Docker warehouse

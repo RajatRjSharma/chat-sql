@@ -25,6 +25,9 @@ export type WarehouseConnectResponse = {
 export type EmbedSchemaResponse = {
   data_source_id: string;
   chunks_embedded: number;
+  tables_indexed: number;
+  previous_chunks: number;
+  indexed_at: string | null;
   status: string;
 };
 
@@ -53,6 +56,8 @@ export type DataSourceSummary = {
   is_readonly: boolean;
   is_active: boolean;
   chunks_embedded: number;
+  tables_indexed?: number | null;
+  schema_indexed_at?: string | null;
   session_count: number;
 };
 

@@ -16,7 +16,12 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import AIProviderError, SchemaEmbeddingError, UploadError
+from app.core.exceptions import (
+    AIProviderError,
+    SchemaEmbeddingError,
+    SchemaIndexInProgressError,
+    UploadError,
+)
 from app.database import get_db
 from app.deps.auth import get_current_user
 from app.models.user import User
@@ -141,18 +146,26 @@ async def embed_schema(
     """
     enforce_embed_rate_limit(raw, user_id=str(current_user.id))
     try:
-        count = await SchemaEmbeddingService.embed_data_source(
+        result = await SchemaEmbeddingService.embed_data_source(
             db,
             request.data_source_id,
             user_id=current_user.id,
         )
         return EmbedSchemaResponse(
             data_source_id=request.data_source_id,
-            chunks_embedded=count,
+            chunks_embedded=result.chunks_embedded,
+            tables_indexed=result.tables_indexed,
+            previous_chunks=result.previous_chunks,
+            indexed_at=result.indexed_at,
             status="ok",
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SchemaIndexInProgressError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except (SchemaEmbeddingError, AIProviderError) as exc:
         raise_http(
             status.HTTP_502_BAD_GATEWAY,
