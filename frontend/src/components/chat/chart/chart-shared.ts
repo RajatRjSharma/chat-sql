@@ -1,6 +1,6 @@
 import type { ChartDisplayKind } from "@/lib/chart";
 
-export const PIE_COLORS = [
+export const SERIES_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
   "var(--chart-3)",
@@ -11,11 +11,18 @@ export const PIE_COLORS = [
   "#b45309",
 ] as const;
 
-export const KIND_OPTIONS: { id: ChartDisplayKind; label: string }[] = [
-  { id: "bar", label: "Bar" },
-  { id: "line", label: "Line" },
-  { id: "pie", label: "Pie" },
-];
+/** @deprecated Prefer SERIES_COLORS — kept for pie panel imports. */
+export const PIE_COLORS = SERIES_COLORS;
+
+export const KIND_LABELS: Record<ChartDisplayKind, string> = {
+  bar: "Bar",
+  line: "Line",
+  pie: "Pie",
+  grouped: "Grouped",
+  stacked: "Stacked",
+  scatter: "Scatter",
+  heatmap: "Heatmap",
+};
 
 export const TOOLTIP_STYLE = {
   background: "var(--bg-shell)",
@@ -56,6 +63,21 @@ export function formatValue(value: number): string {
     : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+export function seriesColor(index: number): string {
+  return SERIES_COLORS[index % SERIES_COLORS.length];
+}
+
 export function pieColor(index: number): string {
-  return PIE_COLORS[index % PIE_COLORS.length];
+  return seriesColor(index);
+}
+
+/** Blue intensity scale for heatmaps (0 = pale, 1 = strong). */
+export function heatFill(t: number): string {
+  const clamped = Math.max(0, Math.min(1, t));
+  const light = { r: 226, g: 239, b: 251 }; // near --chart-2 wash
+  const dark = { r: 37, g: 99, b: 168 }; // --chart-4
+  const r = Math.round(light.r + (dark.r - light.r) * clamped);
+  const g = Math.round(light.g + (dark.g - light.g) * clamped);
+  const b = Math.round(light.b + (dark.b - light.b) * clamped);
+  return `rgb(${r}, ${g}, ${b})`;
 }

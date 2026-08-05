@@ -54,6 +54,7 @@ Ask (voice/text)
   → scope gate (clarify / out-of-scope may end early)
   → SQL generate → validate → execute (retries)
   → rows → summary + chart
+     (auto: bar/line/pie · grouped/stacked/multi-line · scatter · heatmap)
   → optional Piper speak
 ```
 

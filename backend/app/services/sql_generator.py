@@ -20,7 +20,11 @@ Rules:
    schemas and a schema is set.
 5. Use only tables/columns present in the schema context — copy names exactly
    (e.g. `orders`, never invent `order`).
-6. Prefer aggregations and clear column aliases for charting.
+6. Prefer aggregations and clear column aliases for charting:
+   - 1 dimension + measure → bar/line/pie (e.g. region, SUM(amount)).
+   - 2 dimensions + measure → grouped/stacked/multi-line (e.g. region, channel, SUM(amount)).
+   - 2 measures for correlation → scatter-ready columns (e.g. invoice_amount, payment_amount).
+   Keep result sets compact (prefer GROUP BY aggregates over raw row dumps).
 7. String literals must use the dialect's string quotes (PostgreSQL: single quotes).
 8. FILTER clauses must be valid for the target dialect when used:
    COUNT(*) FILTER (WHERE status = 'completed') on PostgreSQL —

@@ -3,7 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Minimize2, X } from "lucide-react";
-import type { ChartDisplayKind, ChartSeries } from "@/lib/chart";
+import {
+  chartAxisLabel,
+  type ChartDisplayKind,
+  type ChartSeries,
+} from "@/lib/chart";
 import { cn } from "@/lib/cn";
 import { ChartShell } from "./chart-shell";
 
@@ -76,7 +80,7 @@ export function ChartFullscreenModal({
               Chart view
             </p>
             <p className="break-words font-mono text-[11px] leading-snug text-[var(--text-secondary)]">
-              {series.valueKey} · {series.categoryKey}
+              {chartAxisLabel(series)}
             </p>
           </div>
           <div className="flex items-center gap-2">
