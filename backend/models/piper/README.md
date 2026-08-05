@@ -19,3 +19,5 @@ make tts-models
 ```
 
 Do not download voices at request time — speak uses only these on-disk files.
+
+Product architecture (chat / RAG / deploy): see [docs/architecture.md](../../../docs/architecture.md).

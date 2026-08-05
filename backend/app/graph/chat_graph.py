@@ -132,6 +132,7 @@ def run_chat_graph(graph, state: ChatGraphState) -> dict[str, Any]:
 STAGE_LABELS: dict[str, str] = {
     "preparing": "Preparing session",
     "retrieving_context": "Retrieving schema context",
+    "expanding_schema": "Expanding related tables",
     "retrieve_schema": "Loading schema into the planner",
     "assess_relevance": "Checking question scope",
     "generate_sql": "Generating SQL",

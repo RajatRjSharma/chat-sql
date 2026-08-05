@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import SchemaEmbeddingError, SqlValidationError, WarehouseQueryError
 from app.graph.chat_graph import (
     STAGE_LABELS,
@@ -23,6 +24,12 @@ from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
 from app.services.rag_service import RagService
 from app.services.schema_introspection import SchemaIntrospectionService
+from app.services.schema_linker import (
+    SchemaChunk,
+    SchemaLinker,
+    chunk_from_content,
+    parse_allowlist_miss_tables,
+)
 from app.services.source_metadata import build_source_metadata
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
@@ -51,6 +58,11 @@ class ChatService:
         )
         final = await asyncio.to_thread(
             run_chat_graph, prepared["graph"], prepared["state"]
+        )
+        prepared, final = await ChatService._maybe_expand_and_retry(
+            session,
+            prepared=prepared,
+            final=final,
         )
         return await ChatService._persist_result(
             session,
@@ -113,10 +125,18 @@ class ChatService:
                 if item is None:
                     break
                 if item.get("type") == "_final":
-                    result = await ChatService._persist_result(
+                    final_state = item.get("state") or {}
+                    if ChatService._needs_allowlist_expand(prepared, final_state):
+                        yield ChatService._stage_event("expanding_schema")
+                    prepared_out, final_out = await ChatService._maybe_expand_and_retry(
                         session,
                         prepared=prepared,
-                        final=item.get("state") or {},
+                        final=final_state,
+                    )
+                    result = await ChatService._persist_result(
+                        session,
+                        prepared=prepared_out,
+                        final=final_out,
                     )
                     yield {"type": "result", **result}
                 elif item.get("type") == "error":
@@ -176,33 +196,78 @@ class ChatService:
             session, chat_session.session_id
         )
 
-        chunks = await RagService.retrieve(
+        seed_rows = await RagService.retrieve_rows(
             session,
             data_source_id,
             question,
             client=ai,
         )
-        context_mode = "rag" if chunks else "empty"
-        if not chunks:
+        context_mode = "rag" if seed_rows else "empty"
+        linked_chunks = list(seed_rows)
+
+        if seed_rows:
+            catalog = await RagService.load_catalog(session, data_source_id)
+            expanded = SchemaLinker.expand(
+                seed_rows,
+                catalog,
+                hops=settings.rag_expand_hops,
+                max_tables=settings.rag_max_tables,
+            )
+            seed_names = {c.table for c in seed_rows}
+            if any(c.table not in seed_names for c in expanded):
+                context_mode = "rag_expanded"
+            linked_chunks = expanded
+        else:
             try:
                 tables = await asyncio.to_thread(
                     SchemaIntrospectionService.introspect, info
                 )
                 from app.services.schema_chunker import chunk_tables
 
-                chunks = [content for content, _ in chunk_tables(tables)]
-                if chunks:
+                fallback: list[SchemaChunk] = []
+                for content, metadata in chunk_tables(tables):
+                    parsed = chunk_from_content(content, metadata)
+                    if parsed:
+                        fallback.append(parsed)
+                if fallback:
+                    linked_chunks = fallback[: settings.rag_max_tables]
                     context_mode = "introspection_fallback"
             except SchemaEmbeddingError:
-                chunks = []
+                linked_chunks = []
                 context_mode = "empty"
 
-        schema_context = RagService.format_context(chunks)
-        allowed_tables = ChatService._extract_allowed_tables(chunks, info.schema_name)
+        return ChatService._build_prepared(
+            ai=ai,
+            data_source=data_source,
+            data_source_id=data_source_id,
+            question=question,
+            chat_session=chat_session,
+            history=history,
+            info=info,
+            linked_chunks=linked_chunks,
+            context_mode=context_mode,
+        )
+
+    @staticmethod
+    def _build_prepared(
+        *,
+        ai: AIClient,
+        data_source: Any,
+        data_source_id: uuid.UUID,
+        question: str,
+        chat_session: Any,
+        history: list[dict[str, str]],
+        info: Any,
+        linked_chunks: list[SchemaChunk],
+        context_mode: str,
+    ) -> dict[str, Any]:
+        contents = [c.content for c in linked_chunks]
+        schema_context = RagService.format_context(contents)
+        allowed_tables = ChatService._extract_allowed_tables(contents, info.schema_name)
         source_metadata = build_source_metadata(
             data_source,
             tables_in_context=allowed_tables,
-            chunks_retrieved=len(chunks),
+            chunks_retrieved=len(linked_chunks),
             context_mode=context_mode,
         )
 
@@ -219,13 +284,97 @@ class ChatService:
         graph = build_chat_graph(schema_context=schema_context, client=ai)
         return {
             "ai": ai,
+            "data_source": data_source,
             "data_source_id": data_source_id,
             "question": question,
             "chat_session": chat_session,
+            "info": info,
+            "history": history,
+            "linked_chunks": linked_chunks,
             "graph": graph,
             "state": state,
             "source_metadata": source_metadata,
+            "context_mode": context_mode,
         }
+
+    @staticmethod
+    def _needs_allowlist_expand(
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> bool:
+        if not settings.rag_expand_on_retry:
+            return False
+        if (final.get("status") or "") != "failed":
+            return False
+        if prepared.get("_expanded_retry"):
+            return False
+        missing = parse_allowlist_miss_tables(final.get("sql_error"))
+        if not missing:
+            missing = parse_allowlist_miss_tables(final.get("answer"))
+        return bool(missing)
+
+    @staticmethod
+    async def _maybe_expand_and_retry(
+        session: AsyncSession,
+        *,
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        One service-level expand when SQL failed on an allowlist miss.
+
+        Fetches missing tables (+ 1-hop neighbors), rebuilds the graph once.
+        """
+        if not ChatService._needs_allowlist_expand(prepared, final):
+            return prepared, final
+
+        missing = parse_allowlist_miss_tables(final.get("sql_error"))
+        if not missing:
+            missing = parse_allowlist_miss_tables(final.get("answer"))
+
+        data_source_id = prepared["data_source_id"]
+        fetched = await RagService.fetch_chunks_by_tables(
+            session, data_source_id, missing
+        )
+        if not fetched:
+            return prepared, final
+
+        catalog = await RagService.load_catalog(session, data_source_id)
+        neighbor_expanded = SchemaLinker.expand(
+            fetched,
+            catalog,
+            hops=max(1, settings.rag_expand_hops),
+            max_tables=settings.rag_max_tables,
+        )
+        merged = SchemaLinker.merge_chunks(
+            list(prepared.get("linked_chunks") or []),
+            neighbor_expanded,
+            max_tables=settings.rag_max_tables,
+        )
+        before = {c.table for c in (prepared.get("linked_chunks") or [])}
+        if not any(c.table not in before for c in merged):
+            return prepared, final
+
+        rebuilt = ChatService._build_prepared(
+            ai=prepared["ai"],
+            data_source=prepared["data_source"],
+            data_source_id=data_source_id,
+            question=prepared["question"],
+            chat_session=prepared["chat_session"],
+            history=prepared.get("history") or [],
+            info=prepared["info"],
+            linked_chunks=merged,
+            context_mode="rag_expanded",
+        )
+        rebuilt["_expanded_retry"] = True
+
+        retry_final = await asyncio.to_thread(
+            run_chat_graph, rebuilt["graph"], rebuilt["state"]
+        )
+        first_attempts = int(final.get("attempts") or 0)
+        retry_attempts = int(retry_final.get("attempts") or 0)
+        retry_final["attempts"] = first_attempts + retry_attempts
+        return rebuilt, retry_final
 
     @staticmethod
     async def _persist_result(

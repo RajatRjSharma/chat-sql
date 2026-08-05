@@ -2,10 +2,12 @@
 
 Next.js App Router UI for Voice-Driven Data Analyst.
 
+System overview: [docs/architecture.md](../docs/architecture.md) · [architecture diagram](../docs/architecture.png)
+
 ## Setup
 
 ```bash
-cp .env.local.example .env.local   # optional; defaults to http://localhost:8000
+cp .env.local.example .env.local   # optional; defaults to same-origin /api rewrite
 npm install
 npx playwright install chromium    # once — for UI E2E
 npm run dev
@@ -15,11 +17,14 @@ Or from the repo root: `make frontend-install` then `make frontend-dev`.
 
 ## Flow
 
-1. Connect warehouse (demo defaults prefilled) or open a saved source
-2. Schema embed runs automatically when needed
+1. Connect warehouse (demo defaults prefilled), open a **saved source**, or **upload** CSV/Excel
+2. Schema embed runs automatically when needed (`POST /api/data/embed-schema`)
 3. Chat (type or **mic**) → answer + SQL + table + chart (when chartable)
-4. Optional **Play** in the insight panel reads the latest summary aloud
-5. History sidebar loads past sessions; Switch warehouse returns to the picker
+4. **Evidence panel** shows warehouse provenance + schema index; use **Refresh schema index** after warehouse DDL changes
+5. Optional **Play** reads a summary aloud (Piper TTS via the API)
+6. History sidebar loads past sessions; **Switch warehouse** returns to the picker
+
+Backend prepare does **schema RAG + FK neighborhood expand** before LangGraph SQL, so multi-table joins are not limited to cosine top-K alone. See the root README “Schema linking” section.
 
 ### Voice notes
 
@@ -38,3 +43,4 @@ make frontend-e2e
 
 Specs under `e2e/` stub `/api/**` so tests do not need FastAPI, Docker, or an AI key.
 `npm install` alone is not enough — Playwright must download Chromium separately.
+Includes `e2e/schema-index.spec.ts` for Evidence **Refresh schema index**.
