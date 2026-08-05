@@ -84,6 +84,81 @@ class TestTablesMentionedInQuestion:
         assert "database_metrics" not in names
         assert "amount_limits" not in names
 
+    def test_channel_prefers_channels_over_campaign_channels(self) -> None:
+        names = tables_mentioned_in_question(
+            "Total revenue by region and channel",
+            ["channels", "campaign_channels", "regions", "orders"],
+        )
+        assert "channels" in names
+        assert "regions" in names
+        assert "campaign_channels" not in names
+
+
+class TestColumnConceptLinking:
+    def test_revenue_by_region_links_customers_and_orders(self) -> None:
+        from app.services.catalog_overview import link_tables_for_question
+        from app.services.schema_linker import SchemaChunk
+
+        chunks = [
+            SchemaChunk(
+                content=(
+                    "Table: sales.customers\nColumns:\n"
+                    "  - customer_id: integer\n  - region: varchar"
+                ),
+                table="customers",
+                schema_name="sales",
+            ),
+            SchemaChunk(
+                content=(
+                    "Table: sales.orders\nColumns:\n"
+                    "  - order_id: integer\n  - amount: numeric\n"
+                    "  - channel_id: integer"
+                ),
+                table="orders",
+                schema_name="sales",
+            ),
+            SchemaChunk(
+                content=(
+                    "Table: sales.channels\nColumns:\n"
+                    "  - channel_id: integer\n  - name: varchar"
+                ),
+                table="channels",
+                schema_name="sales",
+            ),
+            SchemaChunk(
+                content=(
+                    "Table: sales.regions\nColumns:\n"
+                    "  - region_id: integer\n  - name: varchar"
+                ),
+                table="regions",
+                schema_name="sales",
+            ),
+            SchemaChunk(
+                content=(
+                    "Table: sales.currencies\nColumns:\n"
+                    "  - currency_code: char\n  - name: varchar"
+                ),
+                table="currencies",
+                schema_name="sales",
+            ),
+        ]
+        linked = link_tables_for_question(
+            "Total revenue by region and channel",
+            chunks,
+        )
+        assert "customers" in linked  # region column
+        assert "orders" in linked  # amount via revenue synonym
+        assert "channels" in linked
+        assert "regions" in linked
+        assert "currencies" not in linked
+
+    def test_suggested_hops_deepens_for_multi_dim(self) -> None:
+        from app.services.catalog_overview import suggested_expand_hops
+
+        assert suggested_expand_hops(1, 1) == 1
+        assert suggested_expand_hops(2, 1) == 2
+        assert suggested_expand_hops(3, 0) == 2
+
 
 class TestFormatCatalogInventory:
     def test_lists_every_table(self) -> None:

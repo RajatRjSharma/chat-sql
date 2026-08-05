@@ -1,8 +1,14 @@
-"""Detect warehouse-wide / catalog overview questions and format inventory."""
+"""Detect warehouse-wide / catalog overview questions and format inventory.
+
+Also provides schema-linking helpers: table-name mentions, column mentions,
+and BI measure synonyms (e.g. revenue → amount) so multi-dim analytics asks
+pull the right DDL into context.
+"""
 
 from __future__ import annotations
 
 import re
+from typing import Any, Protocol
 
 from app.services.schema_chunker import is_synthetic_table
 
@@ -35,6 +41,10 @@ _SCOPED_TABLE_ASK_RE = re.compile(
 )
 
 _WORD_RE = re.compile(r"[a-z0-9_]+", re.IGNORECASE)
+_COLUMN_LINE_RE = re.compile(
+    r"^\s*-\s*(?P<name>[A-Za-z_][\w]*)\s*:",
+    re.MULTILINE,
+)
 
 # Tokens that must never force-include a table via substring mention linking.
 _MENTION_STOPWORDS = frozenset(
@@ -82,6 +92,7 @@ _MENTION_STOPWORDS = frozenset(
         "with",
         "and",
         "or",
+        "by",
         "this",
         "that",
         "these",
@@ -123,6 +134,65 @@ _MENTION_STOPWORDS = frozenset(
         "sale",  # prefer explicit "sales" / table stem match below
     }
 )
+
+# Columns that appear on almost every table — never use for column linking.
+_COLUMN_LINK_STOPWORDS = frozenset(
+    {
+        "id",
+        "name",
+        "title",
+        "status",
+        "type",
+        "code",
+        "date",
+        "time",
+        "created",
+        "updated",
+        "deleted",
+        "active",
+        "note",
+        "notes",
+        "description",
+        "value",
+        "key",
+        "uuid",
+        "email",
+        "phone",
+        "qty",
+        "quantity",
+        "count",
+        "rank",
+        "index",
+        "flag",
+        "year",
+        "month",
+        "day",
+        "week",
+    }
+)
+
+# BI vocabulary → warehouse measure columns (generic across schemas).
+_MEASURE_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "revenue": (
+        "amount",
+        "total_amount",
+        "line_amount",
+        "unit_price",
+        "price",
+        "net_amount",
+    ),
+    "sales": ("amount", "total_amount", "line_amount"),
+    "gmv": ("amount", "total_amount", "line_amount"),
+    "spend": ("amount", "total_amount"),
+    "income": ("amount", "total_amount"),
+    "turnover": ("amount", "total_amount"),
+}
+
+
+class _ChunkLike(Protocol):
+    table: str
+    content: str
+    metadata: dict[str, Any] | None
 
 
 def is_catalog_overview_question(question: str) -> bool:
@@ -172,19 +242,31 @@ def _stem(token: str) -> str:
     return t
 
 
-def _tokens_match(question_token: str, table_name: str) -> bool:
+def _question_tokens(question: str) -> list[str]:
+    return [
+        m.group(0).lower()
+        for m in _WORD_RE.finditer(question or "")
+        if m.group(0).lower() not in _MENTION_STOPWORDS
+    ]
+
+
+def _exact_or_stem_table_match(question_token: str, table_name: str) -> bool:
     q = question_token.lower()
     s = table_name.lower()
-    if q == s:
-        return True
-    if _stem(q) == _stem(s):
-        return True
-    # Segment prefix: "invoice" ↔ "invoice_lines" (not "data" ↔ "database").
+    return q == s or _stem(q) == _stem(s)
+
+
+def _segment_table_match(question_token: str, table_name: str) -> bool:
+    """invoice ↔ invoice_lines; not data ↔ database."""
+    q = question_token.lower()
+    s = table_name.lower()
     segments = s.split("_")
+    if len(segments) < 2:
+        return False
     q_stem = _stem(q)
-    if len(q_stem) >= 4 and any(_stem(seg) == q_stem or seg == q for seg in segments):
-        return True
-    return False
+    if len(q_stem) < 4:
+        return False
+    return any(_stem(seg) == q_stem or seg == q for seg in segments)
 
 
 def tables_mentioned_in_question(
@@ -194,28 +276,173 @@ def tables_mentioned_in_question(
     """
     Schema-linking mention detection: table names (or stems) appearing in the ask.
 
-    Used to force-include DDL chunks when cosine RAG misses an explicitly named table.
+    Prefer exact/stem full-name matches over multi-segment compounds so
+    "channel" links `channels` and not only `campaign_channels`.
     """
-    tokens = [
-        m.group(0).lower()
-        for m in _WORD_RE.finditer(question or "")
-        if m.group(0).lower() not in _MENTION_STOPWORDS
-    ]
+    tokens = _question_tokens(question)
     if not tokens:
         return []
 
     real = [t for t in catalog_tables if t and not is_synthetic_table(t)]
-    # Longer names first so "invoice_lines" wins ordering when both match.
-    real_sorted = sorted(real, key=lambda n: len(n), reverse=True)
+    # Shorter names first for exact/stem pass so `channels` beats
+    # `campaign_channels` when both stem-match poorly.
+    by_len_asc = sorted(real, key=lambda n: (len(n), n.lower()))
     matched: list[str] = []
     seen: set[str] = set()
-    for table in real_sorted:
+    claimed_tokens: set[str] = set()
+
+    for table in by_len_asc:
         key = table.lower()
         if key in seen:
             continue
         for token in tokens:
-            if _tokens_match(token, table):
+            if _exact_or_stem_table_match(token, table):
                 seen.add(key)
+                claimed_tokens.add(token)
+                matched.append(table)
+                break
+
+    # Segment matches only for tokens not already claimed by an exact table.
+    by_len_desc = sorted(real, key=lambda n: len(n), reverse=True)
+    for table in by_len_desc:
+        key = table.lower()
+        if key in seen:
+            continue
+        for token in tokens:
+            if token in claimed_tokens:
+                continue
+            if _segment_table_match(token, table):
+                seen.add(key)
+                claimed_tokens.add(token)
                 matched.append(table)
                 break
     return matched
+
+
+def _column_base(name: str) -> str:
+    col = name.lower()
+    for suffix in ("_id", "_ids", "_code", "_name", "_key", "_uuid", "_at", "_on"):
+        if col.endswith(suffix) and len(col) > len(suffix) + 1:
+            return col[: -len(suffix)]
+    return col
+
+
+def _column_matches_token(column: str, token: str) -> bool:
+    col = column.lower()
+    tok = token.lower()
+    if tok in _COLUMN_LINK_STOPWORDS or _stem(tok) in _COLUMN_LINK_STOPWORDS:
+        return False
+    base = _column_base(col)
+    if base in _COLUMN_LINK_STOPWORDS:
+        return False
+    if tok == col or _stem(tok) == _stem(col):
+        return True
+    if tok == base or _stem(tok) == _stem(base):
+        return True
+    return False
+
+
+def parse_columns_from_chunk(content: str) -> list[str]:
+    """Column names from a table DDL chunk (`- name: type` lines)."""
+    return [m.group("name") for m in _COLUMN_LINE_RE.finditer(content or "")]
+
+
+# Prefer these table-name hints when linking via measure synonyms only
+# (avoid attaching every amount-bearing dim/lookup table).
+_FACTISH_TABLE_HINTS = (
+    "order",
+    "invoice",
+    "payment",
+    "sale",
+    "revenue",
+    "transaction",
+    "ledger",
+    "line",
+)
+
+
+def _is_factish_table(table: str) -> bool:
+    t = table.lower()
+    return any(hint in t for hint in _FACTISH_TABLE_HINTS)
+
+
+def tables_matching_columns(
+    question: str,
+    catalog_chunks: list[_ChunkLike],
+) -> list[str]:
+    """
+    Force-include tables whose columns match question tokens or BI synonyms.
+
+    Example: "revenue by region" → customers (region) + orders (amount via revenue).
+    """
+    tokens = _question_tokens(question)
+    if not tokens:
+        return []
+
+    synonym_cols: set[str] = set()
+    for token in tokens:
+        for col in _MEASURE_SYNONYMS.get(token, ()):
+            synonym_cols.add(col)
+
+    matched: list[str] = []
+    seen: set[str] = set()
+    for chunk in catalog_chunks:
+        table = chunk.table
+        if not table or is_synthetic_table(table):
+            continue
+        key = table.lower()
+        if key in seen:
+            continue
+        columns = parse_columns_from_chunk(chunk.content)
+        if not columns:
+            continue
+
+        dimension_hit = False
+        synonym_hit = False
+        for col in columns:
+            col_l = col.lower()
+            if col_l in synonym_cols:
+                synonym_hit = True
+            for token in tokens:
+                if _column_matches_token(col, token):
+                    dimension_hit = True
+                    break
+            if dimension_hit and synonym_hit:
+                break
+
+        # Synonym-only hits stay on fact-ish tables (orders/invoices/…).
+        if dimension_hit or (synonym_hit and _is_factish_table(table)):
+            seen.add(key)
+            matched.append(table)
+    return matched
+
+
+def link_tables_for_question(
+    question: str,
+    catalog_chunks: list[_ChunkLike],
+) -> list[str]:
+    """Union of table-name mentions and column/synonym matches (deduped)."""
+    catalog_names = [c.table for c in catalog_chunks if c.table]
+    named = tables_mentioned_in_question(question, catalog_names)
+    columnish = tables_matching_columns(question, catalog_chunks)
+    out: list[str] = []
+    seen: set[str] = set()
+    for name in [*named, *columnish]:
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
+
+
+def suggested_expand_hops(linked_table_count: int, default_hops: int) -> int:
+    """
+    Multi-dimension asks need a deeper FK walk (region + channel → customers).
+
+    Industry linking often uses 2 hops when ≥2 seed tables are forced in.
+    """
+    hops = max(0, int(default_hops))
+    if linked_table_count >= 2:
+        return max(hops, 2)
+    return hops

@@ -41,6 +41,33 @@ class TestNeedsAllowlistExpand:
                 is False
             )
 
+    def test_unanswerable_analytics_triggers_expand(self) -> None:
+        prepared = {
+            "linked_chunks": [_chunk("orders")],
+            "question": "Total revenue by region and channel",
+            "context_mode": "rag",
+        }
+        final = {
+            "scope": "out_of_scope",
+            "attempts": 1,
+            "status": "ok",
+            "answer": "That question isn't something I can answer",
+        }
+        with patch("app.services.chat_service.settings") as settings:
+            settings.rag_expand_on_retry = True
+            assert ChatService._needs_unanswerable_expand(prepared, final) is True
+
+    def test_unanswerable_skips_trivia(self) -> None:
+        prepared = {
+            "linked_chunks": [_chunk("orders")],
+            "question": "height of Burj Khalifa",
+            "context_mode": "rag",
+        }
+        final = {"scope": "out_of_scope", "attempts": 1, "status": "ok"}
+        with patch("app.services.chat_service.settings") as settings:
+            settings.rag_expand_on_retry = True
+            assert ChatService._needs_unanswerable_expand(prepared, final) is False
+
     def test_false_when_already_expanded(self) -> None:
         with patch("app.services.chat_service.settings") as settings:
             settings.rag_expand_on_retry = True

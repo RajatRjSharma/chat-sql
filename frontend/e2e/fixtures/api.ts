@@ -146,6 +146,29 @@ export const chatOkResponse = {
   },
 };
 
+/** Multi-dimensional result shape → grouped / stacked / multi-line chart UI. */
+export const chatMultiDimResponse = {
+  ...chatOkResponse,
+  question: "Total revenue by region and channel",
+  answer: "East web leads revenue across channels.",
+  sql: "SELECT c.region, ch.name AS channel, SUM(o.amount) AS revenue FROM sales.orders o JOIN sales.customers c ON c.customer_id = o.customer_id JOIN sales.channels ch ON ch.channel_id = o.channel_id GROUP BY c.region, ch.name",
+  columns: ["region", "channel", "revenue"],
+  rows: [
+    { region: "East", channel: "web", revenue: 22000 },
+    { region: "East", channel: "store", revenue: 20000 },
+    { region: "West", channel: "web", revenue: 18000 },
+    { region: "West", channel: "store", revenue: 13000 },
+    { region: "North", channel: "web", revenue: 10000 },
+    { region: "North", channel: "store", revenue: 8000 },
+  ],
+  source_metadata: {
+    ...chatOkResponse.source_metadata,
+    tables_in_context: ["orders", "customers", "channels"],
+    context_mode: "rag_mentioned_expanded",
+    chunks_retrieved: 6,
+  },
+};
+
 export const suggestedQuestionsResponse = {
   data_source_id: DEMO_SOURCE_ID,
   suggestions: [
