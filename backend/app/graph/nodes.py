@@ -111,13 +111,15 @@ def generate_sql_node(
 
 
 def validate_sql_node(state: ChatGraphState) -> dict[str, Any]:
+    # Always pass a set (possibly empty). Empty means fail-closed allowlist —
+    # never coerce to None (that disables table membership checks).
     allowed = set(state.get("allowed_tables") or [])
     dialect = (state.get("source_metadata") or {}).get("sql_dialect") or "postgres"
     try:
         cleaned = SqlValidator.validate(
             state.get("sql") or "",
             allowed_schema=state.get("schema_name"),
-            allowed_tables=allowed or None,
+            allowed_tables=allowed,
             dialect=str(dialect),
         )
         return {"sql": cleaned, "sql_error": None, "status": "running"}

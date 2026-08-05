@@ -130,6 +130,10 @@ lint: ## Backend ruff lint (E/F/I/UP/B)
 test: ## Backend pytest suite
 	$(RUN_PY) -m pytest tests -v
 
+.PHONY: eval
+eval: ## Offline Text-to-SQL eval (schema linking / routing / hygiene)
+	$(RUN_PY) -m pytest tests/eval -v
+
 .PHONY: test-cov
 test-cov: ## Backend pytest with coverage report
 	$(RUN_PY) -m pytest tests -v --cov=app --cov-report=term-missing

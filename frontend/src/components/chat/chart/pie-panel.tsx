@@ -116,11 +116,12 @@ function PieLegend({
   return (
     <ul
       className={cn(
-        "min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[var(--bg-card)]",
+        // justify-start (not center): centered flex + overflow hides the top of long legends.
+        "min-h-0 min-w-0 overflow-y-auto overscroll-contain scroll-pt-1 bg-[var(--bg-card)]",
         stack
-          ? "flex max-h-[38%] flex-wrap content-start gap-1.5 sm:max-h-none sm:w-[min(42%,240px)] sm:flex-1 sm:flex-col sm:flex-nowrap sm:justify-center sm:py-0.5"
-          : "flex w-[min(48%,240px)] shrink-0 flex-col justify-center gap-1.5 py-0.5 sm:w-[min(42%,280px)]",
-        expanded && "w-[min(38%,320px)] gap-2",
+          ? "flex max-h-[42%] flex-wrap content-start gap-1.5 sm:max-h-none sm:w-[min(42%,240px)] sm:flex-1 sm:flex-col sm:flex-nowrap sm:justify-start sm:py-1"
+          : "flex w-[min(48%,240px)] shrink-0 flex-col justify-start gap-1.5 py-1 sm:w-[min(42%,280px)]",
+        expanded && "w-[min(38%,320px)] gap-2 py-1.5",
       )}
       aria-label="Pie chart legend"
     >

@@ -9,6 +9,7 @@ from unittest.mock import patch
 from app.services.catalog_overview import (
     format_catalog_inventory,
     is_catalog_overview_question,
+    tables_mentioned_in_question,
 )
 from app.services.chat_service import ChatService
 from app.services.schema_linker import SchemaChunk
@@ -40,6 +41,48 @@ class TestIsCatalogOverviewQuestion:
             )
             is False
         )
+
+    def test_invoice_amounts_is_not_overview(self) -> None:
+        assert (
+            is_catalog_overview_question("what are the amounts ranging in invoices")
+            is False
+        )
+
+    def test_related_tables_ask_is_not_overview(self) -> None:
+        assert is_catalog_overview_question("show tables related to invoices") is False
+        assert is_catalog_overview_question("list tables that have amount columns") is False
+
+
+class TestTablesMentionedInQuestion:
+    def test_invoices_mention(self) -> None:
+        names = tables_mentioned_in_question(
+            "what are the amounts ranging in invoices",
+            ["orders", "invoices", "invoice_lines", "customers"],
+        )
+        assert names == ["invoices"]
+
+    def test_invoice_lines_explicit(self) -> None:
+        names = tables_mentioned_in_question(
+            "sum amount on invoice_lines",
+            ["orders", "invoices", "invoice_lines", "customers"],
+        )
+        assert "invoice_lines" in names
+
+    def test_no_false_match_on_trivia(self) -> None:
+        names = tables_mentioned_in_question(
+            "height of Burj Khalifa",
+            ["orders", "customers"],
+        )
+        assert names == []
+
+    def test_database_stopword_does_not_match_trap_table(self) -> None:
+        names = tables_mentioned_in_question(
+            "query the database for orders",
+            ["orders", "database_metrics", "amount_limits"],
+        )
+        assert names == ["orders"]
+        assert "database_metrics" not in names
+        assert "amount_limits" not in names
 
 
 class TestFormatCatalogInventory:
