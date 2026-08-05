@@ -131,8 +131,11 @@ test: ## Backend pytest suite
 	$(RUN_PY) -m pytest tests -v
 
 .PHONY: eval
-eval: ## Offline Text-to-SQL eval (schema linking / routing / hygiene)
+eval: ## Offline Text-to-SQL eval (linking pipeline / routing / hygiene / retry)
 	$(RUN_PY) -m pytest tests/eval -v
+
+eval-live: ## CLI snapshot of offline linking goldens (optional live URL stub)
+	cd $(BACKEND_DIR) && PYTHONPATH=. $(if $(wildcard $(BACKEND_DIR)/.venv/bin/python),.venv/bin/python,python) scripts/eval_live.py
 
 .PHONY: test-cov
 test-cov: ## Backend pytest with coverage report

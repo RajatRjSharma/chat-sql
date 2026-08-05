@@ -1,7 +1,7 @@
-"""Offline Text-to-SQL eval: schema linking + overview routing + context hygiene.
+"""Offline Text-to-SQL eval: full linking pipeline + routing + hygiene + scope.
 
-Inspired by Spider/BIRD schema-linking + component checks, without requiring
-live LLM/DB. Run with: `pytest tests/eval -q` or `make eval`.
+Uses the same `apply_schema_linking` path as production ChatService prepare.
+Run: `make eval` or `pytest tests/eval -q`
 """
 
 from __future__ import annotations
@@ -12,66 +12,38 @@ from uuid import uuid4
 
 import pytest
 
+from app.config import settings
 from app.services.catalog_overview import (
     is_catalog_overview_question,
     tables_mentioned_in_question,
 )
 from app.services.chat_service import ChatService
-from app.services.schema_chunker import (
-    CHUNK_KIND_CATALOG,
-    CHUNK_KIND_RELATIONSHIPS,
-    CHUNK_KIND_TABLE,
-    SYNTHETIC_CATALOG_TABLE,
-    SYNTHETIC_RELATIONSHIPS_TABLE,
-)
-from app.services.schema_linker import SchemaChunk
+from app.services.schema_chunker import is_synthetic_table
+from app.services.schema_linking_pipeline import apply_schema_linking, real_tables
 from app.services.scope_guard import ScopeGuard
-from tests.eval.golden_cases import EVAL_CATALOG_TABLES, GOLDEN_CASES, GoldenCase
+from tests.eval.catalog_fixture import (
+    EVAL_CATALOG_TABLES,
+    build_eval_catalog,
+    build_table_chunk,
+)
+from tests.eval.golden_cases import GOLDEN_CASES, GoldenCase
 
 
-def _table_chunk(table: str, *, schema: str = "sales") -> SchemaChunk:
-    if table == SYNTHETIC_CATALOG_TABLE:
-        return SchemaChunk(
-            content=(
-                "Database catalog / schema inventory for sales (N tables).\n"
-                "Include EVERY table below when answering overview / all-tables questions.\n"
-                "Tables:\n- sales.invoices\n- sales.orders"
-            ),
-            table=table,
-            schema_name=schema,
-            metadata={"chunk_kind": CHUNK_KIND_CATALOG, "table": table},
-        )
-    if table == SYNTHETIC_RELATIONSHIPS_TABLE:
-        return SchemaChunk(
-            content=(
-                "Schema relationship graph / ER overview for sales.\n"
-                "Relationships:\n- sales.orders.customer_id -> sales.customers.customer_id"
-            ),
-            table=table,
-            schema_name=schema,
-            metadata={"chunk_kind": CHUNK_KIND_RELATIONSHIPS, "table": table},
-        )
-    cols = "  - id: integer (PK)\n  - amount: numeric\n  - total_amount: numeric"
-    if table == "invoices":
-        cols = "  - invoice_id: integer (PK)\n  - total_amount: numeric"
-    return SchemaChunk(
-        content=f"Table: {schema}.{table}\nColumns:\n{cols}",
-        table=table,
-        schema_name=schema,
-        metadata={"chunk_kind": CHUNK_KIND_TABLE, "table": table, "schema": schema},
+def _run_linking(case: GoldenCase):
+    catalog = build_eval_catalog()
+    by_name = {c.table: c for c in catalog}
+    seeds = [by_name[t] for t in case.rag_seed_tables if t in by_name]
+    # Missing seed names are ignored (simulates sparse RAG).
+    return apply_schema_linking(
+        case.question,
+        seeds,
+        catalog,
+        default_hops=settings.rag_expand_hops,
+        max_tables=settings.rag_max_tables,
     )
 
 
-def _catalog_chunks() -> list[SchemaChunk]:
-    real = [_table_chunk(t) for t in EVAL_CATALOG_TABLES]
-    return [
-        *real,
-        _table_chunk(SYNTHETIC_CATALOG_TABLE),
-        _table_chunk(SYNTHETIC_RELATIONSHIPS_TABLE),
-    ]
-
-
-def _capture_schema_context(prepared_mode: str, linked: list[SchemaChunk]) -> str:
+def _capture_schema_context(prepared_mode: str, linked) -> tuple[str, list[str]]:
     info = SimpleNamespace(schema_name="sales", connection_url="postgresql://x")
     data_source = SimpleNamespace(
         id=uuid4(),
@@ -111,15 +83,50 @@ def test_overview_routing(case: GoldenCase) -> None:
 
 @pytest.mark.parametrize(
     "case",
-    [c for c in GOLDEN_CASES if c.must_include_tables and not c.expect_overview],
+    [c for c in GOLDEN_CASES if c.must_mention_tables],
     ids=lambda c: c.id,
 )
 def test_mention_linking_recall(case: GoldenCase) -> None:
-    mentioned = tables_mentioned_in_question(case.question, list(EVAL_CATALOG_TABLES))
-    for table in case.must_include_tables:
-        assert table in mentioned, f"{case.id}: expected mention of {table}, got {mentioned}"
+    mentioned = tables_mentioned_in_question(
+        case.question, list(EVAL_CATALOG_TABLES)
+    )
+    for table in case.must_mention_tables:
+        assert table in mentioned, (
+            f"{case.id}: expected mention of {table}, got {mentioned}"
+        )
     for table in case.must_exclude_tables:
-        assert table not in mentioned
+        assert table not in mentioned, (
+            f"{case.id}: unexpected mention of {table}"
+        )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in GOLDEN_CASES if c.must_include_tables and not c.expect_overview],
+    ids=lambda c: c.id,
+)
+def test_full_pipeline_linking_recall(case: GoldenCase) -> None:
+    """End-to-end offline check: production linking must surface required tables.
+
+    This is the gate that would have caught 'revenue by region and channel'
+    missing customers before deploy.
+    """
+    result = _run_linking(case)
+    assert result.overview is False
+    allow = set(real_tables(result.linked_chunks))
+
+    missing = [t for t in case.must_include_tables if t not in allow]
+    assert not missing, (
+        f"{case.id}: allowlist missing {missing}. "
+        f"got={sorted(allow)} force={result.force_tables} "
+        f"hops={result.hops_used} mode={result.context_mode}"
+    )
+    for table in case.must_exclude_tables:
+        assert table not in allow, f"{case.id}: trap table {table} linked"
+    if case.min_hops is not None:
+        assert result.hops_used >= case.min_hops, (
+            f"{case.id}: expected hops>={case.min_hops}, got {result.hops_used}"
+        )
 
 
 @pytest.mark.parametrize(
@@ -128,28 +135,25 @@ def test_mention_linking_recall(case: GoldenCase) -> None:
     ids=lambda c: c.id,
 )
 def test_context_hygiene_strips_synthetic_overview(case: GoldenCase) -> None:
-    """Analytics asks: catalog/ER seed text must not enter SQL schema_context."""
-    seeds = [_table_chunk(t) for t in case.rag_seed_tables]
-    # Simulate mention + expand result: seeds + required tables' DDL.
-    by_name = {c.table: c for c in _catalog_chunks()}
-    linked = list(seeds)
-    for table in case.must_include_tables:
-        chunk = by_name.get(table)
-        if chunk and chunk.table not in {c.table for c in linked}:
-            linked.append(chunk)
-
-    context, allowed = _capture_schema_context("rag_mentioned", linked)
+    result = _run_linking(case)
+    # Analytics path must keep real DDL, not names-only inventory.
+    mode = "rag_mentioned" if result.context_mode.startswith("rag") else result.context_mode
+    context, allowed = _capture_schema_context(mode, result.linked_chunks)
     for table in case.must_include_tables:
         assert table in allowed
         assert f"sales.{table}" in context or f"Table: sales.{table}" in context
     for needle in case.forbid_in_context:
         assert needle not in context
+    # Synthetic placeholders never enter allowlist.
+    assert not any(is_synthetic_table(t) for t in allowed)
 
 
 def test_overview_mode_inventory_lists_all_tables() -> None:
     case = next(c for c in GOLDEN_CASES if c.id == "overview_summary_db")
-    linked = _catalog_chunks()
-    context, allowed = _capture_schema_context("catalog_overview", linked)
+    result = _run_linking(case)
+    assert result.overview is True
+    assert result.context_mode == "catalog_overview"
+    context, allowed = _capture_schema_context("catalog_overview", result.linked_chunks)
     assert "Complete indexed table inventory" in context
     for table in case.must_include_tables:
         assert table in allowed
@@ -157,26 +161,51 @@ def test_overview_mode_inventory_lists_all_tables() -> None:
 
 
 def test_scope_gate_analytics_vs_trivia() -> None:
-    schema = _table_chunk("orders").content + "\n\n" + _table_chunk("invoices").content
+    schema = (
+        build_table_chunk("orders").content
+        + "\n\n"
+        + build_table_chunk("invoices").content
+    )
     invoice_case = next(c for c in GOLDEN_CASES if c.id == "invoice_amount_range")
     trivia = next(c for c in GOLDEN_CASES if c.id == "out_of_scope_trivia")
+    revenue = next(c for c in GOLDEN_CASES if c.id == "revenue_by_region_channel")
 
     with patch("app.services.scope_guard.get_ai_client") as get_client:
         get_client.return_value.complete.return_value = "OUT_OF_SCOPE"
-        assert (
-            ScopeGuard.assess(
-                question=invoice_case.question,
-                schema_context=schema,
-                allowed_tables=["orders", "invoices"],
-            )
-            == "answerable"
-        )
+        for case in (invoice_case, revenue):
+            assert (
+                ScopeGuard.assess(
+                    question=case.question,
+                    schema_context=schema,
+                    allowed_tables=["orders", "invoices", "customers", "channels"],
+                )
+                == "answerable"
+            ), case.id
         decision = ScopeGuard.assess(
             question=trivia.question,
             schema_context=schema,
             allowed_tables=["orders", "invoices"],
         )
         assert decision == "out_of_scope"
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in GOLDEN_CASES if c.expect_scope_answerable],
+    ids=lambda c: c.id,
+)
+def test_scope_answerable_without_llm_when_analytics(case: GoldenCase) -> None:
+    """Deterministic analytics/schema overlap must not need the LLM refuse path."""
+    result = _run_linking(case)
+    schema = "\n\n".join(c.content for c in result.linked_chunks if not is_synthetic_table(c.table))
+    with patch("app.services.scope_guard.get_ai_client") as get_client:
+        get_client.return_value.complete.return_value = "OUT_OF_SCOPE"
+        decision = ScopeGuard.assess(
+            question=case.question,
+            schema_context=schema or build_table_chunk("orders").content,
+            allowed_tables=real_tables(result.linked_chunks) or ["orders"],
+        )
+    assert decision == "answerable", case.id
 
 
 def test_empty_allowlist_rejects_tables() -> None:
@@ -188,3 +217,14 @@ def test_empty_allowlist_rejects_tables() -> None:
             allowed_schema="sales",
             allowed_tables=set(),
         )
+
+
+def test_revenue_region_channel_regression_snapshot() -> None:
+    """Pinned regression for the shipped UNANSWERABLE bug."""
+    case = next(c for c in GOLDEN_CASES if c.id == "revenue_by_region_channel")
+    result = _run_linking(case)
+    allow = set(real_tables(result.linked_chunks))
+    assert {"orders", "customers", "channels"} <= allow
+    assert result.hops_used >= 2
+    # Channel mention must not only latch onto campaign_channels.
+    assert "channels" in allow

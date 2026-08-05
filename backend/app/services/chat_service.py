@@ -23,7 +23,6 @@ from app.providers.ai import AIClient, get_ai_client
 from app.services.catalog_overview import (
     format_catalog_inventory,
     is_catalog_overview_question,
-    tables_mentioned_in_question,
 )
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
@@ -36,6 +35,8 @@ from app.services.schema_linker import (
     chunk_from_content,
     parse_allowlist_miss_tables,
 )
+from app.services.schema_linking_pipeline import apply_schema_linking
+from app.services.scope_guard import ScopeGuard
 from app.services.source_metadata import build_source_metadata
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
@@ -132,7 +133,11 @@ class ChatService:
                     break
                 if item.get("type") == "_final":
                     final_state = item.get("state") or {}
-                    if ChatService._needs_allowlist_expand(prepared, final_state):
+                    if ChatService._needs_allowlist_expand(
+                        prepared, final_state
+                    ) or ChatService._needs_unanswerable_expand(
+                        prepared, final_state
+                    ):
                         yield ChatService._stage_event("expanding_schema")
                     prepared_out, final_out = await ChatService._maybe_expand_and_retry(
                         session,
@@ -210,44 +215,20 @@ class ChatService:
         )
         context_mode = "rag" if seed_rows else "empty"
         linked_chunks = list(seed_rows)
-        # Names-only full inventory ONLY for explicit warehouse-wide NL.
-        # Do not trigger on retrieving the catalog overview chunk — that path
-        # strips column DDL and makes asks like "amounts in invoices" fail.
         overview = is_catalog_overview_question(question)
 
         if seed_rows or overview:
             catalog = await RagService.load_catalog(session, data_source_id)
-            if overview and catalog:
-                linked_chunks = catalog
-                context_mode = "catalog_overview"
-            elif seed_rows:
-                # Mention linking: force tables named in the question into seeds.
-                catalog_names = [c.table for c in catalog]
-                mentioned = tables_mentioned_in_question(question, catalog_names)
-                if mentioned:
-                    by_table = {c.table.lower(): c for c in catalog}
-                    seed_by = {c.table.lower(): c for c in seed_rows}
-                    for name in mentioned:
-                        chunk = by_table.get(name.lower())
-                        if chunk and name.lower() not in seed_by:
-                            seed_rows = [*seed_rows, chunk]
-                            seed_by[name.lower()] = chunk
-                    context_mode = "rag_mentioned"
-
-                expanded = SchemaLinker.expand(
-                    seed_rows,
+            if catalog or overview:
+                linking = apply_schema_linking(
+                    question,
+                    list(seed_rows),
                     catalog,
-                    hops=settings.rag_expand_hops,
+                    default_hops=settings.rag_expand_hops,
                     max_tables=settings.rag_max_tables,
                 )
-                seed_names = {c.table for c in seed_rows}
-                if any(c.table not in seed_names for c in expanded):
-                    context_mode = (
-                        "rag_expanded"
-                        if context_mode != "rag_mentioned"
-                        else "rag_mentioned_expanded"
-                    )
-                linked_chunks = expanded
+                linked_chunks = linking.linked_chunks
+                context_mode = linking.context_mode
 
         if not linked_chunks:
             try:
@@ -356,14 +337,37 @@ class ChatService:
     ) -> bool:
         if not settings.rag_expand_on_retry:
             return False
-        if (final.get("status") or "") != "failed":
+        if prepared.get("_expanded_retry"):
+            return False
+        if (final.get("status") or "") == "failed":
+            missing = parse_allowlist_miss_tables(final.get("sql_error"))
+            if not missing:
+                missing = parse_allowlist_miss_tables(final.get("answer"))
+            return bool(missing)
+        return False
+
+    @staticmethod
+    def _needs_unanswerable_expand(
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> bool:
+        """Retry with deeper linking when SQL model refused a BI-shaped ask."""
+        if not settings.rag_expand_on_retry:
             return False
         if prepared.get("_expanded_retry"):
             return False
-        missing = parse_allowlist_miss_tables(final.get("sql_error"))
-        if not missing:
-            missing = parse_allowlist_miss_tables(final.get("answer"))
-        return bool(missing)
+        if final.get("scope") != "out_of_scope":
+            return False
+        if not prepared.get("linked_chunks"):
+            return False
+        question = prepared.get("question") or ""
+        if not ScopeGuard.has_analytics_intent(question):
+            return False
+        # Trivia / hard refuse from the scope gate already set answer before SQL.
+        # UNANSWERABLE path also sets OUT_OF_SCOPE_MESSAGE — only retry when we
+        # actually entered SQL generation (attempts > 0) or had thin context.
+        attempts = int(final.get("attempts") or 0)
+        return attempts > 0 or (prepared.get("context_mode") or "").startswith("rag")
 
     @staticmethod
     async def _maybe_expand_and_retry(
@@ -373,34 +377,56 @@ class ChatService:
         final: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
-        One service-level expand when SQL failed on an allowlist miss.
-
-        Fetches missing tables (+ 1-hop neighbors), rebuilds the graph once.
+        One service-level expand when SQL failed on an allowlist miss, or when
+        the SQL model returned UNANSWERABLE for an analytics-shaped question.
         """
-        if not ChatService._needs_allowlist_expand(prepared, final):
+        allowlist_miss = ChatService._needs_allowlist_expand(prepared, final)
+        unanswerable = ChatService._needs_unanswerable_expand(prepared, final)
+        if not allowlist_miss and not unanswerable:
             return prepared, final
-
-        missing = parse_allowlist_miss_tables(final.get("sql_error"))
-        if not missing:
-            missing = parse_allowlist_miss_tables(final.get("answer"))
 
         data_source_id = prepared["data_source_id"]
-        fetched = await RagService.fetch_chunks_by_tables(
-            session, data_source_id, missing
-        )
-        if not fetched:
+        catalog = await RagService.load_catalog(session, data_source_id)
+        if not catalog:
             return prepared, final
 
-        catalog = await RagService.load_catalog(session, data_source_id)
-        neighbor_expanded = SchemaLinker.expand(
-            fetched,
-            catalog,
-            hops=max(1, settings.rag_expand_hops),
-            max_tables=settings.rag_max_tables,
-        )
+        extra: list[SchemaChunk] = []
+        if allowlist_miss:
+            missing = parse_allowlist_miss_tables(final.get("sql_error"))
+            if not missing:
+                missing = parse_allowlist_miss_tables(final.get("answer"))
+            fetched = await RagService.fetch_chunks_by_tables(
+                session, data_source_id, missing
+            )
+            extra.extend(fetched)
+
+        if unanswerable:
+            # Re-run full linking with deeper default hops from original seeds.
+            retry_link = apply_schema_linking(
+                prepared.get("question") or "",
+                list(prepared.get("linked_chunks") or []) + extra,
+                catalog,
+                default_hops=max(2, settings.rag_expand_hops + 1),
+                max_tables=settings.rag_max_tables,
+            )
+            neighbor_expanded = retry_link.linked_chunks
+        else:
+            seeds = list(prepared.get("linked_chunks") or []) + extra
+            if not seeds:
+                return prepared, final
+            neighbor_expanded = SchemaLinker.expand(
+                seeds,
+                catalog,
+                hops=max(1, settings.rag_expand_hops),
+                max_tables=settings.rag_max_tables,
+            )
+
+        if not neighbor_expanded and not extra:
+            return prepared, final
+
         merged = SchemaLinker.merge_chunks(
             list(prepared.get("linked_chunks") or []),
-            neighbor_expanded,
+            neighbor_expanded if neighbor_expanded else extra,
             max_tables=settings.rag_max_tables,
         )
         before = {c.table for c in (prepared.get("linked_chunks") or [])}

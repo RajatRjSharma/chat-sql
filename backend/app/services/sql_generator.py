@@ -34,7 +34,9 @@ Rules:
    a “Complete indexed table inventory”, include EVERY listed table — never a subset.
    Keep it short — avoid nested half-finished expressions.
 10. If previous SQL failed validation, fix the error described by the user.
-11. If the question cannot be answered from the schema context (general knowledge,
+11. Map common BI vocabulary to schema measures when present
+    (revenue/sales/GMV → amount, total_amount, line_amount, etc.).
+12. If the question cannot be answered from the schema context (general knowledge,
     trivia, unrelated domains), output exactly: UNANSWERABLE
     Do not invent tables, columns, or placeholder SELECTs to force an answer.
 """

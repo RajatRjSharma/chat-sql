@@ -44,7 +44,8 @@ Before the graph runs, `ChatService` prepare does industry-style linking:
 
 In the UI, **Refresh schema index** (Evidence panel → `POST /api/data/embed-schema`) re-indexes after warehouse DDL so RAG + FK metadata stay current. After this chunking change, refresh once so the two overview chunks are embedded.
 
-Offline linking/routing eval (Spider/BIRD-inspired, CI-safe): `make eval` → `backend/tests/eval/`.
+Offline linking/routing eval (Spider/BIRD-inspired, CI-safe): `make eval` → `backend/tests/eval/`
+(full pipeline recall via production `apply_schema_linking`; includes revenue×region×channel regression).
 
 ## End-to-end
 

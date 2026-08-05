@@ -217,7 +217,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 
 ```bash
 make lint                 # backend ruff
-make test                 # backend pytest
+make test                 # backend pytest (includes tests/eval)
+make eval                 # offline Text-to-SQL linking/routing eval only
 make frontend-lint        # ESLint
 make frontend-typecheck   # TypeScript
 make frontend-test        # Vitest
@@ -225,6 +226,8 @@ make frontend-e2e         # Playwright (after make frontend-e2e-install)
 make check                # ruff + pytest + eslint + tsc + vitest
 make check-all            # check + Playwright E2E
 ```
+
+Schema-linking regressions (e.g. multi-dim “revenue by region and channel”) are covered by `backend/tests/eval/` and run in CI via `pytest tests`.
 
 ## Useful commands
 
