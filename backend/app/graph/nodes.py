@@ -46,6 +46,7 @@ def assess_relevance_node(
         question=state["question"],
         schema_context=schema_context,
         allowed_tables=allowed_tables,
+        history=list(state.get("history") or []),
         client=client,
     )
     if decision == "out_of_scope":

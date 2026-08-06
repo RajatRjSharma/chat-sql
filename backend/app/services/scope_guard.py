@@ -13,6 +13,7 @@ import re
 from typing import Literal
 
 from app.providers.ai import AIClient, get_ai_client
+from app.services.follow_up import looks_like_follow_up
 
 ScopeDecision = Literal["answerable", "out_of_scope", "needs_clarification"]
 
@@ -165,6 +166,23 @@ _ANALYTICS_HINTS = frozenset(
         "metrics",
         "rows",
         "columns",
+        # Time / grain refinements (common follow-up language).
+        "month",
+        "months",
+        "monthly",
+        "year",
+        "years",
+        "yearly",
+        "quarter",
+        "quarters",
+        "week",
+        "weeks",
+        "weekly",
+        "day",
+        "days",
+        "daily",
+        "date",
+        "dates",
     }
 )
 
@@ -227,11 +245,18 @@ class ScopeGuard:
         question: str,
         schema_context: str,
         allowed_tables: list[str] | None = None,
+        history: list[dict[str, str]] | None = None,
         client: AIClient | None = None,
     ) -> ScopeDecision:
         q = (question or "").strip()
         if not q:
             return "needs_clarification"
+
+        # 0) Conversational refinements of a prior BI turn stay in the SQL path.
+        # Without this, "Break that down by month" has no schema tokens and the
+        # scope LLM often wrongly returns OUT_OF_SCOPE.
+        if looks_like_follow_up(q, history):
+            return "answerable"
 
         # 1) Deterministic: schema / analytics signal → stay in the SQL path.
         if ScopeGuard.has_schema_overlap(q, schema_context, allowed_tables):
@@ -315,6 +340,10 @@ class ScopeGuard:
 
     @staticmethod
     def has_analytics_intent(question: str) -> bool:
+        q = (question or "").strip().lower()
+        # Multi-word cues that tokenize into stop-ish fragments ("break" + "down").
+        if "break down" in q or "break that down" in q or "break it down" in q:
+            return True
         tokens = _content_tokens(question)
         if not tokens:
             return False
