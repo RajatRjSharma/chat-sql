@@ -84,6 +84,16 @@ class TestAIClient:
         with pytest.raises(AIProviderError, match="failed"):
             client.complete([{"role": "user", "content": "hi"}])
 
+    def test_complete_index_error_falls_back_then_raises(self) -> None:
+        """Empty OpenAI-compatible choices[] often surfaces as IndexError."""
+        client = AIClient(
+            chat_model=_chat_model(error=IndexError("list index out of range")),
+            fallback_chat_model=_chat_model(error=IndexError("list index out of range")),
+            embeddings=MagicMock(),
+        )
+        with pytest.raises(AIProviderError, match="failed"):
+            client.complete([{"role": "user", "content": "hi"}])
+
     def test_embed_success(self) -> None:
         embeddings = MagicMock()
         embeddings.embed_documents.return_value = [[0.1, 0.2], [0.3, 0.4]]

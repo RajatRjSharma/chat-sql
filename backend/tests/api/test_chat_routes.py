@@ -428,3 +428,29 @@ class TestChatStreamRoute:
         assert response.status_code == 200
         assert "event: error" in response.text
         assert "not found" in response.text.lower()
+
+    def test_chat_stream_sanitizes_index_error(self, client: TestClient) -> None:
+        async def fake_stream(*_args, **_kwargs):
+            yield {
+                "type": "error",
+                "detail": "list index out of range",
+                "error_type": "IndexError",
+                "stage": "assess_relevance",
+            }
+
+        with patch(
+            "app.routes.chat.ChatService.ask_stream",
+            side_effect=fake_stream,
+        ):
+            response = client.post(
+                "/api/chat/stream",
+                json={
+                    "data_source_id": str(DEMO_SOURCE_ID),
+                    "question": "sales by region",
+                },
+            )
+
+        assert response.status_code == 200
+        assert "event: error" in response.text
+        assert "list index" not in response.text.lower()
+        assert "temporarily unavailable" in response.text.lower()

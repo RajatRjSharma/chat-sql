@@ -18,6 +18,32 @@ GENERIC_CHAT = "Chat failed. Please try again."
 GENERIC_AI = "AI provider is temporarily unavailable. Please try again shortly."
 GENERIC_EMAIL = "Could not send email. Please try again later."
 
+# Low-level / provider noise that must never reach the browser.
+_INTERNAL_NOISE = (
+    "traceback",
+    "psycopg2",
+    "sqlalchemy",
+    "operationalerror",
+    "connection refused",
+    "password authentication failed",
+    "api key",
+    "authorization",
+    "sk-or-",
+    "openrouter",
+    "ssl",
+    "errno",
+    'file "',
+    "  file ",
+    "list index out of range",
+    "index out of range",
+    "indexerror",
+    "keyerror",
+    "attributeerror",
+    "nonetype",
+    "choices",
+    "has no attribute",
+)
+
 
 def raise_http(
     status_code: int,
@@ -40,27 +66,13 @@ def safe_public_detail(exc: BaseException, *, fallback: str) -> str:
     ValueError and our AppError subclasses with short, crafted messages are OK.
     Long / low-level strings are replaced with fallback.
     """
+    if isinstance(exc, IndexError | KeyError | AttributeError | TypeError):
+        return fallback
     text = str(exc).strip()
     if not text:
         return fallback
     lowered = text.lower()
-    leak_markers = (
-        "traceback",
-        "psycopg2",
-        "sqlalchemy",
-        "operationalerror",
-        "connection refused",
-        "password authentication failed",
-        "api key",
-        "authorization",
-        "sk-or-",
-        "openrouter",
-        "ssl",
-        "errno",
-        "file \"",
-        "  file ",
-    )
-    if any(marker in lowered for marker in leak_markers):
+    if any(marker in lowered for marker in _INTERNAL_NOISE):
         return fallback
     if len(text) > 280:
         return fallback

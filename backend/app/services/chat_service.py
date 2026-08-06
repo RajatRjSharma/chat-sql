@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from queue import Empty, Queue
@@ -11,7 +12,12 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import SchemaEmbeddingError, SqlValidationError, WarehouseQueryError
+from app.core.exceptions import (
+    AIProviderError,
+    SchemaEmbeddingError,
+    SqlValidationError,
+    WarehouseQueryError,
+)
 from app.core.memory_guard import heavy_memory_op
 from app.graph.chat_graph import (
     STAGE_LABELS,
@@ -21,6 +27,7 @@ from app.graph.chat_graph import (
     run_chat_graph,
 )
 from app.providers.ai import AIClient, get_ai_client
+from app.security.http_errors import GENERIC_AI, GENERIC_CHAT, safe_public_detail
 from app.services.catalog_overview import (
     format_catalog_inventory,
     is_catalog_overview_question,
@@ -44,6 +51,14 @@ from app.services.sql_generator import EMPTY_RESULT_SQL_HINT
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
 
+logger = logging.getLogger(__name__)
+
+
+def _public_chat_error(exc: BaseException) -> str:
+    """Map pipeline failures to a safe browser-facing detail."""
+    if isinstance(exc, AIProviderError | IndexError):
+        return GENERIC_AI
+    return safe_public_detail(exc, fallback=GENERIC_CHAT)
 
 class ChatService:
     """High-level chat entrypoint used by the API layer."""
@@ -102,20 +117,39 @@ class ChatService:
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield SSE-ready events: stage… then result (or error)."""
         yield ChatService._stage_event("preparing")
+        q_preview = (question or "").strip()[:120]
 
-        prepared = await ChatService._prepare(
-            session,
-            user_id=user_id,
-            data_source_id=data_source_id,
-            question=question,
-            session_id=session_id,
-            client=client,
-        )
+        try:
+            prepared = await ChatService._prepare(
+                session,
+                user_id=user_id,
+                data_source_id=data_source_id,
+                question=question,
+                session_id=session_id,
+                client=client,
+            )
+        except Exception as exc:
+            logger.exception(
+                "chat prepare failed user=%s data_source=%s question=%r",
+                user_id,
+                data_source_id,
+                q_preview,
+            )
+            yield {
+                "type": "error",
+                "detail": _public_chat_error(exc),
+                "error_type": type(exc).__name__,
+                "stage": "preparing",
+            }
+            return
+
         yield ChatService._stage_event("retrieving_context")
 
         event_queue: Queue[dict[str, Any] | None] = Queue()
+        session_key = str(prepared["chat_session"].session_id)
 
         def worker() -> None:
+            last_stage = "retrieving_context"
             try:
                 final_state: dict[str, Any] | None = None
                 with heavy_memory_op("chat_graph_stream"):
@@ -124,9 +158,16 @@ class ChatService:
                     ):
                         if kind == "stage":
                             node_name, current = rest
+                            last_stage = str(node_name)
+                            logger.info(
+                                "chat stage=%s attempts=%s session=%s",
+                                last_stage,
+                                int(current.get("attempts") or 0),
+                                session_key,
+                            )
                             event_queue.put(
                                 ChatService._stage_event(
-                                    str(node_name),
+                                    last_stage,
                                     attempts=int(current.get("attempts") or 0),
                                     sql=current.get("sql"),
                                 )
@@ -135,7 +176,20 @@ class ChatService:
                             final_state = rest[0]
                 event_queue.put({"type": "_final", "state": final_state or {}})
             except Exception as exc:  # noqa: BLE001
-                event_queue.put({"type": "error", "detail": str(exc)})
+                logger.exception(
+                    "chat graph stream failed stage=%s session=%s question=%r",
+                    last_stage,
+                    session_key,
+                    q_preview,
+                )
+                event_queue.put(
+                    {
+                        "type": "error",
+                        "detail": _public_chat_error(exc),
+                        "error_type": type(exc).__name__,
+                        "stage": last_stage,
+                    }
+                )
             finally:
                 event_queue.put(None)
 
@@ -149,29 +203,42 @@ class ChatService:
                     break
                 if item.get("type") == "_final":
                     final_state = item.get("state") or {}
-                    if ChatService._needs_allowlist_expand(
-                        prepared, final_state
-                    ) or ChatService._needs_unanswerable_expand(
-                        prepared, final_state
-                    ):
-                        yield ChatService._stage_event("expanding_schema")
-                    prepared_out, final_out = await ChatService._maybe_expand_and_retry(
-                        session,
-                        prepared=prepared,
-                        final=final_state,
-                    )
-                    if ChatService._needs_empty_result_retry(prepared_out, final_out):
-                        yield ChatService._stage_event("retrying_empty_sql")
-                    prepared_out, final_out = await ChatService._maybe_empty_result_retry(
-                        prepared=prepared_out,
-                        final=final_out,
-                    )
-                    result = await ChatService._persist_result(
-                        session,
-                        prepared=prepared_out,
-                        final=final_out,
-                    )
-                    yield {"type": "result", **result}
+                    try:
+                        if ChatService._needs_allowlist_expand(
+                            prepared, final_state
+                        ) or ChatService._needs_unanswerable_expand(
+                            prepared, final_state
+                        ):
+                            yield ChatService._stage_event("expanding_schema")
+                        prepared_out, final_out = await ChatService._maybe_expand_and_retry(
+                            session,
+                            prepared=prepared,
+                            final=final_state,
+                        )
+                        if ChatService._needs_empty_result_retry(prepared_out, final_out):
+                            yield ChatService._stage_event("retrying_empty_sql")
+                        prepared_out, final_out = await ChatService._maybe_empty_result_retry(
+                            prepared=prepared_out,
+                            final=final_out,
+                        )
+                        result = await ChatService._persist_result(
+                            session,
+                            prepared=prepared_out,
+                            final=final_out,
+                        )
+                        yield {"type": "result", **result}
+                    except Exception as exc:
+                        logger.exception(
+                            "chat post-graph failed session=%s question=%r",
+                            session_key,
+                            q_preview,
+                        )
+                        yield {
+                            "type": "error",
+                            "detail": _public_chat_error(exc),
+                            "error_type": type(exc).__name__,
+                            "stage": "persist",
+                        }
                 elif item.get("type") == "error":
                     yield item
                 else:
