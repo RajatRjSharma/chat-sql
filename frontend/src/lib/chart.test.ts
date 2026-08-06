@@ -3,6 +3,7 @@ import {
   availableChartKinds,
   chartAxisLabel,
   deriveChart,
+  pickDefaultAmongOptions,
   pickDefaultKind,
 } from "@/lib/chart";
 
@@ -210,9 +211,9 @@ describe("deriveChart", () => {
     expect(availableChartKinds(series)).toEqual(["scatter"]);
   });
 
-  it("smoke: two low-card dims + measure stays grouped/stacked multi", () => {
-    const dimA = ["East", "North", "South", "West"];
-    const dimB = ["Web", "Store", "Partner", "Phone", "Other"];
+  it("smoke: two low-card dims (2×4) stay grouped/stacked multi", () => {
+    const dimA = ["East", "West"];
+    const dimB = ["Web", "Store", "Partner", "Phone"];
     const rows = dimA.flatMap((a) =>
       dimB.map((b) => ({
         dim_a: a,
@@ -224,6 +225,21 @@ describe("deriveChart", () => {
     expect(series.family).toBe("multi");
     expect(["grouped", "stacked"]).toContain(series.kind);
     expect(series.kind).not.toBe("heatmap");
+  });
+
+  it("smoke: denser 4×5 cat×cat grid defaults to heatmap", () => {
+    const dimA = ["East", "North", "South", "West"];
+    const dimB = ["Web", "Store", "Partner", "Phone", "Other"];
+    const rows = dimA.flatMap((a) =>
+      dimB.map((b) => ({
+        dim_a: a,
+        dim_b: b,
+        metric: 1000,
+      })),
+    );
+    const series = deriveChart(["dim_a", "dim_b", "metric"], rows);
+    expect(series.family).toBe("heatmap");
+    expect(series.kind).toBe("heatmap");
   });
 
   it("caps classic series for very large row dumps", () => {
@@ -261,5 +277,68 @@ describe("pickDefaultKind", () => {
       value: i + 1,
     }));
     expect(pickDefaultKind(data)).toBe("line");
+  });
+});
+
+describe("pickDefaultAmongOptions", () => {
+  it("never leaves the available options prelist", () => {
+    const series = deriveChart(
+      ["region", "revenue"],
+      [
+        { region: "North", revenue: 10 },
+        { region: "South", revenue: 20 },
+        { region: "East", revenue: 5 },
+      ],
+    );
+    const options = availableChartKinds(series);
+    const picked = pickDefaultAmongOptions(options, series, "show as a heatmap matrix");
+    expect(options).toContain(picked);
+  });
+
+  it("prefers line from the prelist for trend wording", () => {
+    const series = deriveChart(
+      ["month", "revenue"],
+      Array.from({ length: 12 }, (_, i) => ({
+        month: `2024-${String(i + 1).padStart(2, "0")}-01`,
+        revenue: i + 1,
+      })),
+    );
+    const options = availableChartKinds(series);
+    expect(
+      pickDefaultAmongOptions(options, series, "monthly revenue trend over time"),
+    ).toBe("line");
+  });
+
+  it("prefers scatter when available and question says vs", () => {
+    const rows = Array.from({ length: 8 }, (_, i) => ({
+      invoice_amount: 100 + i * 10,
+      payment_amount: 90 + i * 9,
+    }));
+    const series = deriveChart(["invoice_amount", "payment_amount"], rows);
+    const options = availableChartKinds(series);
+    expect(
+      pickDefaultAmongOptions(
+        options,
+        series,
+        "For each order, show invoice total vs payment total",
+      ),
+    ).toBe("scatter");
+  });
+});
+
+describe("heatmap density", () => {
+  it("builds a heatmap for a compact 4×5 non-temporal grid", () => {
+    const territories = ["Midwest", "Northeast", "Southeast", "Southwest"];
+    const channels = ["Web", "Retail", "Partner", "Phone", "Marketplace"];
+    const rows = territories.flatMap((territory) =>
+      channels.map((channel, i) => ({
+        territory,
+        channel,
+        revenue: 1000 + i,
+      })),
+    );
+    const series = deriveChart(["territory", "channel", "revenue"], rows);
+    expect(series.family).toBe("heatmap");
+    expect(series.kind).toBe("heatmap");
   });
 });

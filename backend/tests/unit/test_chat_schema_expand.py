@@ -166,3 +166,78 @@ async def test_maybe_expand_and_retry_rebuilds_once() -> None:
     tables = {c.table for c in out_prepared["linked_chunks"]}
     assert "channels" in tables
     assert "orders" in tables
+
+
+class TestNeedsEmptyResultRetry:
+    def test_true_on_empty_analytics_result(self) -> None:
+        prepared = {"question": "total revenue by region and channel"}
+        final = {
+            "status": "ok",
+            "sql": "SELECT 1",
+            "rows": [],
+            "scope": "answerable",
+        }
+        assert ChatService._needs_empty_result_retry(prepared, final) is True
+
+    def test_false_when_rows_present(self) -> None:
+        prepared = {"question": "total revenue by region"}
+        final = {
+            "status": "ok",
+            "sql": "SELECT 1",
+            "rows": [{"x": 1}],
+            "scope": "answerable",
+        }
+        assert ChatService._needs_empty_result_retry(prepared, final) is False
+
+    def test_false_when_already_retried(self) -> None:
+        prepared = {
+            "question": "total revenue by region",
+            "_empty_sql_retry": True,
+        }
+        final = {"status": "ok", "sql": "SELECT 1", "rows": [], "scope": "answerable"}
+        assert ChatService._needs_empty_result_retry(prepared, final) is False
+
+    def test_false_for_trivia(self) -> None:
+        prepared = {"question": "what is the weather in Delhi"}
+        final = {"status": "ok", "sql": "SELECT 1", "rows": [], "scope": "answerable"}
+        assert ChatService._needs_empty_result_retry(prepared, final) is False
+
+
+@pytest.mark.asyncio
+async def test_maybe_empty_result_retry_reruns_graph() -> None:
+    graph = MagicMock()
+    prepared = {
+        "question": "total revenue by region and channel",
+        "graph": graph,
+        "state": {
+            "question": "total revenue by region and channel",
+            "attempts": 0,
+        },
+    }
+    final = {
+        "status": "ok",
+        "sql": "SELECT bad_join",
+        "rows": [],
+        "attempts": 1,
+        "scope": "answerable",
+    }
+    with patch(
+        "app.services.chat_service.run_chat_graph",
+        return_value={
+            "status": "ok",
+            "sql": "SELECT fixed",
+            "rows": [{"region": "North", "revenue": 10}],
+            "attempts": 2,
+        },
+    ) as run_mock:
+        out_prepared, out_final = await ChatService._maybe_empty_result_retry(
+            prepared=prepared,
+            final=final,
+        )
+
+    assert out_prepared.get("_empty_sql_retry") is True
+    assert out_final["rows"] == [{"region": "North", "revenue": 10}]
+    assert out_final["attempts"] == 3
+    call_state = run_mock.call_args[0][1]
+    assert call_state["sql"] == "SELECT bad_join"
+    assert "ZERO rows" in (call_state.get("sql_error") or "")

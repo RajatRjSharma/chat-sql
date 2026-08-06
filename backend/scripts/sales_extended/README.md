@@ -63,6 +63,18 @@ Flags:
 2. On connect, embed runs automatically; if already connected, use **Refresh schema index** in the Evidence panel.
 3. Try join questions, e.g. revenue by channel + segment, tickets by customer, campaign touches → orders.
 
+### Demo prompts that exercise linking + charts
+
+| Ask | What you should see |
+|-----|---------------------|
+| `Show total order revenue by territory and sales channel.` | Dense grid → **heatmap** (or grouped if dims collapse) |
+| `What is total revenue by customer segment and sales channel?` | Multi-join → grouped/stacked |
+| `Monthly revenue by sales channel for the last 12 months.` | Time × series → **multi-line** |
+| `For each order, show invoice total vs payment total.` | Row-level 2 measures → **scatter** |
+| `What is total revenue by region and channel?` | Prefer `orders.amount` + `customers → territories → regions` (not `regions.code = customers.region`) |
+
+**Region tip:** `customers.region` stores names (`North`); `regions.code` stores short codes (`N`). Join via `territories` / `regions.name`, never code-to-name.
+
 Re-indexing also stores structured `foreign_keys` in chunk metadata (content FK lines still work for older embeddings).
 
 ## Local Docker warehouse

@@ -24,8 +24,9 @@ OUT_OF_SCOPE_MESSAGE = (
 
 EMPTY_RESULT_MESSAGE = (
     "I queried your connected warehouse, but that question returned no matching rows. "
-    "Try a different metric, filter, or time range — I can only report data that "
-    "actually exists in this warehouse."
+    "This often means a join or filter did not match (for example linking a region "
+    "code to a region name). Try rephrasing with clearer dimensions, a different "
+    "metric, or a broader time range — I can only report data that exists here."
 )
 
 _UNANSWERABLE_RE = re.compile(
