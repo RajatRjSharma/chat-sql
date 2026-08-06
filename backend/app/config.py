@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     sql_max_attempts: int = Field(default=3, alias="SQL_MAX_ATTEMPTS", ge=1, le=5)
     warehouse_max_rows: int = Field(default=500, alias="WAREHOUSE_MAX_ROWS", ge=1, le=5000)
     chat_history_limit: int = Field(default=5, alias="CHAT_HISTORY_LIMIT", ge=0, le=20)
+    # Modest pools (each asyncpg connection holds buffers). Raise if you need more concurrency.
+    db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE", ge=1, le=20)
+    db_max_overflow: int = Field(default=5, alias="DB_MAX_OVERFLOW", ge=0, le=20)
     warehouse_connect_timeout_seconds: int = Field(
         default=10,
         alias="WAREHOUSE_CONNECT_TIMEOUT_SECONDS",
@@ -189,7 +192,13 @@ class Settings(BaseSettings):
     )
 
     # Offline Piper TTS (bundled voice under backend/models/piper/)
+    # Defaults favor snappy Speak; on ≤512MB hosts set TTS_PRELOAD=false if you OOM.
     tts_enabled: bool = Field(default=True, alias="TTS_ENABLED")
+    tts_preload: bool = Field(
+        default=True,
+        alias="TTS_PRELOAD",
+        description="Load Piper at process start so first Speak is warm",
+    )
     tts_voice_path: str = Field(
         default="models/piper/en_US-amy-low.onnx",
         alias="TTS_VOICE_PATH",
@@ -228,9 +237,23 @@ class Settings(BaseSettings):
     )
     tts_warmup_enabled: bool = Field(default=True, alias="TTS_WARMUP_ENABLED")
     tts_warmup_text: str = Field(
-        default="Sales totals look strong this quarter overall.",
+        default="Ready.",
         alias="TTS_WARMUP_TEXT",
         max_length=120,
+    )
+    tts_wav_cache_max: int = Field(
+        default=12,
+        alias="TTS_WAV_CACHE_MAX",
+        ge=0,
+        le=32,
+        description="Max distinct answers kept as WAV chunk lists in RAM",
+    )
+    tts_wav_cache_max_bytes: int = Field(
+        default=12_000_000,
+        alias="TTS_WAV_CACHE_MAX_BYTES",
+        ge=0,
+        le=64_000_000,
+        description="Hard byte budget for the in-process WAV cache (~12MB default)",
     )
 
     smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")

@@ -26,12 +26,13 @@ Virtualenv lives at `backend/.venv` (gitignored). `make install` creates it if m
 
 ## Environment
 
-Copy from `.env.example` at repo root. Important keys:
+Copy from `.env.example` at repo root (complete list of Settings aliases). Important keys:
 
 | Variable | Purpose |
 |----------|---------|
 | `APP_DB_*` | Project database (`bi_app`) |
 | `APP_DB_SCHEMA` | Leave empty → PostgreSQL `public` |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy async pool (default 5 / 5) |
 | `CREDENTIALS_SECRET` | Encrypts warehouse passwords in `data_sources` |
 | `AI_API_KEY` / `AI_BASE_URL` | AI provider endpoint and credentials |
 | `LLM_MODEL` / `LLM_MODEL_FALLBACK` | Primary and fallback chat models |
@@ -40,6 +41,9 @@ Copy from `.env.example` at repo root. Important keys:
 | `RAG_EXPAND_HOPS` | FK neighborhood depth after seeds (default 1) |
 | `RAG_MAX_TABLES` | Cap on tables in schema context (default 15) |
 | `RAG_EXPAND_ON_RETRY` | One expand-and-retry on allowlist miss (default true) |
+| `SQL_MAX_ATTEMPTS` / `WAREHOUSE_MAX_ROWS` / `CHAT_HISTORY_LIMIT` | SQL retry + result caps |
+| `TTS_*` | Offline Piper Speak (see root `.env.example`) |
+| `REGISTRATION_ENABLED` | Allow new sign-ups (default `false`) |
 | `EMAIL_OTP_ENABLED` | `true` locally (SMTP OTP); `false` on Render when SMTP is blocked |
 | `SMTP_*` | Required only when `EMAIL_OTP_ENABLED=true` |
 | `UPLOAD_MAX_BYTES` / `UPLOAD_MAX_ROWS` | CSV/Excel limits |
@@ -142,7 +146,7 @@ make tts-models   # download/refresh en_US-amy-low into models/piper/
 - `POST /api/voice/speak` — full WAV (simple clients)
 - `POST /api/voice/speak-stream` — NDJSON sentence WAVs (UI Play button; lower time-to-first-audio)
 
-Tuned for small hosts: `TTS_MAX_CHARS` (per-chunk size — full answers are chunked, not truncated), `TTS_LENGTH_SCALE` (<1 = faster), `TTS_ONNX_THREADS=1`, and a one-shot warmup after preload. No network calls at speak time.
+Tuned for small hosts without slowing the happy path: preload + warmup for warm Speak, `TTS_ONNX_THREADS=1`, bounded WAV cache, and short critical-section locks so chat and TTS do not peak together. No network calls at speak time. If a ≤512MB instance still OOMs, set `TTS_PRELOAD=false` or `TTS_ENABLED=false`.
 
 On Render free tier, set secret `KEEPALIVE_HEALTH_URL` so `.github/workflows/keep-alive.yml` can ping `/health` every 5 minutes (GitHub Actions only).
 

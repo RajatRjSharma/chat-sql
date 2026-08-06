@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from app.config import settings
+from app.core.memory_guard import heavy_memory_op
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class TtsService:
     _syn_config = None
     # prepared_text -> list of wav bytes (avoids re-synthesis on prefetch+play)
     _wav_cache: OrderedDict[str, list[bytes]] = OrderedDict()
-    _WAV_CACHE_MAX = 24
+    _wav_cache_bytes: int = 0
 
     @classmethod
     def reset_for_tests(cls) -> None:
@@ -44,6 +45,7 @@ class TtsService:
             cls._load_error = None
             cls._syn_config = None
             cls._wav_cache.clear()
+            cls._wav_cache_bytes = 0
 
     @classmethod
     def is_available(cls) -> bool:
@@ -58,18 +60,18 @@ class TtsService:
 
     @classmethod
     def status(cls) -> dict[str, str | bool | float | int]:
+        """Report TTS readiness without loading the ONNX model into RAM."""
         path = settings.resolved_tts_voice_path
+        voice_present = path.is_file()
         available = False
         if settings.tts_enabled and cls._load_error is None:
-            if cls._voice is not None:
-                available = True
-            elif path.is_file():
-                available = cls._ensure_voice() is not None
+            # Already loaded, or file present (lazy-load on first speak).
+            available = cls._voice is not None or voice_present
         return {
             "enabled": settings.tts_enabled,
             "available": available,
             "voice_path": str(path),
-            "voice_present": path.is_file(),
+            "voice_present": voice_present,
             "error": cls._load_error or "",
             "max_chars": settings.tts_max_chars,
             "first_chunk_chars": settings.tts_first_chunk_chars,
@@ -85,7 +87,7 @@ class TtsService:
 
     @classmethod
     def _load_voice_with_thread_limit(cls, path: Path):
-        """Load Piper with ONNX Runtime pinned to a small thread count (Render-friendly)."""
+        """Load Piper with ONNX Runtime pinned for tiny CPUs / low RAM hosts."""
         import onnxruntime as ort
         from piper import PiperVoice
 
@@ -297,35 +299,44 @@ class TtsService:
         if not chunks:
             raise ValueError("Text is empty")
 
-        voice = cls._ensure_voice()
-        if voice is None:
-            raise TtsUnavailableError(cls._load_error or "TTS unavailable")
+        with heavy_memory_op("tts_synthesize"):
+            voice = cls._ensure_voice()
+            if voice is None:
+                raise TtsUnavailableError(cls._load_error or "TTS unavailable")
 
-        if len(chunks) == 1:
-            return cls._wav_from_text(chunks[0], voice)
+            if len(chunks) == 1:
+                return cls._wav_from_text(chunks[0], voice)
 
-        # Concatenate PCM frames from each chunk WAV into one file.
-        frames = bytearray()
-        params = None
-        for chunk in chunks:
-            piece = cls._wav_from_text(chunk, voice)
-            with wave.open(io.BytesIO(piece), "rb") as wf:
+            # Concatenate PCM frames from each chunk WAV into one file.
+            frames = bytearray()
+            params = None
+            try:
+                for chunk in chunks:
+                    piece = cls._wav_from_text(chunk, voice)
+                    with wave.open(io.BytesIO(piece), "rb") as wf:
+                        if params is None:
+                            params = wf.getparams()
+                        frames.extend(wf.readframes(wf.getnframes()))
+                    del piece
+
                 if params is None:
-                    params = wf.getparams()
-                frames.extend(wf.readframes(wf.getnframes()))
+                    raise TtsUnavailableError("TTS produced no audio")
 
-        if params is None:
-            raise TtsUnavailableError("TTS produced no audio")
-
-        out = io.BytesIO()
-        with wave.open(out, "wb") as wf:
-            wf.setparams(params)
-            wf.writeframes(bytes(frames))
-        return out.getvalue()
+                out = io.BytesIO()
+                with wave.open(out, "wb") as wf:
+                    wf.setparams(params)
+                    wf.writeframes(bytes(frames))
+                return out.getvalue()
+            finally:
+                frames.clear()
 
     @classmethod
     def _cache_key(cls, cleaned: str) -> str:
         return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _wav_list_bytes(wavs: list[bytes]) -> int:
+        return sum(len(w) for w in wavs)
 
     @classmethod
     def _cache_get(cls, cleaned: str) -> list[bytes] | None:
@@ -338,13 +349,36 @@ class TtsService:
             return list(wavs)
 
     @classmethod
+    def _cache_evict_locked(cls) -> None:
+        """Drop oldest cache entries until under entry + byte budgets."""
+        max_entries = settings.tts_wav_cache_max
+        max_bytes = settings.tts_wav_cache_max_bytes
+        while cls._wav_cache and (
+            len(cls._wav_cache) > max_entries or cls._wav_cache_bytes > max_bytes
+        ):
+            _key, old = cls._wav_cache.popitem(last=False)
+            cls._wav_cache_bytes = max(0, cls._wav_cache_bytes - cls._wav_list_bytes(old))
+
+    @classmethod
     def _cache_put(cls, cleaned: str, wavs: list[bytes]) -> None:
+        if settings.tts_wav_cache_max <= 0 or settings.tts_wav_cache_max_bytes <= 0:
+            return
         key = cls._cache_key(cleaned)
+        payload = list(wavs)
+        size = cls._wav_list_bytes(payload)
+        # Single answer larger than the whole budget — skip caching.
+        if size > settings.tts_wav_cache_max_bytes:
+            return
         with cls._lock:
-            cls._wav_cache[key] = list(wavs)
+            existing = cls._wav_cache.pop(key, None)
+            if existing is not None:
+                cls._wav_cache_bytes = max(
+                    0, cls._wav_cache_bytes - cls._wav_list_bytes(existing)
+                )
+            cls._wav_cache[key] = payload
+            cls._wav_cache_bytes += size
             cls._wav_cache.move_to_end(key)
-            while len(cls._wav_cache) > cls._WAV_CACHE_MAX:
-                cls._wav_cache.popitem(last=False)
+            cls._cache_evict_locked()
 
     @classmethod
     def synthesize_sentences(cls, text: str) -> Iterator[tuple[int, int, bytes]]:
@@ -367,14 +401,16 @@ class TtsService:
         if not sentences:
             raise ValueError("Text is empty")
 
-        voice = cls._ensure_voice()
-        if voice is None:
-            raise TtsUnavailableError(cls._load_error or "TTS unavailable")
+        with heavy_memory_op("tts_load"):
+            voice = cls._ensure_voice()
+            if voice is None:
+                raise TtsUnavailableError(cls._load_error or "TTS unavailable")
 
         total = len(sentences)
         wavs: list[bytes] = []
         for index, sentence in enumerate(sentences):
-            wav = cls._wav_from_text(sentence, voice)
+            with heavy_memory_op("tts_chunk"):
+                wav = cls._wav_from_text(sentence, voice)
             wavs.append(wav)
             yield index, total, wav
         cls._cache_put(cleaned, wavs)
