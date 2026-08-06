@@ -43,6 +43,31 @@ def _active_refresh_row(user: User) -> MagicMock:
 
 
 class TestAuthRegister:
+    def test_auth_config_public(self, unauthenticated_client: TestClient) -> None:
+        response = unauthenticated_client.get("/api/auth/config")
+        assert response.status_code == 200
+        body = response.json()
+        assert "registration_enabled" in body
+        assert "email_otp_enabled" in body
+        assert isinstance(body["registration_enabled"], bool)
+
+    def test_register_rejected_when_disabled(
+        self, unauthenticated_client: TestClient
+    ) -> None:
+        with patch("app.routes.auth.settings") as mock_settings:
+            mock_settings.registration_enabled = False
+            response = unauthenticated_client.post(
+                "/api/auth/register",
+                json={
+                    "email": "new@example.com",
+                    "username": "newuser",
+                    "password": STRONG_PASSWORD,
+                    "password_confirm": STRONG_PASSWORD,
+                },
+            )
+        assert response.status_code == 403
+        assert "disabled" in response.json()["detail"].lower()
+
     def test_register_sends_otp(self, unauthenticated_client: TestClient) -> None:
         with patch(
             "app.routes.auth.AuthService.register",

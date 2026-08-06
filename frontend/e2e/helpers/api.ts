@@ -94,6 +94,12 @@ export async function mockApi(page: Page, options: MockApiOptions = {}) {
     const url = new URL(request.url());
     const path = url.pathname;
 
+    if (method === "GET" && path === "/api/auth/config") {
+      return fulfill(route, {
+        registration_enabled: true,
+        email_otp_enabled: true,
+      });
+    }
     if (method === "GET" && path === "/api/auth/me") {
       return fulfill(route, demoUser);
     }

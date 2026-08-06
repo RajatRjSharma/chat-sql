@@ -62,6 +62,8 @@ Register with **email + username + password** (no Google Sign-In).
 | **Local (default)** | `true` | After register, verify email via OTP sent through Gmail SMTP (`SMTP_USER`, `SMTP_PASSWORD` app password). |
 | **Production (e.g. Render)** | `false` | Register marks the user verified immediately; user signs in without OTP. Use this when the host blocks outbound SMTP (Render free tier). |
 
+**Registration gate:** `REGISTRATION_ENABLED` (default `false`). Set `true` to allow `POST /api/auth/register` and show “Create an account” in the UI. Existing users can still sign in when disabled. Public flag: `GET /api/auth/config`.
+
 When OTP is enabled, set `SMTP_USER` to your Gmail address and `SMTP_PASSWORD` to a [Google App Password](https://myaccount.google.com/apppasswords). Optional: `SMTP_FROM=Voice-Driven Data Analyst <you@gmail.com>`.
 
 JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
@@ -185,6 +187,7 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `AUTH_COOKIE_SAMESITE` | `lax` when using the Vercel `/api` proxy (recommended for mobile) |
 | `CREDENTIALS_SECRET` | Encrypts stored warehouse passwords |
 | `EMAIL_OTP_ENABLED` | `false` on Render free tier (SMTP ports blocked) |
+| `REGISTRATION_ENABLED` | `true` to allow new sign-ups (default `false`; login still works) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
 | `TTS_ENABLED` | `true` (bundled Piper voice ships in the repo; disable if free-tier RAM OOMs) |
 | `TTS_MAX_CHARS` | `180` |

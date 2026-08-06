@@ -221,6 +221,13 @@ function toSession(token: AuthTokenResponse) {
 }
 
 export const api = {
+  authConfig() {
+    return request<{
+      registration_enabled: boolean;
+      email_otp_enabled: boolean;
+    }>("/api/auth/config");
+  },
+
   register(body: {
     email: string;
     username: string;

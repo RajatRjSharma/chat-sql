@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 import { OtpForm } from "@/components/auth/otp-form";
 import { RegisterForm } from "@/components/auth/register-form";
@@ -26,6 +26,29 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .authConfig()
+      .then((cfg) => {
+        if (!cancelled) setRegistrationEnabled(cfg.registration_enabled);
+      })
+      .catch(() => {
+        // Fail closed — match server default when config cannot be loaded.
+        if (!cancelled) setRegistrationEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!registrationEnabled && mode === "register") {
+      setMode("login");
+    }
+  }, [registrationEnabled, mode]);
 
   function clearSecrets() {
     setPassword("");
@@ -60,6 +83,11 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
 
   async function handleRegister(event: FormEvent) {
     event.preventDefault();
+    if (!registrationEnabled) {
+      setError("New account registration is currently disabled.");
+      setMode("login");
+      return;
+    }
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -163,6 +191,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
               identifier={identifier}
               password={password}
               busy={busy}
+              registrationEnabled={registrationEnabled}
               onIdentifierChange={setIdentifier}
               onPasswordChange={setPassword}
               onSubmit={handleLogin}
@@ -175,7 +204,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
             />
           ) : null}
 
-          {mode === "register" ? (
+          {mode === "register" && registrationEnabled ? (
             <RegisterForm
               email={email}
               username={username}

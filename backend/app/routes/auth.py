@@ -5,10 +5,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.deps.auth import get_current_user
 from app.models.user import User
 from app.schemas.auth import (
+    AuthPublicConfig,
     AuthTokenResponse,
     LoginRequest,
     MessageResponse,
@@ -30,6 +32,8 @@ from app.services.auth_service import AuthService, IssuedAuth
 from app.services.email_service import EmailDeliveryError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+_REGISTRATION_DISABLED = "New account registration is currently disabled."
 
 
 def _validation_status(exc: ValueError) -> int:
@@ -58,12 +62,26 @@ def _user_agent(request: Request) -> str | None:
     return request.headers.get("user-agent")
 
 
+@router.get("/config", response_model=AuthPublicConfig)
+async def auth_config() -> AuthPublicConfig:
+    """Public flags for the login/register UI (no auth required)."""
+    return AuthPublicConfig(
+        registration_enabled=settings.registration_enabled,
+        email_otp_enabled=settings.email_otp_enabled,
+    )
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
     raw: Request,
     db: AsyncSession = Depends(get_db),
 ) -> RegisterResponse:
+    if not settings.registration_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_REGISTRATION_DISABLED,
+        )
     enforce_auth_rate_limit(raw, action="register", identity=str(request.email))
     try:
         return await AuthService.register(db, request)
