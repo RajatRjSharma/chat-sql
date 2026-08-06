@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 def _chat_http_exception(exc: Exception) -> HTTPException:
     if isinstance(exc, ValueError):
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-    if isinstance(exc, AIProviderError | IndexError):
+    if isinstance(exc, AIProviderError):
         return HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=GENERIC_AI,
@@ -133,10 +133,7 @@ async def ask_question_stream(
                     )
                     # Prefer AI-generic copy when the pipeline already mapped it,
                     # or when the raw string still looks like provider noise.
-                    if raw_detail == GENERIC_AI or error_type in {
-                        "AIProviderError",
-                        "IndexError",
-                    }:
+                    if raw_detail == GENERIC_AI or error_type == "AIProviderError":
                         detail = GENERIC_AI
                     yield _sse_encode("error", {"detail": detail or GENERIC_CHAT})
                 else:

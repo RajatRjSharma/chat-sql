@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 def _public_chat_error(exc: BaseException) -> str:
     """Map pipeline failures to a safe browser-facing detail."""
-    if isinstance(exc, AIProviderError | IndexError):
+    if isinstance(exc, AIProviderError):
         return GENERIC_AI
     return safe_public_detail(exc, fallback=GENERIC_CHAT)
 
