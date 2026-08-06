@@ -6,10 +6,11 @@ High-level system poster for demos and reviews. The diagram is the **layer / dep
 
 Related docs:
 
-- Root [README.md](../README.md) — setup, typical flow, schema linking
-- [backend/README.md](../backend/README.md) — API, prepare + LangGraph pipeline, scripts
+- Root [README.md](../README.md) — setup, typical flow, schema linking, keep-alive / Render log tips
+- [backend/README.md](../backend/README.md) — API, prepare + LangGraph pipeline, TTS, chat log prefixes, scripts
 - [frontend/README.md](../frontend/README.md) — UI flow, Evidence refresh, E2E
 - [backend/scripts/sales_extended/README.md](../backend/scripts/sales_extended/README.md) — multi-table sales demo warehouse
+- [`.env.example`](../.env.example) — full backend Settings aliases; [frontend/.env.local.example](../frontend/.env.local.example) — Next proxy
 
 ## What the diagram shows
 

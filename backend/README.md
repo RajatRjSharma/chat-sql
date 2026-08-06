@@ -148,13 +148,24 @@ make tts-models   # download/refresh en_US-amy-low into models/piper/
 
 Tuned for small hosts without slowing the happy path: preload + warmup for warm Speak, `TTS_ONNX_THREADS=1`, bounded WAV cache, and short critical-section locks so chat and TTS do not peak together. No network calls at speak time. If a ≤512MB instance still OOMs, set `TTS_PRELOAD=false` or `TTS_ENABLED=false`.
 
-On Render free tier, set secret `KEEPALIVE_HEALTH_URL` so `.github/workflows/keep-alive.yml` can ping `/health` every 5 minutes (GitHub Actions only).
+On Render free tier, set secret `KEEPALIVE_HEALTH_URL` so `.github/workflows/keep-alive.yml` can ping `/health` every 5 minutes (GitHub Actions only). If the workflow fails with “runner not acquired” / Internal server error while `curl …/health` still returns OK, that is a GitHub hosted-runner outage — re-run later (see root README).
+
+### Chat troubleshooting (Render logs)
+
+Search service logs for:
+
+- `chat stage=` — node breadcrumbs (`assess_relevance`, `generate_sql`, …)
+- `chat graph stream failed` — full traceback (e.g. bad history indexing used to show here)
+- `chat SSE error` — what the browser received (`error_type`, stage, question preview)
+- `AI complete exhausted models` / `AI model … failed` — provider / empty-response issues
+
+Multi-turn SQL prompts use `SqlGenerator._history_for_prompt` (last N turns via **slice**). Scenario tests: `tests/unit/test_chat_history_scenarios.py`.
 
 ## Tests / quality
 
 ```bash
 make lint           # ruff
-make test           # pytest
+make test           # pytest (unit + API + graph + eval + history scenarios)
 make backend-check  # ruff + pytest (CI backend job)
 make check          # backend + frontend quality (no E2E)
 ```
