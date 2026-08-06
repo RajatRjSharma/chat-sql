@@ -26,6 +26,7 @@ from app.services.catalog_overview import (
 )
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
+from app.services.follow_up import looks_like_follow_up, sanitize_source_metadata_for_client
 from app.services.rag_service import RagService
 from app.services.schema_chunker import is_synthetic_table
 from app.services.schema_introspection import SchemaIntrospectionService
@@ -220,6 +221,9 @@ class ChatService:
         prior_sql = await ChatPersistenceService.load_last_successful_sql(
             session, chat_session.session_id
         )
+        # Only reuse prior SQL for clear follow-ups (not every turn in the session).
+        if prior_sql and not looks_like_follow_up(question, history):
+            prior_sql = None
 
         seed_rows = await RagService.retrieve_rows(
             session,
@@ -527,11 +531,32 @@ class ChatService:
         )
         first_attempts = int(final.get("attempts") or 0)
         retry_attempts = int(retry_final.get("attempts") or 0)
-        retry_final["attempts"] = first_attempts + retry_attempts
 
         next_prepared = dict(prepared)
         next_prepared["_empty_sql_retry"] = True
-        return next_prepared, retry_final
+
+        # Industry pattern: keep the better outcome — never replace a clean empty
+        # answer with a failed/out-of-scope retry.
+        if ChatService._empty_retry_improves(final, retry_final):
+            retry_final["attempts"] = first_attempts + retry_attempts
+            return next_prepared, retry_final
+
+        kept = dict(final)
+        kept["attempts"] = first_attempts + retry_attempts
+        return next_prepared, kept
+
+    @staticmethod
+    def _empty_retry_improves(
+        first: dict[str, Any],
+        retry: dict[str, Any],
+    ) -> bool:
+        """Retry wins only when it returns a successful non-empty result set."""
+        if (retry.get("status") or "") != "ok":
+            return False
+        if retry.get("scope") in {"out_of_scope", "needs_clarification"}:
+            return False
+        rows = retry.get("rows")
+        return isinstance(rows, list) and len(rows) > 0
 
     @staticmethod
     async def _persist_result(
@@ -569,6 +594,10 @@ class ChatService:
         await ChatPersistenceService.touch_session(session, chat_session)
         await session.flush()
 
+        source_metadata = sanitize_source_metadata_for_client(
+            prepared.get("source_metadata") or final.get("source_metadata")
+        )
+
         return {
             "session_id": chat_session.session_id,
             "data_source_id": data_source_id,
@@ -579,8 +608,7 @@ class ChatService:
             "rows": final.get("rows") or [],
             "status": status,
             "attempts": final.get("attempts") or 0,
-            "source_metadata": prepared.get("source_metadata")
-            or final.get("source_metadata"),
+            "source_metadata": source_metadata,
         }
 
     @staticmethod

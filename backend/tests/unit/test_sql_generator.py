@@ -60,7 +60,7 @@ class TestSqlGenerator:
             client=client,
         )
         user_msg = client.complete.call_args[0][0][-1]["content"]
-        assert "Prior successful SQL" in user_msg
+        assert "follow-up" in user_msg.lower()
         assert "Previous SQL failed" in user_msg
         assert "zero rows" in user_msg
 
