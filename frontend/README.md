@@ -29,8 +29,11 @@ Backend env vars are documented in the repo-root [`.env.example`](../.env.exampl
 2. Schema embed runs automatically when needed (`POST /api/data/embed-schema`)
 3. Chat (type or **mic**) → answer + SQL + table + chart (when chartable)
 4. **Evidence panel** shows warehouse provenance + schema index; use **Refresh schema index** after warehouse DDL changes
-5. Optional **Play** reads a summary aloud (Piper TTS via the API)
-6. History sidebar loads past sessions; **Switch warehouse** returns to the picker
+5. Optional **Play** reads a summary aloud (Piper TTS via the API; answer is prefetched for faster start)
+6. History sidebar loads past sessions; ask a **second question in the same session** to exercise multi-turn context
+7. **Switch warehouse** returns to the picker
+
+Sign-up is gated by backend `REGISTRATION_ENABLED` (default off) — the UI hides “Create an account” when disabled (`GET /api/auth/config`).
 
 Backend prepare does **schema RAG + FK neighborhood expand** before LangGraph SQL, so multi-table joins are not limited to cosine top-K alone. See the root README “Schema linking” section.
 

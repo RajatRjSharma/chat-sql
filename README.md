@@ -132,7 +132,27 @@ GitHub Actions keep-alive:
 
 Without the secret, the workflow no-ops safely.
 
-Note: Actions cron can be delayed by GitHub under load, so gaps longer than 5 minutes may still happen. A service kept warm uses Free instance hours (~750/month); spun-down time does not.
+**If Keep-alive is red but `/health` returns OK** (e.g. `curl https://your-api.onrender.com/health` works): that is almost always a **GitHub Actions hosted-runner** problem, not your API. Typical annotations:
+
+- `Internal server error` + correlation ID
+- `The job was not acquired by Runner of type hosted even after multiple attempts`
+- Long wait on “Waiting for a runner…” / “runner to come online”
+
+Check [githubstatus.com](https://www.githubstatus.com), then **Re-run** the workflow or wait for the next schedule. Optionally ping `/health` yourself until Actions recovers — same warm effect. Cron can also run late under GitHub load (gaps longer than 5 minutes). A service kept warm uses Free instance hours (~750/month); spun-down time does not.
+
+### Debugging chat on Render
+
+Chat stream failures log to the Render service logs (search for these prefixes):
+
+| Log line | Meaning |
+|----------|---------|
+| `chat stage=generate_sql …` | Pipeline progress breadcrumb |
+| `chat graph stream failed stage=…` | Exception in LangGraph (includes traceback) |
+| `chat SSE error … error_type=…` | Error event sent to the browser |
+| `AI model … failed (IndexError)` / `empty response` | Upstream model returned empty `choices` |
+| `AI complete exhausted models` | All primary/fallback/free-router attempts failed |
+
+The UI shows a safe message (e.g. AI temporarily unavailable / chat failed) — **not** raw Python errors like `list index out of range`. Multi-turn sessions inject the last few chat turns into SQL generation via a **slice** (`history[-n:]`); regression coverage lives in `backend/tests/unit/test_chat_history_scenarios.py`.
 
 ### CSV / Excel upload
 
@@ -235,7 +255,9 @@ make check                # ruff + pytest + eslint + tsc + vitest
 make check-all            # check + Playwright E2E
 ```
 
-Schema-linking regressions (e.g. multi-dim “revenue by region and channel”) are covered by `backend/tests/eval/` and run in CI via `pytest tests`.
+Schema-linking regressions (e.g. multi-dim “revenue by region and channel”) are covered by `backend/tests/eval/` and run in CI via `pytest tests`. Multi-turn history / second-question SQL generation is covered by `backend/tests/unit/test_chat_history_scenarios.py`.
+
+Keep-alive (`.github/workflows/keep-alive.yml`) is separate from CI: it only curls `/health`. Failures with “runner not acquired” while `/health` is healthy are GitHub infrastructure — see **Keep Render awake** above.
 
 ## Useful commands
 
@@ -253,7 +275,9 @@ make destroy       # remove DB containers and volumes
 ├── Makefile
 ├── docker-compose.yml
 ├── .env.example                 # backend Settings (copy → .env)
-├── .github/workflows/ci.yml
+├── .github/workflows/
+│   ├── ci.yml                   # ruff + pytest + frontend + E2E
+│   └── keep-alive.yml           # ping Render /health (needs secret)
 ├── backend/                     # FastAPI — see backend/README.md
 └── frontend/                    # Next.js UI
     └── .env.local.example       # API_PROXY_TARGET / optional NEXT_PUBLIC_API_URL

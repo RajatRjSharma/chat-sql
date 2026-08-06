@@ -7,6 +7,14 @@
 #
 # Set repository secret KEEPALIVE_HEALTH_URL to the full health URL, e.g.:
 #   https://your-api.onrender.com/health
+#
+# If this workflow fails with:
+#   - Internal server error (correlation ID)
+#   - "job was not acquired by Runner of type hosted…"
+#   - stuck on "Waiting for a runner…"
+# while `curl "$KEEPALIVE_HEALTH_URL"` still returns {"status":"ok"}, that is a
+# GitHub hosted-runner / Actions outage — not your API. Re-run or wait; check
+# https://www.githubstatus.com . See root README "Keep Render awake".
 name: Keep-alive
 
 on:
