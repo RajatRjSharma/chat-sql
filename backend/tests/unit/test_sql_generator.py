@@ -36,9 +36,33 @@ class TestSqlGenerator:
         )
         assert sql == "SELECT 1 AS x"
         client.complete.assert_called_once()
-        user_msg = client.complete.call_args[0][0][-1]["content"]
+        messages = client.complete.call_args[0][0]
+        system_msg = messages[0]["content"]
+        assert "foreign-key" in system_msg.lower() or "FK" in system_msg
+        assert "revenue" in system_msg.lower()
+        user_msg = messages[-1]["content"]
         assert "PostgreSQL" in user_msg
         assert "postgres" in user_msg
+
+    def test_includes_prior_sql_and_empty_hint(self) -> None:
+        client = MagicMock()
+        client.complete.return_value = "SELECT 2"
+        SqlGenerator.generate(
+            question="revenue by region",
+            schema_context="Table: sales.orders",
+            previous_sql="SELECT 1",
+            previous_error="zero rows",
+            source_metadata={
+                "engine": "PostgreSQL",
+                "sql_dialect": "postgres",
+                "prior_successful_sql": "SELECT amount FROM sales.orders",
+            },
+            client=client,
+        )
+        user_msg = client.complete.call_args[0][0][-1]["content"]
+        assert "Prior successful SQL" in user_msg
+        assert "Previous SQL failed" in user_msg
+        assert "zero rows" in user_msg
 
 
 class TestResultSummarizer:

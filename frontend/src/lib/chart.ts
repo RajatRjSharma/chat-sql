@@ -245,6 +245,70 @@ export function pickDefaultKind(data: ChartPoint[]): ChartDisplayKind {
   return "bar";
 }
 
+/**
+ * Choose the active chart kind from the shape-derived option list.
+ *
+ * Never invents kinds outside `options`. Optional question text only reorders
+ * preference among that prelist (deterministic heuristics — no LLM).
+ */
+export function pickDefaultAmongOptions(
+  options: ChartDisplayKind[],
+  series: ChartSeries,
+  question?: string | null,
+): ChartDisplayKind {
+  if (!options.length) {
+    return series.kind === "none" ? "bar" : (series.kind as ChartDisplayKind);
+  }
+
+  const shapeDefault = options.includes(series.kind as ChartDisplayKind)
+    ? (series.kind as ChartDisplayKind)
+    : options[0];
+
+  const q = (question || "").trim().toLowerCase();
+  if (!q) return shapeDefault;
+
+  const prefer = (...kinds: ChartDisplayKind[]): ChartDisplayKind | null => {
+    for (const kind of kinds) {
+      if (options.includes(kind)) return kind;
+    }
+    return null;
+  };
+
+  // Intent → first matching option from the prelist only.
+  if (/\b(heat\s*map|heatmap|matrix|as a grid)\b/.test(q)) {
+    const hit = prefer("heatmap", "stacked", "grouped");
+    if (hit) return hit;
+  }
+  if (
+    /\b(scatter|correlation|correlate|versus|vs\.?|compared to|against)\b/.test(q)
+  ) {
+    const hit = prefer("scatter", "line", "bar");
+    if (hit) return hit;
+  }
+  if (
+    /\b(trend|over time|time series|monthly|weekly|daily|by month|by week|by day)\b/.test(
+      q,
+    )
+  ) {
+    const hit = prefer("line", "grouped", "bar");
+    if (hit) return hit;
+  }
+  if (/\b(share|proportion|breakdown of total|percentage|% of)\b/.test(q)) {
+    const hit = prefer("pie", "stacked", "bar");
+    if (hit) return hit;
+  }
+  if (/\b(stack(?:ed)?|composition)\b/.test(q)) {
+    const hit = prefer("stacked", "grouped", "pie");
+    if (hit) return hit;
+  }
+  if (/\b(group(?:ed)?|side[- ]by[- ]side|compare channels|by channel)\b/.test(q)) {
+    const hit = prefer("grouped", "stacked", "bar");
+    if (hit) return hit;
+  }
+
+  return shapeDefault;
+}
+
 function pickMultiDefaultKind(
   categoryLabels: string[],
   seriesKeys: string[],
@@ -423,10 +487,11 @@ function tryMultiOrHeat(
   const minDim = Math.min(categoryLabels.length, seriesLabels.length);
   const maxDim = Math.max(categoryLabels.length, seriesLabels.length);
   const gridSize = categoryLabels.length * seriesLabels.length;
+  // Industry-readable heatmaps: allow modest grids (e.g. 4×5) while capping extremes.
   const dimsFitHeat =
     minDim >= 3 &&
-    maxDim >= 6 &&
-    gridSize >= 24 &&
+    maxDim >= 5 &&
+    gridSize >= 20 &&
     categoryLabels.length <= MAX_HEAT_DIM &&
     seriesLabels.length <= MAX_HEAT_DIM;
 
@@ -441,7 +506,10 @@ function tryMultiOrHeat(
   const preferHeat =
     dimsFitHeat &&
     !preferMultiLine &&
-    (seriesLabels.length > MAX_SERIES_KEYS || maxDim >= 8 || minDim >= 4);
+    (seriesLabels.length > MAX_SERIES_KEYS ||
+      maxDim >= 6 ||
+      minDim >= 4 ||
+      gridSize >= 20);
 
   if (preferHeat) {
     return finishHeatmap(

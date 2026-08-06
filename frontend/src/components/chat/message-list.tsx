@@ -79,7 +79,12 @@ export function MessageList({
             {turn.status === "ok" && turn.rows.length > 0 ? (
               <>
                 <div className="w-full min-w-0">
-                  <ResultChart columns={turn.columns} rows={turn.rows} compact />
+                  <ResultChart
+                    columns={turn.columns}
+                    rows={turn.rows}
+                    compact
+                    question={turn.question}
+                  />
                 </div>
                 <ResultTable columns={turn.columns} rows={turn.rows} />
               </>

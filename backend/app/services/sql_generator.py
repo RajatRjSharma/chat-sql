@@ -40,7 +40,39 @@ Rules:
 12. If the question cannot be answered from the schema context (general knowledge,
     trivia, unrelated domains), output exactly: UNANSWERABLE
     Do not invent tables, columns, or placeholder SELECTs to force an answer.
+
+Join & measure discipline (industry Text2SQL):
+13. Prefer foreign-key / relationship edges documented in the schema context over
+    string equality between unrelated columns. Never join a short code/key column
+    to a free-text label column of different semantics (e.g. code `N` to name
+    `North`) — use the FK path through bridge/dim tables, or match on the same
+    semantic field (name-to-name or id-to-id).
+14. For “revenue”, “sales”, “GMV”, or similar business totals, prefer the primary
+    fact-table measure on the transactional/events table when present (amount,
+    total, value, …). Use invoice/payment/billing measures only when the user
+    asks about invoices, AR, billing, or payments.
+15. For “compare A vs B”, “correlation”, or “X versus Y” across entities, return
+    one row per entity with two numeric columns — not a single row of grand
+    totals. Cap with LIMIT only if the result would be huge.
+16. For “matrix”, “heatmap”, or dense breakdowns across two dimensions, prefer the
+    higher-cardinality categorical dims available via FK when multiple paths
+    exist, and GROUP BY both dims.
+17. On follow-ups (“break that down…”, “only for the top…”), preserve the same join
+    paths and grain as the prior successful SQL unless the user explicitly changes
+    the metric or dimensions.
 """
+
+_EMPTY_RESULT_HINT = (
+    "Previous SQL executed successfully but returned ZERO rows. "
+    "That usually means a bad join predicate (code joined to a free-text label), "
+    "an over-strict filter, or the wrong measure table. "
+    "Rewrite using FK paths from the schema context; do not invent equality "
+    "between unrelated code and name columns. Prefer the primary fact measure "
+    "for revenue/sales asks."
+)
+
+# Public alias for chat-service empty-result retries.
+EMPTY_RESULT_SQL_HINT = _EMPTY_RESULT_HINT
 
 
 class SqlGenerator:
@@ -62,6 +94,7 @@ class SqlGenerator:
         dialect = (source_metadata or {}).get("sql_dialect") or "postgres"
         schema_hint = schema_name or "the connection default schema"
         engine = (source_metadata or {}).get("engine") or "PostgreSQL"
+        prior_sql = (source_metadata or {}).get("prior_successful_sql")
 
         user_parts = [
             "Warehouse metadata (authoritative for dialect + identifiers):",
@@ -74,6 +107,14 @@ class SqlGenerator:
             "",
             f"Question: {question}",
         ]
+        if isinstance(prior_sql, str) and prior_sql.strip():
+            user_parts.extend(
+                [
+                    "",
+                    "Prior successful SQL in this session (preserve join paths on follow-ups):",
+                    prior_sql.strip(),
+                ]
+            )
         if previous_sql and previous_error:
             user_parts.extend(
                 [
@@ -87,7 +128,7 @@ class SqlGenerator:
 
         messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
         if history:
-            for item in history[-5:]:
+            for item in history[-5]:
                 role = item.get("role", "user")
                 content = item.get("content", "")
                 if role in {"user", "assistant"} and content:

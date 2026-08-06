@@ -38,6 +38,7 @@ from app.services.schema_linker import (
 from app.services.schema_linking_pipeline import apply_schema_linking
 from app.services.scope_guard import ScopeGuard
 from app.services.source_metadata import build_source_metadata
+from app.services.sql_generator import EMPTY_RESULT_SQL_HINT
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
 
@@ -68,6 +69,10 @@ class ChatService:
         )
         prepared, final = await ChatService._maybe_expand_and_retry(
             session,
+            prepared=prepared,
+            final=final,
+        )
+        prepared, final = await ChatService._maybe_empty_result_retry(
             prepared=prepared,
             final=final,
         )
@@ -144,6 +149,12 @@ class ChatService:
                         prepared=prepared,
                         final=final_state,
                     )
+                    if ChatService._needs_empty_result_retry(prepared_out, final_out):
+                        yield ChatService._stage_event("retrying_empty_sql")
+                    prepared_out, final_out = await ChatService._maybe_empty_result_retry(
+                        prepared=prepared_out,
+                        final=final_out,
+                    )
                     result = await ChatService._persist_result(
                         session,
                         prepared=prepared_out,
@@ -206,6 +217,9 @@ class ChatService:
         history = await ChatPersistenceService.load_history(
             session, chat_session.session_id
         )
+        prior_sql = await ChatPersistenceService.load_last_successful_sql(
+            session, chat_session.session_id
+        )
 
         seed_rows = await RagService.retrieve_rows(
             session,
@@ -263,6 +277,7 @@ class ChatService:
             info=info,
             linked_chunks=linked_chunks,
             context_mode=context_mode,
+            prior_successful_sql=prior_sql,
         )
 
     @staticmethod
@@ -277,6 +292,7 @@ class ChatService:
         info: Any,
         linked_chunks: list[SchemaChunk],
         context_mode: str,
+        prior_successful_sql: str | None = None,
     ) -> dict[str, Any]:
         contents = [
             c.content
@@ -303,6 +319,11 @@ class ChatService:
             chunks_retrieved=len(linked_chunks),
             context_mode=context_mode,
         )
+        if prior_successful_sql:
+            source_metadata = {
+                **source_metadata,
+                "prior_successful_sql": prior_successful_sql,
+            }
 
         state = initial_chat_state(
             data_source_id=data_source_id,
@@ -328,6 +349,7 @@ class ChatService:
             "state": state,
             "source_metadata": source_metadata,
             "context_mode": context_mode,
+            "prior_successful_sql": prior_successful_sql,
         }
 
     @staticmethod
@@ -443,6 +465,7 @@ class ChatService:
             info=prepared["info"],
             linked_chunks=merged,
             context_mode="rag_expanded",
+            prior_successful_sql=prepared.get("prior_successful_sql"),
         )
         rebuilt["_expanded_retry"] = True
 
@@ -453,6 +476,62 @@ class ChatService:
         retry_attempts = int(retry_final.get("attempts") or 0)
         retry_final["attempts"] = first_attempts + retry_attempts
         return rebuilt, retry_final
+
+    @staticmethod
+    def _needs_empty_result_retry(
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> bool:
+        """One rewrite when SQL ran cleanly but returned zero rows on a BI ask."""
+        if prepared.get("_empty_sql_retry"):
+            return False
+        if (final.get("status") or "") != "ok":
+            return False
+        if final.get("scope") in {"out_of_scope", "needs_clarification"}:
+            return False
+        sql = final.get("sql")
+        if not isinstance(sql, str) or not sql.strip():
+            return False
+        rows = final.get("rows")
+        if rows is None or len(rows) > 0:
+            return False
+        question = prepared.get("question") or ""
+        return ScopeGuard.has_analytics_intent(question)
+
+    @staticmethod
+    async def _maybe_empty_result_retry(
+        *,
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        Re-run the graph once with join-path feedback after an empty result set.
+
+        Does not expand the allowlist — same schema context, corrected SQL.
+        """
+        if not ChatService._needs_empty_result_retry(prepared, final):
+            return prepared, final
+
+        retry_state = dict(prepared["state"])
+        retry_state["sql"] = final.get("sql")
+        retry_state["sql_error"] = EMPTY_RESULT_SQL_HINT
+        retry_state["columns"] = None
+        retry_state["rows"] = None
+        retry_state["answer"] = None
+        retry_state["attempts"] = 0
+        retry_state["scope"] = "answerable"
+        retry_state["status"] = "running"
+
+        retry_final = await asyncio.to_thread(
+            run_chat_graph, prepared["graph"], retry_state
+        )
+        first_attempts = int(final.get("attempts") or 0)
+        retry_attempts = int(retry_final.get("attempts") or 0)
+        retry_final["attempts"] = first_attempts + retry_attempts
+
+        next_prepared = dict(prepared)
+        next_prepared["_empty_sql_retry"] = True
+        return next_prepared, retry_final
 
     @staticmethod
     async def _persist_result(

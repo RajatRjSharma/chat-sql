@@ -6,6 +6,7 @@ import {
   chartSeriesIdentity,
   chartVisibleCount,
   deriveChart,
+  pickDefaultAmongOptions,
   type ChartDisplayKind,
 } from "@/lib/chart";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -16,9 +17,16 @@ type ResultChartProps = {
   columns: string[];
   rows: Record<string, unknown>[];
   compact?: boolean;
+  /** Optional NL question — used only to pick among shape-available kinds. */
+  question?: string | null;
 };
 
-export function ResultChart({ columns, rows, compact = false }: ResultChartProps) {
+export function ResultChart({
+  columns,
+  rows,
+  compact = false,
+  question = null,
+}: ResultChartProps) {
   const series = deriveChart(columns, rows);
   const identity = chartSeriesIdentity(series);
   const [pickedKind, setPickedKind] = useState<ChartDisplayKind | null>(null);
@@ -34,9 +42,7 @@ export function ResultChart({ columns, rows, compact = false }: ResultChartProps
   if (series.kind === "none") return null;
 
   const kindOptions = availableChartKinds(series);
-  const fallbackKind = kindOptions.includes(series.kind as ChartDisplayKind)
-    ? (series.kind as ChartDisplayKind)
-    : kindOptions[0];
+  const fallbackKind = pickDefaultAmongOptions(kindOptions, series, question);
   const activeKind: ChartDisplayKind =
     pickedKind && kindOptions.includes(pickedKind) ? pickedKind : fallbackKind;
   const visible = chartVisibleCount(series);

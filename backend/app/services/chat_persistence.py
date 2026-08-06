@@ -69,6 +69,25 @@ class ChatPersistenceService:
         return [{"role": m.role, "content": m.content} for m in messages]
 
     @staticmethod
+    async def load_last_successful_sql(
+        session: AsyncSession,
+        session_id: uuid.UUID,
+    ) -> str | None:
+        """Most recent OK query SQL in this session (for follow-up join consistency)."""
+        result = await session.execute(
+            select(QueryHistory.sql_query)
+            .where(QueryHistory.session_id == session_id)
+            .where(QueryHistory.status == "ok")
+            .where(QueryHistory.sql_query.is_not(None))
+            .order_by(QueryHistory.created_at.desc())
+            .limit(1)
+        )
+        value = result.scalar_one_or_none()
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return None
+
+    @staticmethod
     async def add_message(
         session: AsyncSession,
         *,

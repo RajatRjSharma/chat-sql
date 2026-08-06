@@ -310,6 +310,7 @@ function ChartCarousel({
               columns={current.turn.columns}
               rows={current.turn.rows}
               compact
+              question={current.turn.question}
             />
           </div>
         </div>
