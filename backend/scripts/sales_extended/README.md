@@ -61,6 +61,10 @@ Flags:
 
 1. In the app, connect to the same warehouse (`schema=sales`).
 2. On connect, embed runs automatically; if already connected, use **Refresh schema index** in the Evidence panel.
+   Indexing also profiles tables (row counts, date min/max, measure ranges, top categorical values) into
+   `data_sources.extra_config.data_profile` and injects that into SQL prompts — so relative time asks
+   (“last 12 months”) follow **observed** date windows on fact tables, not wall-clock `CURRENT_DATE`
+   when the warehouse clock is ahead of the data.
 3. Try join questions, e.g. revenue by channel + segment, tickets by customer, campaign touches → orders.
 
 ### Demo prompts that exercise linking + charts

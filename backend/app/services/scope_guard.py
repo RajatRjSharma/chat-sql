@@ -20,13 +20,13 @@ ScopeDecision = Literal["answerable", "out_of_scope", "needs_clarification"]
 OUT_OF_SCOPE_MESSAGE = (
     "That question isn't something I can answer from your connected warehouse. "
     "I only analyze tables and metrics in this data source — ask about fields "
-    "and measures that exist in your schema (for example sales, customers, or orders)."
+    "and measures that exist in your schema."
 )
 
 EMPTY_RESULT_MESSAGE = (
     "I queried your connected warehouse, but that question returned no matching rows. "
-    "This often means a join or filter did not match (for example linking a region "
-    "code to a region name). Try rephrasing with clearer dimensions, a different "
+    "This often means a join or filter did not match (for example joining a code "
+    "column to a free-text label). Try rephrasing with clearer dimensions, a different "
     "metric, or a broader time range — I can only report data that exists here."
 )
 
@@ -150,13 +150,11 @@ _ANALYTICS_HINTS = frozenset(
         "trends",
         "breakdown",
         "compare",
-        "revenue",
-        "sales",
-        "orders",
-        "customers",
-        "products",
-        "invoice",
-        "invoices",
+        "group",
+        "grouped",
+        "aggregate",
+        "aggregates",
+        "distribution",
         "tables",
         "schema",
         "database",
@@ -164,8 +162,12 @@ _ANALYTICS_HINTS = frozenset(
         "warehouse",
         "metric",
         "metrics",
+        "measure",
+        "measures",
         "rows",
         "columns",
+        "join",
+        "joins",
         # Time / grain refinements (common follow-up language).
         "month",
         "months",
@@ -203,7 +205,7 @@ Rules (follow in order):
 1. ANSWERABLE — the question could plausibly be answered with SELECT analytics over the listed
    schema (counts, sums, filters, trends, joins, table summaries, schema overviews).
    Short, typo-prone, or shorthand asks that still refer to warehouse entities
-   (e.g. "whats the sale", "customer table", "orders by region") are ANSWERABLE.
+   present in SCHEMA CONTEXT (table/column names or clear analytics intent) are ANSWERABLE.
    Follow-ups about prior warehouse answers stay ANSWERABLE when they stay on that data.
 2. NEEDS_CLARIFICATION — the user asks for a summary/overview with no table, metric, or
    domain cue at all (e.g. only "summary" or "help"). Prefer this over OUT_OF_SCOPE.
@@ -231,8 +233,7 @@ def clarification_message(
         )
     return (
         "I can summarize metrics from your connected warehouse, but that request is "
-        "too broad. Try naming a table or measure from your schema "
-        "(for example customers, orders, or sales)."
+        "too broad. Try naming a table or measure from your schema."
     )
 
 

@@ -18,8 +18,8 @@ Rules:
    that are not in the result rows.
 3. Do not claim the warehouse "confirmed" anything that is not in the rows.
 4. 2–4 clear sentences. Mention key numbers from the data.
-5. You may briefly name the warehouse engine/schema from metadata (e.g. "in the sales schema")
-   without dumping connection details.
+5. You may briefly name the warehouse engine/schema from metadata (e.g. "in the
+   <schema> schema") without dumping connection details.
 6. If row_count is 0, say no matching rows were returned — do not guess an answer.
 """
 
