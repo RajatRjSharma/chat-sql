@@ -172,7 +172,7 @@ class AIClient:
             if error:
                 errors.append(error)
 
-        logger.warning("AI complete exhausted models: %s", "; ".join(errors) or "unknown")
+        logger.error("AI complete exhausted models: %s", "; ".join(errors) or "unknown")
         raise AIProviderError(
             "AI request failed after primary, fallback, and free-router attempts."
         )
@@ -203,8 +203,15 @@ class AIClient:
                     logger.info("AI model %s rate-limited; retrying in %.1fs", label, delay)
                     time.sleep(delay)
                     continue
-                logger.info("AI model %s failed: %s", label, exc)
-                return None, f"{label}: rate-limited or unavailable"
+                reason = _provider_failure_reason(exc)
+                logger.warning(
+                    "AI model %s failed (%s): %s",
+                    label,
+                    type(exc).__name__,
+                    exc,
+                    exc_info=isinstance(exc, IndexError | KeyError | AttributeError),
+                )
+                return None, f"{label}: {reason}"
         return None, f"{label} failed"
 
     def _chat_models_for_attempt(
@@ -271,6 +278,19 @@ class AIClient:
                 f"Embedding provider returned no data for model {self._embedding_model!r}."
             )
         return list(vector)
+
+
+def _provider_failure_reason(exc: BaseException) -> str:
+    """Map low-level provider SDK failures to a short, log-friendly reason."""
+    if isinstance(exc, IndexError):
+        # Empty choices[] from free-router / OpenAI-compatible APIs.
+        return "empty response (list index)"
+    if _is_rate_limited(exc):
+        return "rate-limited or unavailable"
+    text = str(exc).strip().lower()
+    if "list index out of range" in text or "choices" in text:
+        return "empty response (list index)"
+    return "rate-limited or unavailable"
 
 
 @lru_cache

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
@@ -25,13 +26,15 @@ from app.security.http_errors import GENERIC_AI, GENERIC_CHAT, safe_public_detai
 from app.security.rate_limit import enforce_chat_rate_limit
 from app.services.chat_service import ChatService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 def _chat_http_exception(exc: Exception) -> HTTPException:
     if isinstance(exc, ValueError):
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-    if isinstance(exc, AIProviderError):
+    if isinstance(exc, AIProviderError | IndexError):
         return HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=GENERIC_AI,
@@ -70,6 +73,12 @@ async def ask_question(
         )
         return ChatResponse.model_validate(result)
     except Exception as exc:
+        logger.exception(
+            "chat ask failed user=%s data_source=%s question=%r",
+            current_user.id,
+            request.data_source_id,
+            (request.question or "")[:120],
+        )
         raise _chat_http_exception(exc) from exc
 
 
@@ -89,6 +98,7 @@ async def ask_question_stream(
       - `error`  — terminal failure (`detail` string)
     """
     enforce_chat_rate_limit(raw, user_id=str(current_user.id))
+    q_preview = (request.question or "")[:120]
 
     async def event_generator() -> AsyncIterator[str]:
         try:
@@ -104,10 +114,30 @@ async def ask_question_stream(
                     payload = {k: v for k, v in event.items() if k != "type"}
                     yield _sse_encode("result", payload)
                 elif event_type == "error":
+                    raw_detail = str(event.get("detail") or "")
+                    error_type = str(event.get("error_type") or "")
+                    stage = str(event.get("stage") or "")
+                    logger.error(
+                        "chat SSE error user=%s data_source=%s stage=%s "
+                        "error_type=%s detail=%r question=%r",
+                        current_user.id,
+                        request.data_source_id,
+                        stage,
+                        error_type,
+                        raw_detail[:300],
+                        q_preview,
+                    )
                     detail = safe_public_detail(
-                        Exception(str(event.get("detail") or "")),
+                        Exception(raw_detail),
                         fallback=GENERIC_CHAT,
                     )
+                    # Prefer AI-generic copy when the pipeline already mapped it,
+                    # or when the raw string still looks like provider noise.
+                    if raw_detail == GENERIC_AI or error_type in {
+                        "AIProviderError",
+                        "IndexError",
+                    }:
+                        detail = GENERIC_AI
                     yield _sse_encode("error", {"detail": detail or GENERIC_CHAT})
                 else:
                     payload = {
@@ -118,6 +148,12 @@ async def ask_question_stream(
                     }
                     yield _sse_encode("stage", payload)
         except Exception as exc:
+            logger.exception(
+                "chat SSE generator failed user=%s data_source=%s question=%r",
+                current_user.id,
+                request.data_source_id,
+                q_preview,
+            )
             http_exc = _chat_http_exception(exc)
             yield _sse_encode("error", {"detail": http_exc.detail})
 
