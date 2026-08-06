@@ -9,6 +9,7 @@ type LoginFormProps = {
   identifier: string;
   password: string;
   busy: boolean;
+  registrationEnabled?: boolean;
   onIdentifierChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (event: FormEvent) => void;
@@ -19,6 +20,7 @@ export function LoginForm({
   identifier,
   password,
   busy,
+  registrationEnabled = false,
   onIdentifierChange,
   onPasswordChange,
   onSubmit,
@@ -60,16 +62,22 @@ export function LoginForm({
       <Button type="submit" className="w-full" disabled={busy} size="lg">
         {busy ? "Signing in…" : "Sign in"}
       </Button>
-      <p className="text-center text-sm text-[var(--text-muted-dark)]">
-        New here?{" "}
-        <button
-          type="button"
-          className="text-[var(--accent)] underline-offset-2 hover:underline"
-          onClick={onSwitchToRegister}
-        >
-          Create an account
-        </button>
-      </p>
+      {registrationEnabled ? (
+        <p className="text-center text-sm text-[var(--text-muted-dark)]">
+          New here?{" "}
+          <button
+            type="button"
+            className="text-[var(--accent)] underline-offset-2 hover:underline"
+            onClick={onSwitchToRegister}
+          >
+            Create an account
+          </button>
+        </p>
+      ) : (
+        <p className="text-center text-sm text-[var(--text-muted-dark)]">
+          New accounts are currently closed. Contact an admin if you need access.
+        </p>
+      )}
     </form>
   );
 }

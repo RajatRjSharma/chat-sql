@@ -121,3 +121,10 @@ class RegisterResponse(BaseModel):
 class MessageResponse(BaseModel):
     status: str
     message: str
+
+
+class AuthPublicConfig(BaseModel):
+    """Unauthenticated feature flags for the auth UI."""
+
+    registration_enabled: bool
+    email_otp_enabled: bool

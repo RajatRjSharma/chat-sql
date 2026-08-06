@@ -243,6 +243,9 @@ class Settings(BaseSettings):
     otp_length: int = Field(default=6, alias="OTP_LENGTH", ge=4, le=8)
     # When false, register marks the user verified and skips SMTP (e.g. Render free tier).
     email_otp_enabled: bool = Field(default=True, alias="EMAIL_OTP_ENABLED")
+    # When false (default), POST /api/auth/register is rejected and the UI hides sign-up.
+    # Set REGISTRATION_ENABLED=true to allow new accounts.
+    registration_enabled: bool = Field(default=False, alias="REGISTRATION_ENABLED")
 
     @field_validator("app_db_schema", mode="before")
     @classmethod
