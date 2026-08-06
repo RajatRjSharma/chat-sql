@@ -241,3 +241,69 @@ async def test_maybe_empty_result_retry_reruns_graph() -> None:
     call_state = run_mock.call_args[0][1]
     assert call_state["sql"] == "SELECT bad_join"
     assert "ZERO rows" in (call_state.get("sql_error") or "")
+
+
+@pytest.mark.asyncio
+async def test_maybe_empty_result_retry_keeps_first_when_retry_worse() -> None:
+    prepared = {
+        "question": "total revenue by region",
+        "graph": MagicMock(),
+        "state": {"question": "total revenue by region", "attempts": 0},
+    }
+    final = {
+        "status": "ok",
+        "sql": "SELECT empty",
+        "rows": [],
+        "answer": "no matching rows",
+        "attempts": 1,
+        "scope": "answerable",
+    }
+    with patch(
+        "app.services.chat_service.run_chat_graph",
+        return_value={
+            "status": "failed",
+            "sql": "SELECT worse",
+            "rows": None,
+            "answer": "could not complete",
+            "attempts": 3,
+        },
+    ):
+        out_prepared, out_final = await ChatService._maybe_empty_result_retry(
+            prepared=prepared,
+            final=final,
+        )
+
+    assert out_prepared.get("_empty_sql_retry") is True
+    assert out_final["status"] == "ok"
+    assert out_final["rows"] == []
+    assert out_final["answer"] == "no matching rows"
+    assert out_final["attempts"] == 4
+
+
+class TestEmptyRetryImproves:
+    def test_rows_win(self) -> None:
+        assert (
+            ChatService._empty_retry_improves(
+                {"status": "ok", "rows": []},
+                {"status": "ok", "rows": [{"a": 1}]},
+            )
+            is True
+        )
+
+    def test_failed_does_not_win(self) -> None:
+        assert (
+            ChatService._empty_retry_improves(
+                {"status": "ok", "rows": []},
+                {"status": "failed", "rows": [{"a": 1}]},
+            )
+            is False
+        )
+
+    def test_still_empty_does_not_win(self) -> None:
+        assert (
+            ChatService._empty_retry_improves(
+                {"status": "ok", "rows": []},
+                {"status": "ok", "rows": []},
+            )
+            is False
+        )

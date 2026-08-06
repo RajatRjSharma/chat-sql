@@ -111,7 +111,8 @@ class SqlGenerator:
             user_parts.extend(
                 [
                     "",
-                    "Prior successful SQL in this session (preserve join paths on follow-ups):",
+                    "This question looks like a follow-up. Prior successful SQL "
+                    "(preserve join paths and grain unless the user changes them):",
                     prior_sql.strip(),
                 ]
             )
