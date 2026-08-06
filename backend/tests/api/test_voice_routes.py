@@ -160,3 +160,49 @@ class TestTtsServicePrepareText:
         assert len(parts) == 3
         assert parts[0].endswith(".")
         assert "East" in parts[1]
+
+
+class TestTtsMemoryGuards:
+    def setup_method(self) -> None:
+        TtsService.reset_for_tests()
+
+    def teardown_method(self) -> None:
+        TtsService.reset_for_tests()
+
+    def test_status_does_not_load_voice(self) -> None:
+        with patch.object(TtsService, "_ensure_voice") as ensure:
+            status = TtsService.status()
+        ensure.assert_not_called()
+        assert "enabled" in status
+        assert "available" in status
+
+    def test_wav_cache_evicts_by_entry_and_bytes(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            "app.services.tts_service.settings.tts_wav_cache_max",
+            2,
+        )
+        monkeypatch.setattr(
+            "app.services.tts_service.settings.tts_wav_cache_max_bytes",
+            100,
+        )
+        TtsService._cache_put("answer-a", [b"x" * 40])
+        TtsService._cache_put("answer-b", [b"y" * 40])
+        TtsService._cache_put("answer-c", [b"z" * 40])
+        assert len(TtsService._wav_cache) <= 2
+        assert TtsService._wav_cache_bytes <= 100
+        # Oldest (a) should be gone.
+        assert TtsService._cache_get("answer-a") is None
+        assert TtsService._cache_get("answer-c") is not None
+
+    def test_wav_cache_skips_oversized_entry(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            "app.services.tts_service.settings.tts_wav_cache_max",
+            4,
+        )
+        monkeypatch.setattr(
+            "app.services.tts_service.settings.tts_wav_cache_max_bytes",
+            50,
+        )
+        TtsService._cache_put("huge", [b"h" * 200])
+        assert TtsService._cache_get("huge") is None
+        assert len(TtsService._wav_cache) == 0

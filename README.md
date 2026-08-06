@@ -51,7 +51,7 @@ make frontend-dev        # terminal B — UI on :3000
 - UI: [http://localhost:3000](http://localhost:3000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-default API URL (`NEXT_PUBLIC_API_URL`).
+Copy `frontend/.env.local.example` to `frontend/.env.local` if you need a non-default API target (`API_PROXY_TARGET` / optional `NEXT_PUBLIC_API_URL`).
 
 ## Authentication
 
@@ -105,7 +105,8 @@ Play uses **`POST /api/voice/speak-stream`**. Prefetch starts when the answer ar
 
 | Env | Default | Notes |
 |-----|---------|-------|
-| `TTS_ENABLED` | `true` | Set `false` to disable speak endpoints |
+| `TTS_ENABLED` | `true` | Set `false` only if free-tier still OOMs |
+| `TTS_PRELOAD` | `true` | Warm Speak at boot; set `false` on ≤512MB if idle+chat OOMs |
 | `TTS_VOICE_PATH` | `models/piper/en_US-amy-low.onnx` | Relative to `backend/` |
 | `TTS_MAX_CHARS` | `180` | Later chunks |
 | `TTS_FIRST_CHUNK_CHARS` | `48` | Tiny first chunk for faster start on Render |
@@ -113,7 +114,10 @@ Play uses **`POST /api/voice/speak-stream`**. Prefetch starts when the answer ar
 | `TTS_ONNX_THREADS` | `1` | Best on tiny CPUs (avoid thread oversubscription) |
 | `TTS_WARMUP_ENABLED` | `true` | One-shot synthesize after model load |
 | `TTS_WARMUP_TEXT` | `Ready.` | Warmup phrase (discarded) |
+| `TTS_WAV_CACHE_MAX` | `12` | Cap cached answers (prefetch+replay) |
+| `TTS_WAV_CACHE_MAX_BYTES` | `12000000` | ~12MB hard budget for WAV cache |
 | `TTS_RATE_LIMIT_PER_MINUTE` | `10` | Per IP / user |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `5` / `5` | App DB pool |
 
 Refresh the bundled voice: `make tts-models`. Mic input still uses the browser Web Speech API (STT). Browser TTS is only used if the speak API fails.
 
@@ -190,6 +194,7 @@ Requires `make warehouse-init` and `make warehouse-seed`.
 | `REGISTRATION_ENABLED` | `true` to allow new sign-ups (default `false`; login still works) |
 | `SMTP_*` | Only needed if `EMAIL_OTP_ENABLED=true` |
 | `TTS_ENABLED` | `true` (bundled Piper voice ships in the repo; disable if free-tier RAM OOMs) |
+| `TTS_PRELOAD` | `true` (set `false` on ≤512MB if idle+chat still OOMs) |
 | `TTS_MAX_CHARS` | `180` |
 | `TTS_FIRST_CHUNK_CHARS` | `48` |
 | `TTS_LENGTH_SCALE` | `0.78` |
@@ -247,10 +252,11 @@ make destroy       # remove DB containers and volumes
 .
 ├── Makefile
 ├── docker-compose.yml
-├── .env.example
+├── .env.example                 # backend Settings (copy → .env)
 ├── .github/workflows/ci.yml
-├── backend/          # FastAPI application — see backend/README.md
-└── frontend/         # Next.js UI (Voice-Driven Data Analyst)
+├── backend/                     # FastAPI — see backend/README.md
+└── frontend/                    # Next.js UI
+    └── .env.local.example       # API_PROXY_TARGET / optional NEXT_PUBLIC_API_URL
 ```
 
 If you move or rename this repository, run `make install` again — it recreates a broken or relocated virtualenv automatically.

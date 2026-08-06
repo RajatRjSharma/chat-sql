@@ -10,6 +10,9 @@ from fastapi import HTTPException, Request, status
 
 from app.config import settings
 
+# Cap distinct keys so long-lived processes do not retain stale IP buckets forever.
+_MAX_KEYS = 2_048
+
 
 class _SlidingWindowLimiter:
     def __init__(self) -> None:
@@ -30,6 +33,29 @@ class _SlidingWindowLimiter:
                     headers={"Retry-After": str(window_seconds)},
                 )
             bucket.append(now)
+            self._prune_locked(now, window_seconds)
+
+    def _prune_locked(self, now: float, window_seconds: int) -> None:
+        """Drop empty / excess keys (unbounded growth guard)."""
+        if len(self._hits) < _MAX_KEYS // 2:
+            return
+        if len(self._hits) <= _MAX_KEYS:
+            empty = [k for k, b in self._hits.items() if not b]
+            for k in empty[:64]:
+                self._hits.pop(k, None)
+            return
+
+        cutoff = now - window_seconds
+        stale: list[str] = []
+        for k, bucket in self._hits.items():
+            while bucket and bucket[0] < cutoff:
+                bucket.popleft()
+            if not bucket:
+                stale.append(k)
+        for k in stale:
+            self._hits.pop(k, None)
+        while len(self._hits) > _MAX_KEYS:
+            self._hits.pop(next(iter(self._hits)), None)
 
 
 _limiter = _SlidingWindowLimiter()

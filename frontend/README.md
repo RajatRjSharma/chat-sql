@@ -15,6 +15,14 @@ npm run dev
 
 Or from the repo root: `make frontend-install` then `make frontend-dev`.
 
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `API_PROXY_TARGET` | server (Next) | Rewrite `/api` + `/health` → FastAPI (local or Render) |
+| `NEXT_PUBLIC_API_URL` | browser | Leave unset in production; set only to call the API host directly |
+| `PLAYWRIGHT_PORT` / `PLAYWRIGHT_BASE_URL` | E2E optional | Defaults in `playwright.config.ts` |
+
+Backend env vars are documented in the repo-root [`.env.example`](../.env.example).
+
 ## Flow
 
 1. Connect warehouse (demo defaults prefilled), open a **saved source**, or **upload** CSV/Excel

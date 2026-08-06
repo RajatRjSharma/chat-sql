@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.exceptions import SchemaEmbeddingError, SqlValidationError, WarehouseQueryError
+from app.core.memory_guard import heavy_memory_op
 from app.graph.chat_graph import (
     STAGE_LABELS,
     build_chat_graph,
@@ -48,6 +49,12 @@ class ChatService:
     """High-level chat entrypoint used by the API layer."""
 
     @staticmethod
+    def _run_graph(graph: Any, state: dict[str, Any]) -> dict[str, Any]:
+        """Run LangGraph under the process memory guard (no overlap with TTS)."""
+        with heavy_memory_op("chat_graph"):
+            return run_chat_graph(graph, state)
+
+    @staticmethod
     async def ask(
         session: AsyncSession,
         *,
@@ -66,7 +73,7 @@ class ChatService:
             client=client,
         )
         final = await asyncio.to_thread(
-            run_chat_graph, prepared["graph"], prepared["state"]
+            ChatService._run_graph, prepared["graph"], prepared["state"]
         )
         prepared, final = await ChatService._maybe_expand_and_retry(
             session,
@@ -111,18 +118,21 @@ class ChatService:
         def worker() -> None:
             try:
                 final_state: dict[str, Any] | None = None
-                for kind, *rest in iter_chat_graph(prepared["graph"], prepared["state"]):
-                    if kind == "stage":
-                        node_name, current = rest
-                        event_queue.put(
-                            ChatService._stage_event(
-                                str(node_name),
-                                attempts=int(current.get("attempts") or 0),
-                                sql=current.get("sql"),
+                with heavy_memory_op("chat_graph_stream"):
+                    for kind, *rest in iter_chat_graph(
+                        prepared["graph"], prepared["state"]
+                    ):
+                        if kind == "stage":
+                            node_name, current = rest
+                            event_queue.put(
+                                ChatService._stage_event(
+                                    str(node_name),
+                                    attempts=int(current.get("attempts") or 0),
+                                    sql=current.get("sql"),
+                                )
                             )
-                        )
-                    elif kind == "final":
-                        final_state = rest[0]
+                        elif kind == "final":
+                            final_state = rest[0]
                 event_queue.put({"type": "_final", "state": final_state or {}})
             except Exception as exc:  # noqa: BLE001
                 event_queue.put({"type": "error", "detail": str(exc)})
@@ -474,7 +484,7 @@ class ChatService:
         rebuilt["_expanded_retry"] = True
 
         retry_final = await asyncio.to_thread(
-            run_chat_graph, rebuilt["graph"], rebuilt["state"]
+            ChatService._run_graph, rebuilt["graph"], rebuilt["state"]
         )
         first_attempts = int(final.get("attempts") or 0)
         retry_attempts = int(retry_final.get("attempts") or 0)
@@ -527,7 +537,7 @@ class ChatService:
         retry_state["status"] = "running"
 
         retry_final = await asyncio.to_thread(
-            run_chat_graph, prepared["graph"], retry_state
+            ChatService._run_graph, prepared["graph"], retry_state
         )
         first_attempts = int(final.get("attempts") or 0)
         retry_attempts = int(retry_final.get("attempts") or 0)

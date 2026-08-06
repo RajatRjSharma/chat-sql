@@ -89,6 +89,10 @@ export function prefetchSpeakText(text: string): void {
   if (!trimmed) return;
   if (prefetch?.text === trimmed) return;
 
+  if (prefetch) {
+    prefetch.blobs.length = 0;
+  }
+
   const state: PrefetchState = {
     text: trimmed,
     blobs: [],
