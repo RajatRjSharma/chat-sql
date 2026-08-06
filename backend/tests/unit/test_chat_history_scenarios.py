@@ -297,3 +297,69 @@ class TestGraphMultiTurnHistory:
         # First complete is SQL gen — must have included history turns.
         first_messages = client.complete.call_args_list[0][0][0]
         assert any(m.get("role") == "assistant" for m in first_messages)
+
+    def test_break_down_by_month_follow_up_not_out_of_scope(self) -> None:
+        """Production smoke: refine prior BI ask must reach SQL, not refuse."""
+        history = [
+            {"role": "user", "content": "Total revenue by region and channel"},
+            {"role": "assistant", "content": "North Web Store led."},
+        ]
+        client = MagicMock()
+        client.complete.side_effect = [
+            (
+                "SELECT date_trunc('month', o.order_date) AS month, "
+                "c.region, ch.name AS channel, SUM(o.amount) AS revenue "
+                "FROM sales.orders o "
+                "JOIN sales.customers c ON o.customer_id = c.customer_id "
+                "JOIN sales.channels ch ON o.channel_id = ch.channel_id "
+                "GROUP BY 1, 2, 3"
+            ),
+            "Monthly breakdown shows North Web Store still leading.",
+        ]
+        schema_context = (
+            "Table: sales.orders\nColumns:\n  - amount: numeric\n  - order_date: date\n"
+            "Table: sales.customers\nColumns:\n  - region: text\n"
+            "Table: sales.channels\nColumns:\n  - name: text"
+        )
+        state = initial_chat_state(
+            data_source_id=DEMO_SOURCE_ID,
+            question="Break that down by month",
+            connection_url="postgresql://u:p@localhost/db",
+            schema_name="sales",
+            allowed_tables=["orders", "customers", "channels"],
+            history=history,
+            source_metadata=_meta(
+                prior_successful_sql=(
+                    "SELECT c.region, ch.name, SUM(o.amount) "
+                    "FROM sales.orders o "
+                    "JOIN sales.customers c ON o.customer_id = c.customer_id "
+                    "JOIN sales.channels ch ON o.channel_id = ch.channel_id "
+                    "GROUP BY 1, 2"
+                ),
+            ),
+        )
+
+        with patch(
+            "app.graph.nodes.WarehouseExecutor.execute",
+            return_value=QueryResult(
+                columns=["month", "region", "channel", "revenue"],
+                rows=[
+                    {
+                        "month": "2024-01-01",
+                        "region": "North",
+                        "channel": "Web Store",
+                        "revenue": 500,
+                    }
+                ],
+                row_count=1,
+            ),
+        ):
+            # Real ScopeGuard — must not LLM-refuse this follow-up.
+            graph = build_chat_graph(schema_context=schema_context, client=client)
+            final = run_chat_graph(graph, state)
+
+        assert final.get("scope") == "answerable"
+        assert final["status"] == "ok"
+        assert final.get("sql")
+        assert "warehouse" not in (final.get("answer") or "").lower()
+        assert "out of scope" not in (final.get("answer") or "").lower()

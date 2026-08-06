@@ -126,6 +126,37 @@ class TestAssessLayered:
         mock.complete.assert_called_once()
         assert decision == "out_of_scope"
 
+    def test_follow_up_break_down_by_month_answerable_without_llm(self) -> None:
+        """Production smoke: refine prior BI ask — must not hit scope LLM refuse."""
+        history = [
+            {"role": "user", "content": "Total revenue by region and channel"},
+            {"role": "assistant", "content": "North Web Store led."},
+        ]
+        with patch("app.services.scope_guard.get_ai_client") as get_client:
+            decision = ScopeGuard.assess(
+                question="Break that down by month",
+                schema_context=_SCHEMA,
+                allowed_tables=["orders", "customers", "channels"],
+                history=history,
+            )
+        get_client.assert_not_called()
+        assert decision == "answerable"
+
+    def test_follow_up_without_history_still_analytics_via_month(self) -> None:
+        with patch("app.services.scope_guard.get_ai_client") as get_client:
+            decision = ScopeGuard.assess(
+                question="Break that down by month",
+                schema_context=_SCHEMA,
+                allowed_tables=["orders"],
+                history=[],
+            )
+        get_client.assert_not_called()
+        assert decision == "answerable"
+
+    def test_break_down_phrase_has_analytics_intent(self) -> None:
+        assert ScopeGuard.has_analytics_intent("Break that down by month") is True
+        assert ScopeGuard.has_analytics_intent("revenue by month") is True
+
 
 class TestClarificationMessage:
     def test_lists_tables(self) -> None:
@@ -136,3 +167,32 @@ class TestClarificationMessage:
         assert "customers" in text
         assert "orders" in text
         assert "too broad" in text.lower()
+
+
+class TestAssessRelevanceFollowUp:
+    def test_node_passes_history_into_scope(self) -> None:
+        from app.graph.chat_graph import initial_chat_state
+        from app.graph.nodes import assess_relevance_node
+        from tests.conftest import DEMO_SOURCE_ID
+
+        history = [
+            {"role": "user", "content": "Total revenue by region and channel"},
+            {"role": "assistant", "content": "North led"},
+        ]
+        state = initial_chat_state(
+            data_source_id=DEMO_SOURCE_ID,
+            question="Break that down by month",
+            connection_url="postgresql://u:p@localhost/db",
+            schema_name="sales",
+            allowed_tables=["orders"],
+            history=history,
+        )
+        state["schema_context"] = "Table: sales.orders"
+
+        with patch(
+            "app.graph.nodes.ScopeGuard.assess",
+            return_value="answerable",
+        ) as assess:
+            out = assess_relevance_node(state)
+        assert out["scope"] == "answerable"
+        assert assess.call_args.kwargs.get("history") == history
