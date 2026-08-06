@@ -128,13 +128,32 @@ class SqlGenerator:
             )
 
         messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
-        if history:
-            for item in history[-5]:
-                role = item.get("role", "user")
-                content = item.get("content", "")
-                if role in {"user", "assistant"} and content:
-                    messages.append({"role": role, "content": content})
+        messages.extend(SqlGenerator._history_for_prompt(history))
         messages.append({"role": "user", "content": "\n".join(user_parts)})
 
         raw = ai.complete(messages, temperature=0.0, max_tokens=2048)
         return extract_sql(raw)
+
+    @staticmethod
+    def _history_for_prompt(
+        history: list[dict[str, str]] | None,
+        *,
+        limit: int = 5,
+    ) -> list[dict[str, str]]:
+        """
+        Last *limit* chat turns for the SQL prompt.
+
+        Always use a slice (history[-n:]), never history[-n] — indexing a short
+        list raises IndexError (production incident on turn 2+).
+        """
+        if not history or limit <= 0:
+            return []
+        out: list[dict[str, str]] = []
+        for item in history[-limit:]:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role", "user")
+            content = item.get("content", "")
+            if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
+                out.append({"role": role, "content": content})
+        return out

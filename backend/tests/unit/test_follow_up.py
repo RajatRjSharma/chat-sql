@@ -37,11 +37,27 @@ class TestLooksLikeFollowUp:
         assert looks_like_follow_up("Break that down by month.", []) is False
         assert looks_like_follow_up("Break that down by month.", None) is False
 
-    def test_short_anaphora(self) -> None:
+    def test_independent_new_topic_after_history(self) -> None:
+        """Second question that is NOT a follow-up still has history for context."""
         assert (
             looks_like_follow_up(
-                "Only for those.",
-                [{"role": "user", "content": "show top products"}],
+                "Total revenue by customer segment",
+                [
+                    {"role": "user", "content": "Total revenue by region and channel"},
+                    {"role": "assistant", "content": "North led"},
+                ],
+            )
+            is False
+        )
+
+    def test_follow_up_after_successful_turn(self) -> None:
+        assert (
+            looks_like_follow_up(
+                "Break that down by month",
+                [
+                    {"role": "user", "content": "Total revenue by region and channel"},
+                    {"role": "assistant", "content": "North led"},
+                ],
             )
             is True
         )

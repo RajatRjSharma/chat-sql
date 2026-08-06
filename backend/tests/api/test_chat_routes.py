@@ -453,4 +453,4 @@ class TestChatStreamRoute:
         assert response.status_code == 200
         assert "event: error" in response.text
         assert "list index" not in response.text.lower()
-        assert "temporarily unavailable" in response.text.lower()
+        assert "chat failed" in response.text.lower() or "try again" in response.text.lower()

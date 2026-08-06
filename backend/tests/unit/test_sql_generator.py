@@ -44,6 +44,25 @@ class TestSqlGenerator:
         assert "PostgreSQL" in user_msg
         assert "postgres" in user_msg
 
+    def test_includes_short_history_without_index_error(self) -> None:
+        """history[-5] (index) used to crash; must be history[-5:] (slice)."""
+        client = MagicMock()
+        client.complete.return_value = "SELECT 1"
+        history = [
+            {"role": "user", "content": "Total revenue by region and channel"},
+            {"role": "assistant", "content": "North Web Store led."},
+        ]
+        SqlGenerator.generate(
+            question="Total revenue by customer segment",
+            schema_context="Table: sales.orders",
+            history=history,
+            client=client,
+        )
+        messages = client.complete.call_args[0][0]
+        roles = [m["role"] for m in messages]
+        assert roles.count("user") >= 2
+        assert "assistant" in roles
+
     def test_includes_prior_sql_and_empty_hint(self) -> None:
         client = MagicMock()
         client.complete.return_value = "SELECT 2"
