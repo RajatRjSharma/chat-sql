@@ -39,7 +39,8 @@ class TestSqlGenerator:
         messages = client.complete.call_args[0][0]
         system_msg = messages[0]["content"]
         assert "foreign-key" in system_msg.lower() or "FK" in system_msg
-        assert "revenue" in system_msg.lower()
+        assert "any domain" in system_msg.lower() or "domain-agnostic" in system_msg.lower()
+        assert "data profile" in system_msg.lower()
         user_msg = messages[-1]["content"]
         assert "PostgreSQL" in user_msg
         assert "postgres" in user_msg

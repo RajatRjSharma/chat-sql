@@ -6,6 +6,10 @@ from typing import Any
 
 from app.config import settings
 from app.models import DataSource
+from app.services.data_profiler import (
+    format_data_profile_for_llm,
+    profile_for_tables_in_context,
+)
 
 # Catalog of engines we may support. Connect API is postgres-only today;
 # metadata stays honest so the LLM (and future dialects) get clear guidance.
@@ -83,6 +87,7 @@ def build_source_metadata(
     tables_in_context: list[str] | None = None,
     chunks_retrieved: int = 0,
     context_mode: str = "rag",
+    include_full_data_profile: bool = False,
 ) -> dict[str, Any]:
     """
     Provenance for one answer: warehouse identity + dialect + AI models used.
@@ -91,6 +96,12 @@ def build_source_metadata(
     """
     profile = resolve_engine_profile(data_source.db_type)
     tables = sorted({t for t in (tables_in_context or []) if t})
+    extra = getattr(data_source, "extra_config", None) or {}
+    stored_profile = extra.get("data_profile")
+    if include_full_data_profile or context_mode in {"connection", "embedding", "catalog_overview"}:
+        data_profile = stored_profile
+    else:
+        data_profile = profile_for_tables_in_context(stored_profile, tables)
 
     return {
         "source_name": data_source.name,
@@ -119,6 +130,11 @@ def build_source_metadata(
         "rag_top_k": settings.rag_top_k,
         "rag_expand_hops": settings.rag_expand_hops,
         "rag_max_tables": settings.rag_max_tables,
+        "schema_indexed_at": extra.get("schema_indexed_at"),
+        "schema_table_count": extra.get("schema_table_count"),
+        "schema_chunk_count": extra.get("schema_chunk_count"),
+        "data_profile": data_profile,
+        "data_profile_version": (data_profile or {}).get("version") if data_profile else None,
     }
 
 
@@ -138,12 +154,27 @@ def format_metadata_for_llm(metadata: dict[str, Any] | None) -> str:
         f"({metadata.get('access_mode')})",
         f"Quoting style: {metadata.get('identifier_quoting')}",
         f"Dialect notes: {metadata.get('dialect_notes')}",
+        f"Source name: {metadata.get('source_name')}",
+        f"Context mode: {metadata.get('context_mode')}",
+        f"LLM model: {metadata.get('llm_model')} "
+        f"(fallback: {metadata.get('llm_model_fallback')})",
     ]
+    if metadata.get("schema_indexed_at"):
+        lines.append(
+            f"Schema indexed at: {metadata.get('schema_indexed_at')} "
+            f"(tables={metadata.get('schema_table_count')}, "
+            f"chunks={metadata.get('schema_chunk_count')})"
+        )
     tables = metadata.get("tables_in_context") or []
     if tables:
         lines.append(f"Tables in retrieved schema context: {', '.join(tables)}")
     lines.append(
         f"Embedding model used for schema RAG: {metadata.get('embedding_model')} "
-        f"({metadata.get('embedding_dimensions')} dims)"
+        f"({metadata.get('embedding_dimensions')} dims); "
+        f"rag_top_k={metadata.get('rag_top_k')}, "
+        f"rag_expand_hops={metadata.get('rag_expand_hops')}, "
+        f"rag_max_tables={metadata.get('rag_max_tables')}"
     )
+    lines.append("")
+    lines.append(format_data_profile_for_llm(metadata.get("data_profile")))
     return "\n".join(lines)

@@ -43,6 +43,7 @@ def chunk_table(
     table: TableInfo,
     *,
     warehouse_header: str | None = None,
+    table_profile: dict[str, Any] | None = None,
 ) -> str:
     """Build a single searchable text chunk for one warehouse table."""
     lines: list[str] = []
@@ -70,6 +71,26 @@ def chunk_table(
             lines.append(
                 f"  - {fk.column} -> {table.schema_name}.{fk.referenced_table}"
                 f".{fk.referenced_column}"
+            )
+
+    if table_profile and not table_profile.get("error"):
+        lines.append("Observed data profile:")
+        lines.append(f"  - row_count: {table_profile.get('row_count')}")
+        for col in table_profile.get("temporal_columns") or []:
+            lines.append(
+                f"  - {col.get('name')} window: {col.get('min')} .. {col.get('max')}"
+            )
+        for col in table_profile.get("numeric_columns") or []:
+            lines.append(
+                f"  - {col.get('name')} range: min={col.get('min')} "
+                f"max={col.get('max')} avg={col.get('avg')}"
+            )
+        for col in table_profile.get("categorical_columns") or []:
+            tops = col.get("top_values") or []
+            sample = ", ".join(str(item.get("value")) for item in tops[:8])
+            lines.append(
+                f"  - {col.get('name')} values (top): {sample} "
+                f"(distinct≈{col.get('distinct_count')})"
             )
 
     if table.sample_rows:
@@ -104,6 +125,7 @@ def build_catalog_overview_chunk(
     *,
     warehouse_header: str | None = None,
     engine_meta: dict[str, Any] | None = None,
+    table_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """
     Warehouse-wide inventory chunk — retrieves for “summary of db / all tables”.
@@ -112,6 +134,7 @@ def build_catalog_overview_chunk(
     """
     schema = _schema_name(tables)
     ordered = sorted(tables, key=lambda t: t.table_name.lower())
+    profiles = table_profiles or {}
     lines: list[str] = []
     if warehouse_header:
         lines.append(warehouse_header)
@@ -131,8 +154,17 @@ def build_catalog_overview_chunk(
         pks = [c.name for c in table.columns if c.is_primary_key]
         col_names = [c.name for c in table.columns]
         pk_bit = f" PK={','.join(pks)}" if pks else ""
+        profile = profiles.get(table.table_name.lower()) or {}
+        rows_bit = ""
+        if profile.get("row_count") is not None:
+            rows_bit = f" rows={profile.get('row_count')}"
+        windows = []
+        for col in profile.get("temporal_columns") or []:
+            windows.append(f"{col.get('name')}[{col.get('min')}..{col.get('max')}]")
+        window_bit = f" dates={','.join(windows)}" if windows else ""
         lines.append(
-            f"- {table.qualified_name} ({len(col_names)} cols{pk_bit}): "
+            f"- {table.qualified_name} ({len(col_names)} cols{pk_bit}{rows_bit}"
+            f"{window_bit}): "
             + ", ".join(col_names)
         )
 
@@ -230,15 +262,21 @@ def chunk_tables(
     warehouse_header: str | None = None,
     engine_meta: dict[str, Any] | None = None,
     include_overview_chunks: bool = True,
+    table_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> list[tuple[str, dict]]:
     """
     Return (content, metadata) pairs for embedding storage.
 
     Per-table chunks plus optional catalog + relationship overview chunks.
     """
+    profiles = table_profiles or {}
     chunks: list[tuple[str, dict]] = []
     for table in tables:
-        content = chunk_table(table, warehouse_header=warehouse_header)
+        content = chunk_table(
+            table,
+            warehouse_header=warehouse_header,
+            table_profile=profiles.get(table.table_name.lower()),
+        )
         metadata: dict[str, Any] = {
             "chunk_kind": CHUNK_KIND_TABLE,
             "schema": table.schema_name,
@@ -254,6 +292,9 @@ def chunk_tables(
             ],
             **_engine_fields(engine_meta),
         }
+        profile = profiles.get(table.table_name.lower())
+        if profile and profile.get("row_count") is not None:
+            metadata["row_count"] = profile.get("row_count")
         chunks.append((content, metadata))
 
     if include_overview_chunks and tables:
@@ -262,6 +303,7 @@ def chunk_tables(
                 tables,
                 warehouse_header=warehouse_header,
                 engine_meta=engine_meta,
+                table_profiles=profiles,
             )
         )
         chunks.append(

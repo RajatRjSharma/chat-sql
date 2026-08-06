@@ -14,6 +14,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.core.exceptions import SchemaEmbeddingError, SchemaIndexInProgressError
 from app.models import SchemaEmbedding
 from app.providers.ai import AIClient, get_ai_client
+from app.services.data_profiler import DataProfiler, table_profile_lookup
 from app.services.data_source_service import DataSourceService
 from app.services.schema_chunker import chunk_tables
 from app.services.schema_introspection import SchemaIntrospectionService
@@ -87,12 +88,29 @@ class SchemaEmbeddingService:
                 f"(schema={info.schema_name or 'default'})."
             )
 
+        # Row counts / date windows / measure ranges / categorical samples for SQL prompts.
+        try:
+            data_profile = DataProfiler().profile(info, tables)
+        except Exception as exc:  # noqa: BLE001 — indexing must still succeed
+            data_profile = {
+                "version": 1,
+                "error": f"data profile failed: {exc}"[:300],
+                "tables": [],
+                "temporal_windows": [],
+                "table_count": 0,
+                "approx_total_rows": 0,
+            }
+
         source_meta = build_source_metadata(
             data_source,
             tables_in_context=[t.table_name for t in tables],
             chunks_retrieved=len(tables),
             context_mode="embedding",
+            include_full_data_profile=True,
         )
+        # build_source_metadata reads extra_config; inject the fresh profile for chunking.
+        source_meta = {**source_meta, "data_profile": data_profile}
+
         warehouse_header = (
             f"Warehouse: {source_meta['engine']} ({source_meta['db_type']}) | "
             f"Vendor: {source_meta['vendor']} | "
@@ -108,6 +126,7 @@ class SchemaEmbeddingService:
             warehouse_header=warehouse_header,
             engine_meta=source_meta,
             include_overview_chunks=True,
+            table_profiles=table_profile_lookup(data_profile),
         )
         # Embed before mutating the index so a provider failure leaves the old
         # vectors intact.
@@ -136,6 +155,7 @@ class SchemaEmbeddingService:
         cfg["schema_indexed_at"] = indexed_at.isoformat()
         cfg["schema_table_count"] = len(tables)
         cfg["schema_chunk_count"] = len(chunks)
+        cfg["data_profile"] = data_profile
         data_source.extra_config = cfg
         flag_modified(data_source, "extra_config")
         session.add(data_source)
