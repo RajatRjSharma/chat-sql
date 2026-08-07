@@ -10,32 +10,51 @@ from __future__ import annotations
 import re
 from typing import Any, Protocol
 
+from app.services.nl_normalize import noun_surface_variants, nouns_match
 from app.services.schema_chunker import is_synthetic_table
 
 # Broad “what’s in the DB?” asks — not join-specific analytics.
+_DET = r"(?:the|this|my|our|a|an)\s+"
+_DB_SCOPE = r"(?:full|entire|complete|whole)\s+"
+_DB_NOUN = r"(?:db|database|schema|warehouse|catalog|data)"
+_OVERVIEW_NOUN = (
+    r"(?:summar(?:y|ize|ise)|overview|highlights|description|contents?|"
+    r"inventory|catalog)"
+)
 _OVERVIEW_RE = re.compile(
-    r"""(?ix)
+    rf"""(?ix)
     \b(
-        (summary|overview|highlights)\s+of\s+(the\s+)?(db|database|schema|warehouse|data)
-      | (all|list|show|how\s+many)\s+(all\s+)?tables
-        (\s+(in|across|for)\s+(the\s+)?(db|database|schema|warehouse|catalog))?
-      | tables?\s+in\s+(the\s+)?(db|database|schema|warehouse)
+        {_OVERVIEW_NOUN}\s+of\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | summar(?:ize|ise)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | describe\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | {_DB_NOUN}\s+(?:summary|overview|inventory|contents?)
+      | what(?:'s|s|\s+is)\s+in\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | (?:show|list|give)\s+me\s+(?:all\s+)?(?:the\s+)?tables?
+      | (?:list|show|how\s+many)\s+(?:all\s+|every\s+|the\s+)?tables?
+        (\s+(?:in|across|for)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN})?
+      | (?:all|every)\s+(?:of\s+)?(?:the\s+)?tables?
+        (\s+(?:in|across|for)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN})?
+      | tables?\s+in\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
       | (what|which)\s+tables\s+(are\s+there|exist|do\s+(i|we)\s+have|are\s+available)
       | schema\s+(summary|overview|inventory)
       | inventory\s+of\s+(tables|the\s+schema)
-      | give\s+me\s+(a\s+)?(summary|overview)\s+of\s+(the\s+)?(db|database|schema|warehouse)
-      | (count|row\s+counts?)\s+(for\s+)?(all\s+)?tables
-        (\s+(in|across)\s+(the\s+)?(db|database|schema|warehouse))?
+      | give\s+me\s+(a\s+)?{_OVERVIEW_NOUN}\s+of\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | (count|row\s+counts?)\s+(for\s+)?(?:all\s+|every\s+)?tables?
+        (\s+(?:in|across)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN})?
     )\b
     """
 )
 
 # If present, the ask is scoped (joins / filters) — keep column DDL path.
+# Avoid bare "having" (false-positive on "tables having data").
 _SCOPED_TABLE_ASK_RE = re.compile(
     r"""(?ix)
     \b(
         related|joining|join|reference|references|referencing
-      | that\s+have|having|with\s+amount|with\s+column
+      | linked\s+to|connected\s+to|associated\s+with|containing
+      | that\s+have
+      | having\s+(?:an?\s+)?(?:amount|column|columns|field|fields)
+      | with\s+amount|with\s+column
     )\b
     """
 )
@@ -186,6 +205,14 @@ _MEASURE_SYNONYMS: dict[str, tuple[str, ...]] = {
     "spend": ("amount", "total_amount"),
     "income": ("amount", "total_amount"),
     "turnover": ("amount", "total_amount"),
+    "bookings": ("amount", "total_amount", "booking_amount"),
+    "margin": ("margin", "gross_margin", "net_margin", "amount"),
+    "profit": ("profit", "net_profit", "gross_profit", "amount"),
+    "cost": ("cost", "unit_cost", "total_cost", "amount"),
+    "expense": ("expense", "amount", "total_amount"),
+    "fee": ("fee", "fees", "amount"),
+    "arr": ("arr", "amount", "total_amount"),
+    "mrr": ("mrr", "amount", "total_amount"),
 }
 
 
@@ -204,6 +231,9 @@ def is_catalog_overview_question(question: str) -> bool:
         return False
     # "show tables related to invoices" must keep per-table DDL.
     if _SCOPED_TABLE_ASK_RE.search(q):
+        return False
+    # "all tables have null amounts" is analytics, not an inventory ask.
+    if re.search(r"\ball\s+tables?\s+(have|has|with|contain|including)\b", q, re.I):
         return False
     return True
 
@@ -231,17 +261,6 @@ def format_catalog_inventory(
     return "\n".join(lines)
 
 
-def _stem(token: str) -> str:
-    t = token.lower()
-    if len(t) > 4 and t.endswith("ies"):
-        return t[:-3] + "y"
-    if len(t) > 3 and t.endswith("es"):
-        return t[:-2]
-    if len(t) > 3 and t.endswith("s"):
-        return t[:-1]
-    return t
-
-
 def _question_tokens(question: str) -> list[str]:
     return [
         m.group(0).lower()
@@ -251,9 +270,7 @@ def _question_tokens(question: str) -> list[str]:
 
 
 def _exact_or_stem_table_match(question_token: str, table_name: str) -> bool:
-    q = question_token.lower()
-    s = table_name.lower()
-    return q == s or _stem(q) == _stem(s)
+    return nouns_match(question_token, table_name)
 
 
 def _segment_table_match(question_token: str, table_name: str) -> bool:
@@ -263,10 +280,9 @@ def _segment_table_match(question_token: str, table_name: str) -> bool:
     segments = s.split("_")
     if len(segments) < 2:
         return False
-    q_stem = _stem(q)
-    if len(q_stem) < 4:
+    if len(q) < 4:
         return False
-    return any(_stem(seg) == q_stem or seg == q for seg in segments)
+    return any(nouns_match(q, seg) or seg == q for seg in segments)
 
 
 def tables_mentioned_in_question(
@@ -330,14 +346,14 @@ def _column_base(name: str) -> str:
 def _column_matches_token(column: str, token: str) -> bool:
     col = column.lower()
     tok = token.lower()
-    if tok in _COLUMN_LINK_STOPWORDS or _stem(tok) in _COLUMN_LINK_STOPWORDS:
+    if tok in _COLUMN_LINK_STOPWORDS:
+        return False
+    if any(v in _COLUMN_LINK_STOPWORDS for v in noun_surface_variants(tok)):
         return False
     base = _column_base(col)
     if base in _COLUMN_LINK_STOPWORDS:
         return False
-    if tok == col or _stem(tok) == _stem(col):
-        return True
-    if tok == base or _stem(tok) == _stem(base):
+    if nouns_match(tok, col) or nouns_match(tok, base):
         return True
     return False
 

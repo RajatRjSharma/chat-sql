@@ -28,8 +28,33 @@ class TestIsCatalogOverviewQuestion:
     def test_summary_of_db(self) -> None:
         assert is_catalog_overview_question("give me the summary of db") is True
 
+    def test_summary_of_the_full_database(self) -> None:
+        """Production demo phrasing — intensifier before database."""
+        assert (
+            is_catalog_overview_question("Give me a summary of the full database.")
+            is True
+        )
+        assert is_catalog_overview_question("summary of the entire schema") is True
+        assert is_catalog_overview_question("overview of the complete warehouse") is True
+        assert is_catalog_overview_question("give me summary of full db") is True
+
+    def test_overview_phrasing_variants(self) -> None:
+        assert is_catalog_overview_question("summary of this database") is True
+        assert is_catalog_overview_question("summarize the database") is True
+        assert is_catalog_overview_question("summarise my warehouse") is True
+        assert is_catalog_overview_question("describe the database") is True
+        assert is_catalog_overview_question("what's in the db") is True
+        assert is_catalog_overview_question("database overview") is True
+        assert is_catalog_overview_question("show me all the tables") is True
+        assert is_catalog_overview_question("list every table") is True
+        assert is_catalog_overview_question("list the tables") is True
+        assert is_catalog_overview_question("row counts for every table") is True
+
     def test_all_tables(self) -> None:
         assert is_catalog_overview_question("list all tables") is True
+
+    def test_all_tables_predicate_is_not_overview(self) -> None:
+        assert is_catalog_overview_question("all tables have null amounts") is False
 
     def test_how_many_tables(self) -> None:
         assert is_catalog_overview_question("how many tables are in the warehouse") is True
@@ -51,6 +76,9 @@ class TestIsCatalogOverviewQuestion:
     def test_related_tables_ask_is_not_overview(self) -> None:
         assert is_catalog_overview_question("show tables related to invoices") is False
         assert is_catalog_overview_question("list tables that have amount columns") is False
+        assert is_catalog_overview_question("show tables linked to invoices") is False
+        assert is_catalog_overview_question("tables associated with orders") is False
+        assert is_catalog_overview_question("inventory of tables having data") is True
 
 
 class TestTablesMentionedInQuestion:
@@ -60,6 +88,15 @@ class TestTablesMentionedInQuestion:
             ["orders", "invoices", "invoice_lines", "customers"],
         )
         assert names == ["invoices"]
+
+    def test_invoice_singular_links_invoices_table(self) -> None:
+        names = tables_mentioned_in_question(
+            "sum amount on invoice",
+            ["orders", "invoices", "invoice_lines", "customers"],
+        )
+        # Exact/stem table wins over compound segments (invoice_lines).
+        assert "invoices" in names
+        assert names[0] == "invoices"
 
     def test_invoice_lines_explicit(self) -> None:
         names = tables_mentioned_in_question(
