@@ -13,6 +13,7 @@ from app.services.result_summarizer import ResultSummarizer
 from app.services.scope_guard import (
     EMPTY_RESULT_MESSAGE,
     OUT_OF_SCOPE_MESSAGE,
+    PLANNING_FAILED_MESSAGE,
     ScopeGuard,
     clarification_message,
 )
@@ -92,13 +93,15 @@ def generate_sql_node(
         client=client,
     )
     # Defense in depth if the SQL model refuses instead of inventing a query.
+    # This is a planning failure, not a scope refusal — say so, but keep the
+    # out_of_scope routing flag so the service-level expand retry still fires.
     if ScopeGuard.is_unanswerable_marker(sql):
         return {
             "sql": None,
             "sql_error": None,
             "attempts": attempts,
             "scope": "out_of_scope",
-            "answer": OUT_OF_SCOPE_MESSAGE,
+            "answer": PLANNING_FAILED_MESSAGE,
             "columns": [],
             "rows": [],
             "status": "ok",

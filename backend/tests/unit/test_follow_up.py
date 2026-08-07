@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from app.services.follow_up import looks_like_follow_up, sanitize_source_metadata_for_client
+from app.services.follow_up import (
+    build_retrieval_query,
+    last_user_question,
+    looks_like_follow_up,
+    sanitize_source_metadata_for_client,
+    tables_from_sql,
+)
 
 
 class TestLooksLikeFollowUp:
@@ -15,13 +21,33 @@ class TestLooksLikeFollowUp:
             is True
         )
 
-    def test_what_about(self) -> None:
+    def test_what_about_named_entity_needs_schema_context(self) -> None:
+        """Domain nouns are not hardcoded — the schema decides what's an entity."""
+        history = [{"role": "assistant", "content": "North leads"}]
         assert (
             looks_like_follow_up(
                 "What about the West region?",
-                [{"role": "assistant", "content": "North leads"}],
+                history,
+                schema_tokens={"customers", "region", "orders"},
             )
             is True
+        )
+        # Without schema context there is no way to tell this from trivia.
+        assert looks_like_follow_up("What about the West region?", history) is False
+
+    def test_what_about_with_structural_cue(self) -> None:
+        """Grouping / aggregation language is enough on its own, any domain."""
+        history = [{"role": "user", "content": "totals by department"}]
+        assert looks_like_follow_up("What about by month instead?", history) is True
+
+    def test_schema_tokens_do_not_rescue_trivia(self) -> None:
+        assert (
+            looks_like_follow_up(
+                "What about the height of Burj Khalifa?",
+                [{"role": "user", "content": "orders by region"}],
+                schema_tokens={"orders", "customers", "region"},
+            )
+            is False
         )
 
     def test_soft_what_about_trivia_is_not_follow_up(self) -> None:
@@ -105,6 +131,84 @@ class TestLooksLikeFollowUp:
                 ],
             )
             is True
+        )
+
+
+_PRIOR_SQL = """
+SELECT r.name, t.name, c.name, SUM(il.amount) AS total_revenue
+FROM sales.invoice_lines AS il
+JOIN sales.invoices AS i ON il.invoice_id = i.invoice_id
+JOIN sales.orders AS o ON i.order_id = o.order_id
+JOIN sales.channels AS c ON o.channel_id = c.channel_id
+JOIN sales.customers AS cust ON o.customer_id = cust.customer_id
+JOIN sales.territories AS t ON cust.territory_id = t.territory_id
+GROUP BY r.name, t.name, c.name
+"""
+
+
+class TestTablesFromSql:
+    def test_extracts_qualified_tables(self) -> None:
+        assert tables_from_sql(_PRIOR_SQL) == [
+            "invoice_lines",
+            "invoices",
+            "orders",
+            "channels",
+            "customers",
+            "territories",
+        ]
+
+    def test_unqualified_tables(self) -> None:
+        assert tables_from_sql("SELECT * FROM orders JOIN customers ON 1=1") == [
+            "orders",
+            "customers",
+        ]
+
+    def test_none_sql(self) -> None:
+        assert tables_from_sql(None) == []
+
+
+class TestLastUserQuestion:
+    def test_returns_latest_user_turn(self) -> None:
+        history = [
+            {"role": "user", "content": "first ask"},
+            {"role": "assistant", "content": "answer"},
+            {"role": "user", "content": "revenue by territory and channel"},
+            {"role": "assistant", "content": "North led"},
+        ]
+        assert last_user_question(history) == "revenue by territory and channel"
+
+    def test_empty_history(self) -> None:
+        assert last_user_question([]) is None
+
+
+class TestBuildRetrievalQuery:
+    def test_follow_up_anchors_prior_question_and_tables(self) -> None:
+        """Regression: bare refinements retrieved unrelated chunks."""
+        history = [
+            {"role": "user", "content": "Total revenue by territory and sales channel"},
+            {"role": "assistant", "content": "Midwest Retail led"},
+        ]
+        query = build_retrieval_query(
+            "Break that down by month, only for Midwest.",
+            history,
+            prior_sql=_PRIOR_SQL,
+        )
+        assert "Total revenue by territory and sales channel" in query
+        assert "Break that down by month" in query
+        for table in ("orders", "channels", "customers", "territories"):
+            assert table in query
+
+    def test_independent_question_unchanged(self) -> None:
+        history = [
+            {"role": "user", "content": "Total revenue by territory"},
+            {"role": "assistant", "content": "Midwest led"},
+        ]
+        question = "How many open support tickets are there by customer segment?"
+        assert build_retrieval_query(question, history, prior_sql=_PRIOR_SQL) == question
+
+    def test_no_history_unchanged(self) -> None:
+        assert build_retrieval_query("Break that down by month", []) == (
+            "Break that down by month"
         )
 
 

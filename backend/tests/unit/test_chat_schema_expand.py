@@ -98,6 +98,68 @@ class TestNeedsAllowlistExpand:
             )
 
 
+class TestPriorTurnTables:
+    """Follow-ups must keep the tables the previous turn actually joined."""
+
+    _PRIOR_SQL = (
+        "SELECT SUM(il.amount) FROM sales.invoice_lines AS il "
+        "JOIN sales.orders AS o ON il.invoice_id = o.order_id "
+        "JOIN sales.channels AS c ON o.channel_id = c.channel_id"
+    )
+
+    @pytest.mark.asyncio
+    async def test_reseeds_missing_prior_tables(self) -> None:
+        seed_rows = [_chunk("orders")]
+        with (
+            patch(
+                "app.services.chat_service.RagService.fetch_chunks_by_tables",
+                new=AsyncMock(return_value=[_chunk("invoice_lines"), _chunk("channels")]),
+            ) as fetch,
+            patch("app.services.chat_service.settings") as settings,
+        ):
+            settings.rag_max_tables = 15
+            out = await ChatService._with_prior_turn_tables(
+                MagicMock(),
+                data_source_id="ds",
+                seed_rows=seed_rows,
+                prior_sql=self._PRIOR_SQL,
+            )
+        assert fetch.await_count == 1
+        assert {c.table for c in out} == {"orders", "invoice_lines", "channels"}
+
+    @pytest.mark.asyncio
+    async def test_no_prior_sql_is_passthrough(self) -> None:
+        seed_rows = [_chunk("orders")]
+        with patch(
+            "app.services.chat_service.RagService.fetch_chunks_by_tables",
+            new=AsyncMock(return_value=[]),
+        ) as fetch:
+            out = await ChatService._with_prior_turn_tables(
+                MagicMock(),
+                data_source_id="ds",
+                seed_rows=seed_rows,
+                prior_sql=None,
+            )
+        fetch.assert_not_awaited()
+        assert out == seed_rows
+
+    @pytest.mark.asyncio
+    async def test_skips_fetch_when_all_present(self) -> None:
+        seed_rows = [_chunk("invoice_lines"), _chunk("orders"), _chunk("channels")]
+        with patch(
+            "app.services.chat_service.RagService.fetch_chunks_by_tables",
+            new=AsyncMock(return_value=[]),
+        ) as fetch:
+            out = await ChatService._with_prior_turn_tables(
+                MagicMock(),
+                data_source_id="ds",
+                seed_rows=seed_rows,
+                prior_sql=self._PRIOR_SQL,
+            )
+        fetch.assert_not_awaited()
+        assert out == seed_rows
+
+
 @pytest.mark.asyncio
 async def test_maybe_expand_and_retry_rebuilds_once() -> None:
     orders = _chunk("orders")
