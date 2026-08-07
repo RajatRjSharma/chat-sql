@@ -29,6 +29,12 @@ OUT_OF_SCOPE_MESSAGE = (
     "and measures that exist in your schema."
 )
 
+PLANNING_FAILED_MESSAGE = (
+    "I couldn't build a reliable query for that from the tables currently in context. "
+    "Try naming the metric and dimensions explicitly (for example the measure, the "
+    "grouping column, and any filter) and I'll query your warehouse again."
+)
+
 EMPTY_RESULT_MESSAGE = (
     "I queried your connected warehouse, but that question returned no matching rows. "
     "This often means a join or filter did not match (for example joining a code "
@@ -134,7 +140,9 @@ _VAGUE_ONLY = frozenset(
     }
 )
 
-_ANALYTICS_HINTS = frozenset(
+# Unambiguous warehouse / aggregation cues. Strong enough to skip the scope
+# classifier entirely, so keep general-English words out of this set.
+_WAREHOUSE_INTENT_HINTS = frozenset(
     {
         "count",
         "counts",
@@ -144,12 +152,6 @@ _ANALYTICS_HINTS = frozenset(
         "avg",
         "average",
         "mean",
-        "median",
-        "percentile",
-        "percentiles",
-        "percentage",
-        "percent",
-        "share",
         "amount",
         "amounts",
         "range",
@@ -158,32 +160,15 @@ _ANALYTICS_HINTS = frozenset(
         "max",
         "top",
         "bottom",
-        "rank",
-        "ranking",
         "trend",
         "trends",
         "breakdown",
         "compare",
-        "versus",
-        "vs",
-        "yoy",
-        "mom",
         "group",
         "grouped",
         "aggregate",
         "aggregates",
         "distribution",
-        "correlation",
-        "correlate",
-        "heatmap",
-        "plot",
-        "chart",
-        "graph",
-        "filter",
-        "filters",
-        "kpi",
-        "kpis",
-        "highlights",
         "tables",
         "schema",
         "database",
@@ -193,13 +178,6 @@ _ANALYTICS_HINTS = frozenset(
         "metrics",
         "measure",
         "measures",
-        "revenue",
-        "sales",
-        "gmv",
-        "bookings",
-        "margin",
-        "profit",
-        "cost",
         "rows",
         "columns",
         "join",
@@ -223,6 +201,46 @@ _ANALYTICS_HINTS = frozenset(
         "dates",
     }
 )
+
+# Softer BI vocabulary that also occurs in ordinary English ("cost of a Tesla",
+# "Messi vs Ronaldo"). Good enough to justify a deeper-linking retry after a
+# failed turn, but not to bypass the scope classifier.
+_SOFT_ANALYTICS_HINTS = frozenset(
+    {
+        "median",
+        "percentile",
+        "percentiles",
+        "percentage",
+        "percent",
+        "share",
+        "rank",
+        "ranking",
+        "versus",
+        "vs",
+        "yoy",
+        "mom",
+        "correlation",
+        "correlate",
+        "heatmap",
+        "plot",
+        "chart",
+        "graph",
+        "filter",
+        "filters",
+        "kpi",
+        "kpis",
+        "highlights",
+        "revenue",
+        "sales",
+        "gmv",
+        "bookings",
+        "margin",
+        "profit",
+        "cost",
+    }
+)
+
+_ANALYTICS_HINTS = _WAREHOUSE_INTENT_HINTS | _SOFT_ANALYTICS_HINTS
 
 _SYSTEM = """\
 You gate questions for a read-only warehouse analytics assistant (Text2SQL / BI copilot).
@@ -289,16 +307,18 @@ class ScopeGuard:
         if not q:
             return "needs_clarification"
 
+        schema_ids = ScopeGuard.extract_schema_identifiers(schema_context, allowed_tables)
+
         # 0) Conversational refinements of a prior BI turn stay in the SQL path.
         # Without this, "Break that down by month" has no schema tokens and the
         # scope LLM often wrongly returns OUT_OF_SCOPE.
-        if looks_like_follow_up(q, history):
+        if looks_like_follow_up(q, history, schema_tokens=schema_ids):
             return "answerable"
 
         # 1) Deterministic: schema / analytics signal → stay in the SQL path.
-        if ScopeGuard.has_schema_overlap(q, schema_context, allowed_tables):
+        if _has_overlap(q, schema_ids):
             return "answerable"
-        if ScopeGuard.has_analytics_intent(q):
+        if ScopeGuard.has_warehouse_intent(q):
             return "answerable"
 
         # 2) Ultra-vague with no schema cue → clarify (do not hard-refuse).
@@ -328,17 +348,17 @@ class ScopeGuard:
         if not text:
             return "answerable"
 
-        first = text.splitlines()[0].strip()
-        # Exact first-line token only — avoid OUT* matching OUTPUT / OUTLIER.
-        first_token = re.sub(r"[^A-Za-z_]", "", first.split()[0] if first else "")
         token_map = {
             "ANSWERABLE": "answerable",
             "OUT_OF_SCOPE": "out_of_scope",
             "NEEDS_CLARIFICATION": "needs_clarification",
         }
-        mapped = token_map.get(first_token.upper())
-        if mapped:
-            return mapped  # type: ignore[return-value]
+        # Whole-label match on the first line so "OUTPUT" / "OUTLIER" / "NEED MORE"
+        # are not mistaken for a decision, while "Out of scope." still resolves.
+        first = re.sub(r"[^A-Z]+", "_", text.splitlines()[0].upper()).strip("_")
+        for label, decision in token_map.items():
+            if first == label or first.startswith(f"{label}_"):
+                return decision  # type: ignore[return-value]
 
         match = _SCOPE_DECISION_RE.search(text)
         if match:
@@ -372,17 +392,20 @@ class ScopeGuard:
         allowed_tables: list[str] | None = None,
     ) -> bool:
         schema_ids = ScopeGuard.extract_schema_identifiers(schema_context, allowed_tables)
-        if not schema_ids:
-            return False
-        q_tokens = _content_tokens(question)
-        for token in q_tokens:
-            for schema_id in schema_ids:
-                if _tokens_match(token, schema_id):
-                    return True
-        return False
+        return _has_overlap(question, schema_ids)
 
     @staticmethod
     def has_analytics_intent(question: str) -> bool:
+        """Broad BI vocabulary — drives retry decisions after a failed turn."""
+        return ScopeGuard._matches_hints(question, _ANALYTICS_HINTS)
+
+    @staticmethod
+    def has_warehouse_intent(question: str) -> bool:
+        """Narrow, unambiguous cues — safe to answer without the scope LLM."""
+        return ScopeGuard._matches_hints(question, _WAREHOUSE_INTENT_HINTS)
+
+    @staticmethod
+    def _matches_hints(question: str, hints: frozenset[str]) -> bool:
         q = (question or "").strip().lower()
         # Multi-word cues that tokenize into stop-ish fragments ("break" + "down").
         if "break down" in q or "break that down" in q or "break it down" in q:
@@ -391,7 +414,7 @@ class ScopeGuard:
         if not tokens:
             return False
         # "summary of full db", "table info", "orders count", etc.
-        return any(token in _ANALYTICS_HINTS for token in tokens)
+        return any(token in hints for token in tokens)
 
     @staticmethod
     def is_vague_only(question: str) -> bool:
@@ -422,6 +445,16 @@ def _identifier_parts(name: str) -> set[str]:
 def _content_tokens(text: str) -> list[str]:
     tokens = [m.group(0).lower() for m in _WORD_RE.finditer(text or "")]
     return [t for t in tokens if t not in _STOPWORDS and len(t) >= 2]
+
+
+def _has_overlap(question: str, schema_ids: set[str]) -> bool:
+    if not schema_ids:
+        return False
+    for token in _content_tokens(question):
+        for schema_id in schema_ids:
+            if _tokens_match(token, schema_id):
+                return True
+    return False
 
 
 def _tokens_match(question_token: str, schema_token: str) -> bool:

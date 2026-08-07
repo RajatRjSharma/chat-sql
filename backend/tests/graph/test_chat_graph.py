@@ -16,7 +16,11 @@ from app.graph.nodes import (
     summarize_node,
     validate_sql_node,
 )
-from app.services.scope_guard import EMPTY_RESULT_MESSAGE, OUT_OF_SCOPE_MESSAGE
+from app.services.scope_guard import (
+    EMPTY_RESULT_MESSAGE,
+    OUT_OF_SCOPE_MESSAGE,
+    PLANNING_FAILED_MESSAGE,
+)
 from app.services.warehouse_executor import QueryResult
 from tests.conftest import DEMO_SOURCE_ID
 
@@ -98,7 +102,9 @@ class TestNodes:
             out = generate_sql_node(_base_state(attempts=0))
         assert out["scope"] == "out_of_scope"
         assert out["status"] == "ok"
-        assert out["answer"] == OUT_OF_SCOPE_MESSAGE
+        # Planning failure gets its own copy, not the scope refusal text.
+        assert out["answer"] == PLANNING_FAILED_MESSAGE
+        assert out["answer"] != OUT_OF_SCOPE_MESSAGE
         assert out["sql"] is None
 
     def test_assess_relevance_refuses(self) -> None:

@@ -47,6 +47,13 @@ class TestScopeGuardParse:
         assert ScopeGuard.parse_decision("OUTLIER") == "answerable"
         assert ScopeGuard.parse_decision("NEED MORE") == "answerable"
 
+    def test_natural_language_labels_still_parse(self) -> None:
+        assert ScopeGuard.parse_decision("Out of scope.") == "out_of_scope"
+        assert ScopeGuard.parse_decision("OUT_OF_SCOPE - trivia") == "out_of_scope"
+        assert (
+            ScopeGuard.parse_decision("Needs clarification") == "needs_clarification"
+        )
+
 
 class TestUnanswerableMarker:
     def test_plain(self) -> None:
@@ -164,6 +171,28 @@ class TestAssessLayered:
         assert ScopeGuard.has_analytics_intent("YoY growth in bookings") is True
         assert ScopeGuard.has_analytics_intent("rank customers by spend") is True
         assert ScopeGuard.has_analytics_intent("share of revenue by channel") is True
+
+    def test_soft_bi_words_do_not_bypass_scope_llm(self) -> None:
+        """Broad vocabulary drives retries; only strong cues skip the classifier."""
+        for question in ("what is the cost of a Tesla", "Messi vs Ronaldo"):
+            assert ScopeGuard.has_analytics_intent(question) is True
+            assert ScopeGuard.has_warehouse_intent(question) is False
+
+    def test_strong_cues_still_bypass(self) -> None:
+        assert ScopeGuard.has_warehouse_intent("give me summary of full db") is True
+        assert ScopeGuard.has_warehouse_intent("total amount by month") is True
+
+    def test_trivia_with_soft_word_reaches_llm(self) -> None:
+        mock = MagicMock()
+        mock.complete.return_value = "OUT_OF_SCOPE"
+        decision = ScopeGuard.assess(
+            question="what is the cost of a Tesla",
+            schema_context=_SCHEMA,
+            allowed_tables=["customers"],
+            client=mock,
+        )
+        mock.complete.assert_called_once()
+        assert decision == "out_of_scope"
 
 
 class TestClarificationMessage:

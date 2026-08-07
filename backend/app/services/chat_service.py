@@ -34,7 +34,12 @@ from app.services.catalog_overview import (
 )
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
-from app.services.follow_up import looks_like_follow_up, sanitize_source_metadata_for_client
+from app.services.follow_up import (
+    build_retrieval_query,
+    looks_like_follow_up,
+    sanitize_source_metadata_for_client,
+    tables_from_sql,
+)
 from app.services.rag_service import RagService
 from app.services.schema_chunker import is_synthetic_table
 from app.services.schema_introspection import SchemaIntrospectionService
@@ -302,11 +307,22 @@ class ChatService:
         if prior_sql and not looks_like_follow_up(question, history):
             prior_sql = None
 
+        # Follow-ups are retrieval-poor on their own text; anchor with the prior
+        # question + its tables so the join path survives the refinement.
+        retrieval_query = build_retrieval_query(
+            question, history, prior_sql=prior_sql
+        )
         seed_rows = await RagService.retrieve_rows(
             session,
             data_source_id,
-            question,
+            retrieval_query,
             client=ai,
+        )
+        seed_rows = await ChatService._with_prior_turn_tables(
+            session,
+            data_source_id=data_source_id,
+            seed_rows=list(seed_rows),
+            prior_sql=prior_sql,
         )
         context_mode = "rag" if seed_rows else "empty"
         linked_chunks = list(seed_rows)
@@ -359,6 +375,33 @@ class ChatService:
             linked_chunks=linked_chunks,
             context_mode=context_mode,
             prior_successful_sql=prior_sql,
+        )
+
+    @staticmethod
+    async def _with_prior_turn_tables(
+        session: AsyncSession,
+        *,
+        data_source_id: uuid.UUID,
+        seed_rows: list[SchemaChunk],
+        prior_sql: str | None,
+    ) -> list[SchemaChunk]:
+        """Re-seed the tables the prior turn actually joined (follow-up continuity)."""
+        wanted = tables_from_sql(prior_sql)
+        if not wanted:
+            return seed_rows
+        present = {c.table.lower() for c in seed_rows if c.table}
+        missing = [name for name in wanted if name.lower() not in present]
+        if not missing:
+            return seed_rows
+        fetched = await RagService.fetch_chunks_by_tables(
+            session, data_source_id, missing
+        )
+        if not fetched:
+            return seed_rows
+        return SchemaLinker.merge_chunks(
+            seed_rows,
+            fetched,
+            max_tables=settings.rag_max_tables,
         )
 
     @staticmethod
