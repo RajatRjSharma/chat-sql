@@ -14,8 +14,14 @@ from typing import Literal
 
 from app.providers.ai import AIClient, get_ai_client
 from app.services.follow_up import looks_like_follow_up
+from app.services.nl_normalize import nouns_match
 
 ScopeDecision = Literal["answerable", "out_of_scope", "needs_clarification"]
+
+_SCOPE_DECISION_RE = re.compile(
+    r"\b(ANSWERABLE|OUT_OF_SCOPE|NEEDS_CLARIFICATION)\b",
+    re.IGNORECASE,
+)
 
 OUT_OF_SCOPE_MESSAGE = (
     "That question isn't something I can answer from your connected warehouse. "
@@ -138,6 +144,12 @@ _ANALYTICS_HINTS = frozenset(
         "avg",
         "average",
         "mean",
+        "median",
+        "percentile",
+        "percentiles",
+        "percentage",
+        "percent",
+        "share",
         "amount",
         "amounts",
         "range",
@@ -146,15 +158,32 @@ _ANALYTICS_HINTS = frozenset(
         "max",
         "top",
         "bottom",
+        "rank",
+        "ranking",
         "trend",
         "trends",
         "breakdown",
         "compare",
+        "versus",
+        "vs",
+        "yoy",
+        "mom",
         "group",
         "grouped",
         "aggregate",
         "aggregates",
         "distribution",
+        "correlation",
+        "correlate",
+        "heatmap",
+        "plot",
+        "chart",
+        "graph",
+        "filter",
+        "filters",
+        "kpi",
+        "kpis",
+        "highlights",
         "tables",
         "schema",
         "database",
@@ -164,6 +193,13 @@ _ANALYTICS_HINTS = frozenset(
         "metrics",
         "measure",
         "measures",
+        "revenue",
+        "sales",
+        "gmv",
+        "bookings",
+        "margin",
+        "profit",
+        "cost",
         "rows",
         "columns",
         "join",
@@ -288,19 +324,25 @@ class ScopeGuard:
 
     @staticmethod
     def parse_decision(raw: str) -> ScopeDecision:
-        text = (raw or "").strip().upper()
-        first = text.splitlines()[0] if text else ""
-        # Prefer explicit OUT_OF_SCOPE / clarification; default answerable for noisy output.
-        if "OUT_OF_SCOPE" in first or first.startswith("OUT"):
-            return "out_of_scope"
-        if "NEEDS_CLARIFICATION" in first or first.startswith("NEED"):
-            return "needs_clarification"
-        if "ANSWERABLE" in first:
+        text = (raw or "").strip()
+        if not text:
             return "answerable"
-        if "OUT_OF_SCOPE" in text:
-            return "out_of_scope"
-        if "NEEDS_CLARIFICATION" in text:
-            return "needs_clarification"
+
+        first = text.splitlines()[0].strip()
+        # Exact first-line token only — avoid OUT* matching OUTPUT / OUTLIER.
+        first_token = re.sub(r"[^A-Za-z_]", "", first.split()[0] if first else "")
+        token_map = {
+            "ANSWERABLE": "answerable",
+            "OUT_OF_SCOPE": "out_of_scope",
+            "NEEDS_CLARIFICATION": "needs_clarification",
+        }
+        mapped = token_map.get(first_token.upper())
+        if mapped:
+            return mapped  # type: ignore[return-value]
+
+        match = _SCOPE_DECISION_RE.search(text)
+        if match:
+            return token_map[match.group(1).upper()]  # type: ignore[return-value]
         return "answerable"
 
     @staticmethod
@@ -382,24 +424,10 @@ def _content_tokens(text: str) -> list[str]:
     return [t for t in tokens if t not in _STOPWORDS and len(t) >= 2]
 
 
-def _stem(token: str) -> str:
-    t = token.lower()
-    if len(t) > 4 and t.endswith("ies"):
-        return t[:-3] + "y"
-    if len(t) > 3 and t.endswith("es"):
-        return t[:-2]
-    if len(t) > 3 and t.endswith("s"):
-        return t[:-1]
-    return t
-
-
 def _tokens_match(question_token: str, schema_token: str) -> bool:
     q = question_token.lower()
     s = schema_token.lower()
-    if q == s:
-        return True
-    # "sale" ↔ "sales", "customer" ↔ "customers"
-    if _stem(q) == _stem(s):
+    if nouns_match(q, s):
         return True
     # Prefer meaningful prefix overlap for compound names.
     if len(q) >= 4 and (q in s or s in q):

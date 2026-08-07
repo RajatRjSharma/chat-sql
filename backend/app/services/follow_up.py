@@ -4,37 +4,61 @@ from __future__ import annotations
 
 import re
 
-# Explicit refinement / continuation cues (domain-agnostic).
-_FOLLOW_UP_PHRASE_RE = re.compile(
+# Hard refinement / continuation cues (domain-agnostic BI follow-ups).
+_HARD_FOLLOW_UP_RE = re.compile(
     r"\b("
     r"break\s+(?:that|it|this)\s+down|"
     r"break\s+down|"
+    r"drill\s+down|"
+    r"slice\s+by|"
     r"only\s+for|"
     r"just\s+for|"
-    r"same\s+but|"
-    r"same\s+query|"
+    r"for\s+\w+\s+only|"
+    r"just\s+the\s+top|"
+    r"same\s+(?:but|query|breakdown|thing|analysis)|"
+    r"do\s+the\s+same|"
     r"filter\s+(?:to|by|on)|"
     r"narrow\s+(?:to|it)|"
     r"restrict\s+to|"
     r"limit\s+to|"
+    r"exclude|"
     r"for\s+the\s+top|"
     r"top\s+\w+\s+only|"
-    r"what\s+about|"
-    r"how\s+about|"
     r"and\s+for|"
-    r"instead|"
     r"also\s+show|"
     r"now\s+show|"
     r"now\s+only|"
     r"per\s+month\s+only|"
     r"by\s+month\s+only|"
-    r"follow[- ]?up"
+    r"follow[- ]?up|"
+    r"instead\s+(?:of|filter|show|group|by)"
     r")\b",
+    re.IGNORECASE,
+)
+
+# Soft cues — only follow-ups when paired with BI / refinement vocabulary.
+_SOFT_FOLLOW_UP_RE = re.compile(
+    r"\b(what\s+about|how\s+about|instead)\b",
     re.IGNORECASE,
 )
 
 _ANAPHORA_RE = re.compile(
     r"\b(that|those|these|them|it|previous|above|earlier)\b",
+    re.IGNORECASE,
+)
+
+# Enough signal that a soft/anaphoric cue is still about warehouse analytics.
+_BI_CONTINUATION_RE = re.compile(
+    r"\b("
+    r"month|months|monthly|year|years|yearly|quarter|quarters|"
+    r"week|weeks|weekly|day|days|daily|date|dates|"
+    r"region|regions|territory|territories|channel|channels|"
+    r"segment|segments|customer|customers|product|products|"
+    r"order|orders|revenue|sales|amount|total|totals|sum|count|"
+    r"avg|average|top|bottom|filter|group|grouped|breakdown|"
+    r"compare|metric|metrics|trend|trends|enterprise|smb|"
+    r"only|by\s+\w+"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -55,12 +79,16 @@ def looks_like_follow_up(
     if not history:
         return False
 
-    if _FOLLOW_UP_PHRASE_RE.search(q):
+    if _HARD_FOLLOW_UP_RE.search(q):
         return True
 
-    # Short anaphoric refinements after at least one prior exchange.
+    has_bi = bool(_BI_CONTINUATION_RE.search(q))
+    if _SOFT_FOLLOW_UP_RE.search(q) and has_bi:
+        return True
+
+    # Short anaphoric refinements only when still clearly analytics-shaped.
     words = q.split()
-    if len(words) <= 14 and _ANAPHORA_RE.search(q):
+    if len(words) <= 14 and _ANAPHORA_RE.search(q) and has_bi:
         return True
 
     return False

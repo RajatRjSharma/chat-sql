@@ -42,6 +42,11 @@ class TestScopeGuardParse:
     def test_default_answerable_when_unclear(self) -> None:
         assert ScopeGuard.parse_decision("maybe?") == "answerable"
 
+    def test_output_and_outlier_are_not_out_of_scope(self) -> None:
+        assert ScopeGuard.parse_decision("OUTPUT") == "answerable"
+        assert ScopeGuard.parse_decision("OUTLIER") == "answerable"
+        assert ScopeGuard.parse_decision("NEED MORE") == "answerable"
+
 
 class TestUnanswerableMarker:
     def test_plain(self) -> None:
@@ -156,6 +161,9 @@ class TestAssessLayered:
     def test_break_down_phrase_has_analytics_intent(self) -> None:
         assert ScopeGuard.has_analytics_intent("Break that down by month") is True
         assert ScopeGuard.has_analytics_intent("revenue by month") is True
+        assert ScopeGuard.has_analytics_intent("YoY growth in bookings") is True
+        assert ScopeGuard.has_analytics_intent("rank customers by spend") is True
+        assert ScopeGuard.has_analytics_intent("share of revenue by channel") is True
 
 
 class TestClarificationMessage:

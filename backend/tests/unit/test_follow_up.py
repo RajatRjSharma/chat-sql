@@ -24,6 +24,51 @@ class TestLooksLikeFollowUp:
             is True
         )
 
+    def test_soft_what_about_trivia_is_not_follow_up(self) -> None:
+        assert (
+            looks_like_follow_up(
+                "What about the height of Burj Khalifa?",
+                [{"role": "user", "content": "orders by region"}],
+            )
+            is False
+        )
+        assert (
+            looks_like_follow_up(
+                "How about writing a Python script?",
+                [{"role": "user", "content": "orders by region"}],
+            )
+            is False
+        )
+
+    def test_anaphora_without_bi_is_not_follow_up(self) -> None:
+        assert (
+            looks_like_follow_up(
+                "I think it looks wrong",
+                [{"role": "assistant", "content": "North led"}],
+            )
+            is False
+        )
+        assert (
+            looks_like_follow_up(
+                "who is the previous CEO of Apple?",
+                [{"role": "user", "content": "orders by region"}],
+            )
+            is False
+        )
+
+    def test_same_breakdown_and_drill_down(self) -> None:
+        history = [{"role": "user", "content": "revenue by region"}]
+        assert (
+            looks_like_follow_up(
+                "Same breakdown, but only for Enterprise",
+                history,
+            )
+            is True
+        )
+        assert looks_like_follow_up("do the same for Q2", history) is True
+        assert looks_like_follow_up("drill down by product", history) is True
+        assert looks_like_follow_up("just the top 5", history) is True
+
     def test_independent_question_not_follow_up(self) -> None:
         assert (
             looks_like_follow_up(
