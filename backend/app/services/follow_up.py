@@ -56,6 +56,16 @@ _ANAPHORA_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Short, incomplete analytics refinements that omit the prior metric, e.g.
+# "get monthly insights from North". Keep this structural and domain-agnostic:
+# a time grain + analytical view noun + filter phrase are all required.
+_IMPLICIT_REFINEMENT_RE = re.compile(
+    r"\b(?:monthly|weekly|daily|quarterly|yearly|annual)\s+"
+    r"(?:insights?|breakdown|trends?|analysis|view|numbers?|results?)\b"
+    r".*\b(?:for|from|in|only)\s+\w+",
+    re.IGNORECASE,
+)
+
 # Enough signal that a soft/anaphoric cue is still an analytics refinement.
 # Deliberately domain-agnostic: time grains, aggregations, and grouping /
 # filtering structure only — never business nouns from any one schema.
@@ -101,6 +111,9 @@ def looks_like_follow_up(
         return False
 
     if _HARD_FOLLOW_UP_RE.search(q):
+        return True
+
+    if len(q.split()) <= 12 and _IMPLICIT_REFINEMENT_RE.search(q):
         return True
 
     continues_analytics = bool(_BI_CONTINUATION_RE.search(q)) or _mentions_schema(

@@ -24,7 +24,7 @@ _OVERVIEW_NOUN = (
 _OVERVIEW_RE = re.compile(
     rf"""(?ix)
     \b(
-        {_OVERVIEW_NOUN}\s+of\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+        {_OVERVIEW_NOUN}\s+(?:of|for)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
       | summar(?:ize|ise)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
       | describe\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
       | {_DB_NOUN}\s+(?:summary|overview|inventory|contents?)
@@ -38,7 +38,7 @@ _OVERVIEW_RE = re.compile(
       | (what|which)\s+tables\s+(are\s+there|exist|do\s+(i|we)\s+have|are\s+available)
       | schema\s+(summary|overview|inventory)
       | inventory\s+of\s+(tables|the\s+schema)
-      | give\s+me\s+(a\s+)?{_OVERVIEW_NOUN}\s+of\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
+      | give\s+me\s+(a\s+)?{_OVERVIEW_NOUN}\s+(?:of|for)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN}
       | (count|row\s+counts?)\s+(for\s+)?(?:all\s+|every\s+)?tables?
         (\s+(?:in|across)\s+({_DET})?({_DB_SCOPE})?{_DB_NOUN})?
     )\b

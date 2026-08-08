@@ -95,6 +95,21 @@ class TestLooksLikeFollowUp:
         assert looks_like_follow_up("drill down by product", history) is True
         assert looks_like_follow_up("just the top 5", history) is True
 
+    def test_implicit_monthly_insights_refinement(self) -> None:
+        """Production phrasing: omitted metric inherits the prior analysis."""
+        history = [
+            {
+                "role": "user",
+                "content": "Tell me about revenue by regions and sales channels",
+            },
+            {"role": "assistant", "content": "North Web Store led."},
+        ]
+        assert looks_like_follow_up("get monthly insights from north", history) is True
+
+    def test_complete_monthly_external_question_is_not_refinement(self) -> None:
+        history = [{"role": "user", "content": "revenue by region"}]
+        assert looks_like_follow_up("show monthly weather from London", history) is False
+
     def test_independent_question_not_follow_up(self) -> None:
         assert (
             looks_like_follow_up(
@@ -197,6 +212,21 @@ class TestBuildRetrievalQuery:
         assert "Break that down by month" in query
         for table in ("orders", "channels", "customers", "territories"):
             assert table in query
+
+    def test_implicit_monthly_refinement_anchors_prior_context(self) -> None:
+        history = [
+            {"role": "user", "content": "revenue by region and sales channel"},
+            {"role": "assistant", "content": "North Web Store led"},
+        ]
+        query = build_retrieval_query(
+            "get monthly insights from north",
+            history,
+            prior_sql=_PRIOR_SQL,
+        )
+        assert "revenue by region and sales channel" in query
+        assert "get monthly insights from north" in query
+        assert "orders" in query
+        assert "channels" in query
 
     def test_independent_question_unchanged(self) -> None:
         history = [
