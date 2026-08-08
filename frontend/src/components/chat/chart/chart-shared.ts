@@ -40,7 +40,9 @@ export const AXIS_TICK = { fill: "var(--text-secondary)", fontSize: 11 } as cons
 
 export const DENSE_CATEGORY_COUNT = 8;
 /** Visible chars on axis ticks; full label stays in tooltip / native title. */
-export const MAX_TICK_CHARS = 14;
+export const MAX_TICK_CHARS = 12;
+/** Shallower rotation keeps category labels inside compact chart cards. */
+export const CATEGORY_TICK_ANGLE = -28;
 
 /** Shared cartesian margins — keeps ticks/legend inside the plot box. */
 export function cartesianPlotMargin(options: {
@@ -71,10 +73,9 @@ export function cartesianPlotMargin(options: {
 
 export function xAxisTickHeight(angled: boolean, maxLabelChars: number): number {
   if (!angled) return 32;
-  // At -35°, a 14-character monospace label projects roughly 58px downward.
-  // Include tick margin / descender room so the shell's overflow clipping never
-  // cuts off the bottom of category names.
-  return Math.min(88, Math.max(56, 24 + maxLabelChars * 3));
+  // Include tick margin and descender room; custom SVG ticks otherwise extend
+  // beyond Recharts' measured axis box and get clipped by the card.
+  return Math.min(82, Math.max(62, 28 + maxLabelChars * 3));
 }
 
 export function truncateLabel(label: string, maxChars = MAX_TICK_CHARS): string {
