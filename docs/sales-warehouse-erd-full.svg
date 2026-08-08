@@ -1,0 +1,1300 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="9000" height="3160" viewBox="0 0 9000 3160">
+<defs>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#102a43" flood-opacity=".12"/></filter>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4b6175"/></marker>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#dbe5ec" stroke-width="1"/></pattern>
+</defs>
+<rect width="9000" height="3160" fill="#f8fafc"/>
+<rect width="9000" height="3160" fill="url(#grid)" opacity=".35"/>
+<text x="4500" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="800" fill="#102a43">Sales Warehouse — Complete Physical ERD</text>
+<text x="4500" y="148" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" fill="#486581">sales schema · 50 tables · 261 columns · 74 foreign keys</text>
+<text x="4500" y="202" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" fill="#627d98">PK primary key · FK foreign key · UQ unique · NN not null · DF default</text>
+<text x="4500" y="244" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#829ab1">Generated from backend/scripts/init_warehouse.sql + sales_extended/01_extend_sales_schema.sql</text>
+<rect x="70" y="330" width="2860" height="1348" rx="24" fill="#eaf1f7" stroke="#17324d" stroke-width="3" opacity=".94"/>
+<path d="M 94 330 H 2906 Q 2930 330 2930 354 V 402 H 70 V 354 Q 70 330 94 330 Z" fill="#17324d"/>
+<text x="104" y="378" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">1  ORG &amp; REFERENCE</text>
+<rect x="3035" y="330" width="2860" height="1348" rx="24" fill="#e8f7f7" stroke="#087f8c" stroke-width="3" opacity=".94"/>
+<path d="M 3059 330 H 5871 Q 5895 330 5895 354 V 402 H 3035 V 354 Q 3035 330 3059 330 Z" fill="#087f8c"/>
+<text x="3069" y="378" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">2  CATALOG &amp; SUPPLY</text>
+<rect x="6000" y="330" width="2860" height="1348" rx="24" fill="#fff5dd" stroke="#cc8500" stroke-width="3" opacity=".94"/>
+<path d="M 6024 330 H 8836 Q 8860 330 8860 354 V 402 H 6000 V 354 Q 6000 330 6024 330 Z" fill="#cc8500"/>
+<text x="6034" y="378" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">3  CUSTOMERS</text>
+<rect x="70" y="1788" width="2860" height="1252" rx="24" fill="#fff0ec" stroke="#d94f32" stroke-width="3" opacity=".94"/>
+<path d="M 94 1788 H 2906 Q 2930 1788 2930 1812 V 1860 H 70 V 1812 Q 70 1788 94 1788 Z" fill="#d94f32"/>
+<text x="104" y="1836" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">4  ORDERS &amp; FULFILLMENT</text>
+<rect x="3035" y="1788" width="2860" height="1252" rx="24" fill="#edf8f0" stroke="#2f8b4b" stroke-width="3" opacity=".94"/>
+<path d="M 3059 1788 H 5871 Q 5895 1788 5895 1812 V 1860 H 3035 V 1812 Q 3035 1788 3059 1788 Z" fill="#2f8b4b"/>
+<text x="3069" y="1836" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">5  MARKETING &amp; SUPPORT</text>
+<rect x="6000" y="1788" width="2860" height="1252" rx="24" fill="#edf2fb" stroke="#355da8" stroke-width="3" opacity=".94"/>
+<path d="M 6024 1788 H 8836 Q 8860 1788 8860 1812 V 1860 H 6000 V 1812 Q 6000 1788 6024 1788 Z" fill="#355da8"/>
+<text x="6034" y="1836" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#ffffff">6  FINANCE</text>
+<path d="M 995 2450 C 3264 2450, 4696 624, 6965 624" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.customer_id → customers.customer_id</title></path>
+<path d="M 995 2450 C 2137 2450, 2858 624, 4000 624" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.product_id → products.product_id</title></path>
+<path d="M 2815 1269 C 2484 1269, 2276 1020, 1945 1020" fill="none" stroke="#17324d" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>territories.region_id → regions.region_id</title></path>
+<path d="M 995 890 C 1065 890, 965 556, 1035 556" fill="none" stroke="#17324d" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>employees.department_id → departments.department_id</title></path>
+<path d="M 995 890 C 664 890, 456 890, 125 890" fill="none" stroke="#17324d" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>employees.manager_id → employees.employee_id</title></path>
+<path d="M 1905 1054 C 1975 1054, 1875 1269, 1945 1269" fill="none" stroke="#17324d" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>warehouses.territory_id → territories.territory_id</title></path>
+<path d="M 5780 556 C 5449 556, 5241 556, 4910 556" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>categories.parent_id → categories.category_id</title></path>
+<path d="M 4910 1173 C 4840 1173, 4940 624, 4870 624" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>product_variants.product_id → products.product_id</title></path>
+<path d="M 5780 839 C 5449 839, 5241 1173, 4910 1173" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>product_prices.variant_id → product_variants.variant_id</title></path>
+<path d="M 4910 839 C 4114 839, 3611 788, 2815 788" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>product_prices.currency_code → currencies.currency_code</title></path>
+<path d="M 3960 1275 C 4321 1275, 4549 1473, 4910 1473" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>supplier_products.supplier_id → suppliers.supplier_id</title></path>
+<path d="M 3960 1275 C 4030 1275, 3930 624, 4000 624" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>supplier_products.product_id → products.product_id</title></path>
+<path d="M 4870 975 C 4940 975, 4840 1473, 4910 1473" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>purchase_orders.supplier_id → suppliers.supplier_id</title></path>
+<path d="M 4000 975 C 3204 975, 2701 1054, 1905 1054" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>purchase_orders.warehouse_id → warehouses.warehouse_id</title></path>
+<path d="M 3960 992 C 4030 992, 3930 975, 4000 975" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>purchase_order_lines.purchase_order_id → purchase_orders.purchase_order_id</title></path>
+<path d="M 3960 992 C 4030 992, 3930 624, 4000 624" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>purchase_order_lines.product_id → products.product_id</title></path>
+<path d="M 4000 1275 C 3204 1275, 2701 1054, 1905 1054" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>warehouse_inventory.warehouse_id → warehouses.warehouse_id</title></path>
+<path d="M 4870 1275 C 4940 1275, 4840 1173, 4910 1173" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>warehouse_inventory.variant_id → product_variants.variant_id</title></path>
+<path d="M 3090 641 C 2640 641, 2355 1054, 1905 1054" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>inventory_movements.warehouse_id → warehouses.warehouse_id</title></path>
+<path d="M 3960 641 C 4321 641, 4549 1173, 4910 1173" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>inventory_movements.variant_id → product_variants.variant_id</title></path>
+<path d="M 3090 641 C 2294 641, 1791 890, 995 890" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>inventory_movements.employee_id → employees.employee_id</title></path>
+<path d="M 6925 658 C 6995 658, 6895 624, 6965 624" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customer_addresses.customer_id → customers.customer_id</title></path>
+<path d="M 7875 607 C 7805 607, 7905 624, 7835 624" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customer_contacts.customer_id → customers.customer_id</title></path>
+<path d="M 7875 924 C 7805 924, 7905 624, 7835 624" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customer_notes.customer_id → customers.customer_id</title></path>
+<path d="M 7875 924 C 5261 924, 3609 890, 995 890" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customer_notes.employee_id → employees.employee_id</title></path>
+<path d="M 6925 1009 C 6995 1009, 6895 624, 6965 624" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>loyalty_accounts.customer_id → customers.customer_id</title></path>
+<path d="M 6965 958 C 6895 958, 6995 1009, 6925 1009" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>loyalty_transactions.loyalty_account_id → loyalty_accounts.loyalty_account_id</title></path>
+<path d="M 1945 2082 C 1584 2082, 1356 2450, 995 2450" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_lines.order_id → orders.order_id</title></path>
+<path d="M 2815 2082 C 3611 2082, 4114 1173, 4910 1173" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_lines.variant_id → product_variants.variant_id</title></path>
+<path d="M 2815 2082 C 3265 2082, 3550 624, 4000 624" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_lines.product_id → products.product_id</title></path>
+<path d="M 995 2048 C 664 2048, 456 2450, 125 2450" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_status_history.order_id → orders.order_id</title></path>
+<path d="M 995 2048 C 1065 2048, 965 788, 1035 788" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_status_history.status_code → order_statuses.status_code</title></path>
+<path d="M 995 2048 C 664 2048, 456 890, 125 890" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_status_history.changed_by → employees.employee_id</title></path>
+<path d="M 1945 2433 C 1584 2433, 1356 2450, 995 2450" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>payments.order_id → orders.order_id</title></path>
+<path d="M 1945 2433 C 1584 2433, 1356 1224, 995 1224" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>payments.payment_method_id → payment_methods.payment_method_id</title></path>
+<path d="M 2815 2750 C 2484 2750, 2276 2433, 1945 2433" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>refunds.payment_id → payments.payment_id</title></path>
+<path d="M 1035 2699 C 965 2699, 1065 2450, 995 2450" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>shipments.order_id → orders.order_id</title></path>
+<path d="M 1905 2699 C 1574 2699, 1366 1054, 1035 1054" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>shipments.warehouse_id → warehouses.warehouse_id</title></path>
+<path d="M 1905 2699 C 1975 2699, 1875 556, 1945 556" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>shipments.carrier_id → carriers.carrier_id</title></path>
+<path d="M 1905 2365 C 1574 2365, 1366 2699, 1035 2699" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>shipment_lines.shipment_id → shipments.shipment_id</title></path>
+<path d="M 1905 2365 C 1975 2365, 1875 2082, 1945 2082" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>shipment_lines.order_line_id → order_lines.order_line_id</title></path>
+<path d="M 1035 2065 C 965 2065, 1065 2450, 995 2450" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>returns.order_id → orders.order_id</title></path>
+<path d="M 1905 2065 C 3828 2065, 5042 624, 6965 624" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>returns.customer_id → customers.customer_id</title></path>
+<path d="M 995 2835 C 1065 2835, 965 2065, 1035 2065" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>return_lines.return_id → returns.return_id</title></path>
+<path d="M 995 2835 C 1356 2835, 1584 2082, 1945 2082" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>return_lines.order_line_id → order_lines.order_line_id</title></path>
+<path d="M 4910 1997 C 4840 1997, 4940 2382, 4870 2382" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>campaign_channels.campaign_id → campaigns.campaign_id</title></path>
+<path d="M 4910 1997 C 3422 1997, 2483 556, 995 556" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>campaign_channels.channel_id → channels.channel_id</title></path>
+<path d="M 4870 2048 C 4539 2048, 4331 2382, 4000 2382" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>campaign_touches.campaign_id → campaigns.campaign_id</title></path>
+<path d="M 4870 2048 C 5666 2048, 6169 624, 6965 624" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>campaign_touches.customer_id → customers.customer_id</title></path>
+<path d="M 4910 2263 C 4840 2263, 4940 2382, 4870 2382" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>coupons.campaign_id → campaigns.campaign_id</title></path>
+<path d="M 3960 2048 C 4321 2048, 4549 2263, 4910 2263" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>coupon_redemptions.coupon_id → coupons.coupon_id</title></path>
+<path d="M 3090 2048 C 2294 2048, 1791 2450, 995 2450" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>coupon_redemptions.order_id → orders.order_id</title></path>
+<path d="M 3960 2048 C 5102 2048, 5823 624, 6965 624" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>coupon_redemptions.customer_id → customers.customer_id</title></path>
+<path d="M 4000 2699 C 2858 2699, 2137 2450, 995 2450" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_discounts.order_id → orders.order_id</title></path>
+<path d="M 4870 2699 C 4940 2699, 4840 2263, 4910 2263" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>order_discounts.coupon_id → coupons.coupon_id</title></path>
+<path d="M 3960 2614 C 5102 2614, 5823 624, 6965 624" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>tickets.customer_id → customers.customer_id</title></path>
+<path d="M 3960 2614 C 3629 2614, 3421 2297, 3090 2297" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>tickets.ticket_category_id → ticket_categories.ticket_category_id</title></path>
+<path d="M 3090 2614 C 2294 2614, 1791 890, 995 890" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>tickets.assignee_id → employees.employee_id</title></path>
+<path d="M 4910 2597 C 4549 2597, 4321 2614, 3960 2614" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>ticket_messages.ticket_id → tickets.ticket_id</title></path>
+<path d="M 4910 2597 C 3422 2597, 2483 890, 995 890" fill="none" stroke="#2f8b4b" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>ticket_messages.employee_id → employees.employee_id</title></path>
+<path d="M 6055 2099 C 4132 2099, 2918 2450, 995 2450" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>invoices.order_id → orders.order_id</title></path>
+<path d="M 6925 2099 C 6995 2099, 6895 624, 6965 624" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>invoices.customer_id → customers.customer_id</title></path>
+<path d="M 7875 2048 C 7514 2048, 7286 2099, 6925 2099" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>invoice_lines.invoice_id → invoices.invoice_id</title></path>
+<path d="M 7875 2048 C 5952 2048, 4738 2082, 2815 2082" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>invoice_lines.order_line_id → order_lines.order_line_id</title></path>
+<path d="M 7835 2348 C 7905 2348, 7805 2331, 7875 2331" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>ledger_entries.account_id → ledger_accounts.account_id</title></path>
+<path d="M 6965 2348 C 6895 2348, 6995 2099, 6925 2099" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>ledger_entries.invoice_id → invoices.invoice_id</title></path>
+<path d="M 6965 2031 C 5388 2031, 4392 788, 2815 788" fill="none" stroke="#355da8" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>exchange_rates.currency_code → currencies.currency_code</title></path>
+<path d="M 4870 624 C 4940 624, 4840 556, 4910 556" fill="none" stroke="#087f8c" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>products.category_id → categories.category_id</title></path>
+<path d="M 7835 624 C 7905 624, 7805 1190, 7875 1190" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customers.segment_id → customer_segments.segment_id</title></path>
+<path d="M 6965 624 C 5388 624, 4392 1269, 2815 1269" fill="none" stroke="#cc8500" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>customers.territory_id → territories.territory_id</title></path>
+<path d="M 995 2450 C 664 2450, 456 556, 125 556" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.channel_id → channels.channel_id</title></path>
+<path d="M 995 2450 C 664 2450, 456 890, 125 890" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.sales_rep_id → employees.employee_id</title></path>
+<path d="M 995 2450 C 1065 2450, 965 1054, 1035 1054" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.warehouse_id → warehouses.warehouse_id</title></path>
+<path d="M 995 2450 C 1356 2450, 1584 788, 1945 788" fill="none" stroke="#d94f32" stroke-width="3" opacity=".32" marker-end="url(#arrow)"><title>orders.currency_code → currencies.currency_code</title></path>
+<rect x="125" y="457" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 457 H 981 Q 995 457 995 471 V 515 H 125 V 471 Q 125 457 139 457 Z" fill="#17324d"/>
+<text x="147" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">channels</text>
+<text x="977" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="143" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">channel_id</text>
+<text x="977" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="141" y1="553" x2="979" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="271" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="977" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="141" y1="587" x2="979" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="977" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="125" y="689" width="870" height="402" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 689 H 981 Q 995 689 995 703 V 747 H 125 V 703 Q 125 689 139 689 Z" fill="#17324d"/>
+<text x="147" y="728" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">employees</text>
+<text x="977" y="727" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">9 cols</text>
+<text x="143" y="773" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="773" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">employee_id</text>
+<text x="977" y="773" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="141" y1="785" x2="979" y2="785" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="807" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="807" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">department_id</text>
+<text x="977" y="807" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="819" x2="979" y2="819" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="841" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="841" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">manager_id</text>
+<text x="977" y="841" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="853" x2="979" y2="853" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="875" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="875" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">first_name</text>
+<text x="977" y="875" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<line x1="141" y1="887" x2="979" y2="887" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="909" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="909" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">last_name</text>
+<text x="977" y="909" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<line x1="141" y1="921" x2="979" y2="921" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ</text>
+<text x="271" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">email</text>
+<text x="977" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<line x1="141" y1="955" x2="979" y2="955" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="271" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">title</text>
+<text x="977" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="141" y1="989" x2="979" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="271" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">hire_date</text>
+<text x="977" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="141" y1="1023" x2="979" y2="1023" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="1045" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="271" y="1045" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_active</text>
+<text x="977" y="1045" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="125" y="1125" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 1125 H 981 Q 995 1125 995 1139 V 1183 H 125 V 1139 Q 125 1125 139 1125 Z" fill="#17324d"/>
+<text x="147" y="1164" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">payment_methods</text>
+<text x="977" y="1163" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="143" y="1209" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="1209" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">payment_method_id</text>
+<text x="977" y="1209" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="141" y1="1221" x2="979" y2="1221" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="1243" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="271" y="1243" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="977" y="1243" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="141" y1="1255" x2="979" y2="1255" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="1277" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="1277" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="977" y="1277" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="1035" y="457" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 457 H 1891 Q 1905 457 1905 471 V 515 H 1035 V 471 Q 1035 457 1049 457 Z" fill="#17324d"/>
+<text x="1057" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">departments</text>
+<text x="1887" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="1053" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">department_id</text>
+<text x="1887" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="1051" y1="553" x2="1889" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="1181" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="1887" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<line x1="1051" y1="587" x2="1889" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">cost_center</text>
+<text x="1887" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<rect x="1035" y="689" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 689 H 1891 Q 1905 689 1905 703 V 747 H 1035 V 703 Q 1035 689 1049 689 Z" fill="#17324d"/>
+<text x="1057" y="728" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">order_statuses</text>
+<text x="1887" y="727" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="1053" y="773" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="773" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status_code</text>
+<text x="1887" y="773" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="1051" y1="785" x2="1889" y2="785" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="807" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="1181" y="807" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">label</text>
+<text x="1887" y="807" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="1051" y1="819" x2="1889" y2="819" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="841" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="1181" y="841" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_terminal</text>
+<text x="1887" y="841" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="1035" y="921" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 921 H 1891 Q 1905 921 1905 935 V 979 H 1035 V 935 Q 1035 921 1049 921 Z" fill="#17324d"/>
+<text x="1057" y="960" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">warehouses</text>
+<text x="1887" y="959" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="1053" y="1005" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="1005" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="1887" y="1005" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="1051" y1="1017" x2="1889" y2="1017" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="1039" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="1181" y="1039" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">territory_id</text>
+<text x="1887" y="1039" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="1051" x2="1889" y2="1051" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="1073" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="1181" y="1073" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="1887" y="1073" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="1051" y1="1085" x2="1889" y2="1085" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="1107" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="1181" y="1107" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="1887" y="1107" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<line x1="1051" y1="1119" x2="1889" y2="1119" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="1141" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="1141" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">city</text>
+<text x="1887" y="1141" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="1945" y="457" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 457 H 2801 Q 2815 457 2815 471 V 515 H 1945 V 471 Q 1945 457 1959 457 Z" fill="#17324d"/>
+<text x="1967" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">carriers</text>
+<text x="2797" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="1963" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">carrier_id</text>
+<text x="2797" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="1961" y1="553" x2="2799" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="2091" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="2797" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="1961" y1="587" x2="2799" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="2797" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<rect x="1945" y="689" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 689 H 2801 Q 2815 689 2815 703 V 747 H 1945 V 703 Q 1945 689 1959 689 Z" fill="#17324d"/>
+<text x="1967" y="728" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">currencies</text>
+<text x="2797" y="727" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="1963" y="773" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="773" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">currency_code</text>
+<text x="2797" y="773" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">CHAR(3)</text>
+<line x1="1961" y1="785" x2="2799" y2="785" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="807" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="807" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="2797" y="807" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="1961" y1="819" x2="2799" y2="819" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="841" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="2091" y="841" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">symbol</text>
+<text x="2797" y="841" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(8)</text>
+<rect x="1945" y="921" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 921 H 2801 Q 2815 921 2815 935 V 979 H 1945 V 935 Q 1945 921 1959 921 Z" fill="#17324d"/>
+<text x="1967" y="960" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">regions</text>
+<text x="2797" y="959" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="1963" y="1005" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="1005" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">region_id</text>
+<text x="2797" y="1005" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="1961" y1="1017" x2="2799" y2="1017" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="1039" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="2091" y="1039" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="2797" y="1039" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(10)</text>
+<line x1="1961" y1="1051" x2="2799" y2="1051" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="1073" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="1073" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="2797" y="1073" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<rect x="1945" y="1153" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 1153 H 2801 Q 2815 1153 2815 1167 V 1211 H 1945 V 1167 Q 1945 1153 1959 1153 Z" fill="#17324d"/>
+<text x="1967" y="1192" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">territories</text>
+<text x="2797" y="1191" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="1963" y="1237" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="1237" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">territory_id</text>
+<text x="2797" y="1237" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="1961" y1="1249" x2="2799" y2="1249" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="1271" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="2091" y="1271" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">region_id</text>
+<text x="2797" y="1271" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="1283" x2="2799" y2="1283" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="1305" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="2091" y="1305" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="2797" y="1305" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="1961" y1="1317" x2="2799" y2="1317" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="1339" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="1339" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="2797" y="1339" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<rect x="3090" y="457" width="870" height="368" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 457 H 3946 Q 3960 457 3960 471 V 515 H 3090 V 471 Q 3090 457 3104 457 Z" fill="#087f8c"/>
+<text x="3112" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">inventory_movements</text>
+<text x="3942" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">8 cols</text>
+<text x="3108" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="3236" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">movement_id</text>
+<text x="3942" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="3106" y1="553" x2="3944" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="3942" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="587" x2="3944" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">variant_id</text>
+<text x="3942" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="621" x2="3944" y2="621" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="643" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="3236" y="643" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">employee_id</text>
+<text x="3942" y="643" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="655" x2="3944" y2="655" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="677" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="3236" y="677" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">movement_type</text>
+<text x="3942" y="677" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="3106" y1="689" x2="3944" y2="689" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="711" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="3236" y="711" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty_delta</text>
+<text x="3942" y="711" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="723" x2="3944" y2="723" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="745" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="3236" y="745" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">moved_at</text>
+<text x="3942" y="745" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="3106" y1="757" x2="3944" y2="757" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="779" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="3236" y="779" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">note</text>
+<text x="3942" y="779" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TEXT</text>
+<rect x="3090" y="859" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 859 H 3946 Q 3960 859 3960 873 V 917 H 3090 V 873 Q 3090 859 3104 859 Z" fill="#087f8c"/>
+<text x="3112" y="898" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">purchase_order_lines</text>
+<text x="3942" y="897" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="3108" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="3236" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">po_line_id</text>
+<text x="3942" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="3106" y1="955" x2="3944" y2="955" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">purchase_order_id</text>
+<text x="3942" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="989" x2="3944" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="3942" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="1023" x2="3944" y2="1023" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1045" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="3236" y="1045" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty</text>
+<text x="3942" y="1045" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="1057" x2="3944" y2="1057" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1079" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="3236" y="1079" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">unit_cost</text>
+<text x="3942" y="1079" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(12, 2)</text>
+<rect x="3090" y="1159" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 1159 H 3946 Q 3960 1159 3960 1173 V 1217 H 3090 V 1173 Q 3090 1159 3104 1159 Z" fill="#087f8c"/>
+<text x="3112" y="1198" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">supplier_products</text>
+<text x="3942" y="1197" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="3108" y="1243" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="3236" y="1243" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">supplier_id</text>
+<text x="3942" y="1243" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="1255" x2="3944" y2="1255" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1277" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="3236" y="1277" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="3942" y="1277" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="1289" x2="3944" y2="1289" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1311" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="3236" y="1311" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">supplier_sku</text>
+<text x="3942" y="1311" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="3106" y1="1323" x2="3944" y2="1323" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="1345" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">DF</text>
+<text x="3236" y="1345" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">lead_time_days</text>
+<text x="3942" y="1345" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="4000" y="457" width="870" height="334" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 457 H 4856 Q 4870 457 4870 471 V 515 H 4000 V 471 Q 4000 457 4014 457 Z" fill="#087f8c"/>
+<text x="4022" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">products</text>
+<text x="4852" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">7 cols</text>
+<text x="4018" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="4146" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="4852" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4016" y1="553" x2="4854" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="4852" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<line x1="4016" y1="587" x2="4854" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">category</text>
+<text x="4852" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(50)</text>
+<line x1="4016" y1="621" x2="4854" y2="621" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="643" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="643" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">price</text>
+<text x="4852" y="643" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(10, 2)</text>
+<line x1="4016" y1="655" x2="4854" y2="655" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="677" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="4146" y="677" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">category_id</text>
+<text x="4852" y="677" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="689" x2="4854" y2="689" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="711" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="4146" y="711" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">sku</text>
+<text x="4852" y="711" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="4016" y1="723" x2="4854" y2="723" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="745" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">DF</text>
+<text x="4146" y="745" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_active</text>
+<text x="4852" y="745" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="4000" y="825" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 825 H 4856 Q 4870 825 4870 839 V 883 H 4000 V 839 Q 4000 825 4014 825 Z" fill="#087f8c"/>
+<text x="4022" y="864" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">purchase_orders</text>
+<text x="4852" y="863" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="4018" y="909" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="4146" y="909" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">purchase_order_id</text>
+<text x="4852" y="909" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4016" y1="921" x2="4854" y2="921" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="4146" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">supplier_id</text>
+<text x="4852" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="955" x2="4854" y2="955" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="4146" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="4852" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="989" x2="4854" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_date</text>
+<text x="4852" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="4016" y1="1023" x2="4854" y2="1023" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1045" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="1045" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="4852" y="1045" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="4016" y1="1057" x2="4854" y2="1057" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1079" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">DF</text>
+<text x="4146" y="1079" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">total_amount</text>
+<text x="4852" y="1079" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<rect x="4000" y="1159" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 1159 H 4856 Q 4870 1159 4870 1173 V 1217 H 4000 V 1173 Q 4000 1159 4014 1159 Z" fill="#087f8c"/>
+<text x="4022" y="1198" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">warehouse_inventory</text>
+<text x="4852" y="1197" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="4018" y="1243" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="4146" y="1243" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="4852" y="1243" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="1255" x2="4854" y2="1255" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1277" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="4146" y="1277" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">variant_id</text>
+<text x="4852" y="1277" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="1289" x2="4854" y2="1289" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1311" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="1311" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty_on_hand</text>
+<text x="4852" y="1311" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="1323" x2="4854" y2="1323" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="1345" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="1345" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty_reserved</text>
+<text x="4852" y="1345" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="4910" y="457" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 457 H 5766 Q 5780 457 5780 471 V 515 H 4910 V 471 Q 4910 457 4924 457 Z" fill="#087f8c"/>
+<text x="4932" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">categories</text>
+<text x="5762" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="4928" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">category_id</text>
+<text x="5762" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4926" y1="553" x2="5764" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK UQ</text>
+<text x="5056" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">parent_id</text>
+<text x="5762" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="587" x2="5764" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="5056" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="5762" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<rect x="4910" y="689" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 689 H 5766 Q 5780 689 5780 703 V 747 H 4910 V 703 Q 4910 689 4924 689 Z" fill="#087f8c"/>
+<text x="4932" y="728" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">product_prices</text>
+<text x="5762" y="727" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="4928" y="773" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="773" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">price_id</text>
+<text x="5762" y="773" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4926" y1="785" x2="5764" y2="785" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="807" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="5056" y="807" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">variant_id</text>
+<text x="5762" y="807" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="819" x2="5764" y2="819" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="841" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="5056" y="841" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">currency_code</text>
+<text x="5762" y="841" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">CHAR(3)</text>
+<line x1="4926" y1="853" x2="5764" y2="853" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="875" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="5056" y="875" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">unit_price</text>
+<text x="5762" y="875" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(12, 2)</text>
+<line x1="4926" y1="887" x2="5764" y2="887" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="909" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="5056" y="909" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">effective_from</text>
+<text x="5762" y="909" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="4926" y1="921" x2="5764" y2="921" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">effective_to</text>
+<text x="5762" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<rect x="4910" y="1023" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 1023 H 5766 Q 5780 1023 5780 1037 V 1081 H 4910 V 1037 Q 4910 1023 4924 1023 Z" fill="#087f8c"/>
+<text x="4932" y="1062" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">product_variants</text>
+<text x="5762" y="1061" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="4928" y="1107" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="1107" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">variant_id</text>
+<text x="5762" y="1107" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4926" y1="1119" x2="5764" y2="1119" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1141" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="5056" y="1141" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="5762" y="1141" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="1153" x2="5764" y2="1153" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1175" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="5056" y="1175" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">sku</text>
+<text x="5762" y="1175" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="4926" y1="1187" x2="5764" y2="1187" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1209" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="1209" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">color</text>
+<text x="5762" y="1209" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="4926" y1="1221" x2="5764" y2="1221" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1243" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="1243" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">size</text>
+<text x="5762" y="1243" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="4926" y1="1255" x2="5764" y2="1255" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1277" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="5056" y="1277" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_active</text>
+<text x="5762" y="1277" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="4910" y="1357" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 1357 H 5766 Q 5780 1357 5780 1371 V 1415 H 4910 V 1371 Q 4910 1357 4924 1357 Z" fill="#087f8c"/>
+<text x="4932" y="1396" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">suppliers</text>
+<text x="5762" y="1395" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="4928" y="1441" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="1441" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">supplier_id</text>
+<text x="5762" y="1441" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4926" y1="1453" x2="5764" y2="1453" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1475" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="5056" y="1475" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="5762" y="1475" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(120)</text>
+<line x1="4926" y1="1487" x2="5764" y2="1487" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1509" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="1509" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">country</text>
+<text x="5762" y="1509" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="4926" y1="1521" x2="5764" y2="1521" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="1543" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="1543" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">rating</text>
+<text x="5762" y="1543" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(3, 2)</text>
+<rect x="6055" y="457" width="870" height="402" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6069 457 H 6911 Q 6925 457 6925 471 V 515 H 6055 V 471 Q 6055 457 6069 457 Z" fill="#cc8500"/>
+<text x="6077" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">customer_addresses</text>
+<text x="6907" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">9 cols</text>
+<text x="6073" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="6201" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">address_id</text>
+<text x="6907" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="6071" y1="553" x2="6909" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="6201" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="6907" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6071" y1="587" x2="6909" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">address_type</text>
+<text x="6907" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="6071" y1="621" x2="6909" y2="621" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="643" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="6201" y="643" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">line1</text>
+<text x="6907" y="643" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<line x1="6071" y1="655" x2="6909" y2="655" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="677" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="6201" y="677" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">city</text>
+<text x="6907" y="677" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<line x1="6071" y1="689" x2="6909" y2="689" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="711" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="6201" y="711" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">state</text>
+<text x="6907" y="711" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<line x1="6071" y1="723" x2="6909" y2="723" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="745" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="6201" y="745" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">postal_code</text>
+<text x="6907" y="745" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="6071" y1="757" x2="6909" y2="757" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="779" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="779" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">country</text>
+<text x="6907" y="779" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="6071" y1="791" x2="6909" y2="791" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="813" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="813" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_primary</text>
+<text x="6907" y="813" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="6055" y="893" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6069 893 H 6911 Q 6925 893 6925 907 V 951 H 6055 V 907 Q 6055 893 6069 893 Z" fill="#cc8500"/>
+<text x="6077" y="932" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">loyalty_accounts</text>
+<text x="6907" y="931" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="6073" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="6201" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">loyalty_account_id</text>
+<text x="6907" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="6071" y1="989" x2="6909" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK UQ NN</text>
+<text x="6201" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="6907" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6071" y1="1023" x2="6909" y2="1023" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="1045" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="1045" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">tier</text>
+<text x="6907" y="1045" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="6071" y1="1057" x2="6909" y2="1057" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="1079" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="1079" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">points</text>
+<text x="6907" y="1079" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="6965" y="457" width="870" height="334" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6979 457 H 7821 Q 7835 457 7835 471 V 515 H 6965 V 471 Q 6965 457 6979 457 Z" fill="#cc8500"/>
+<text x="6987" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">customers</text>
+<text x="7817" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">7 cols</text>
+<text x="6983" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="7111" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="7817" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="6981" y1="553" x2="7819" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="7111" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="7817" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<line x1="6981" y1="587" x2="7819" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="7111" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">region</text>
+<text x="7817" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(50)</text>
+<line x1="6981" y1="621" x2="7819" y2="621" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="643" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="7111" y="643" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">segment_id</text>
+<text x="7817" y="643" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6981" y1="655" x2="7819" y2="655" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="677" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="7111" y="677" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">territory_id</text>
+<text x="7817" y="677" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6981" y1="689" x2="7819" y2="689" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="711" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="7111" y="711" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">email</text>
+<text x="7817" y="711" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<line x1="6981" y1="723" x2="7819" y2="723" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="745" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">DF</text>
+<text x="7111" y="745" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">created_at</text>
+<text x="7817" y="745" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<rect x="6965" y="825" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6979 825 H 7821 Q 7835 825 7835 839 V 883 H 6965 V 839 Q 6965 825 6979 825 Z" fill="#cc8500"/>
+<text x="6987" y="864" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">loyalty_transactions</text>
+<text x="7817" y="863" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="6983" y="909" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="7111" y="909" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">loyalty_txn_id</text>
+<text x="7817" y="909" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="6981" y1="921" x2="7819" y2="921" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="7111" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">loyalty_account_id</text>
+<text x="7817" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6981" y1="955" x2="7819" y2="955" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="7111" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">points_delta</text>
+<text x="7817" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6981" y1="989" x2="7819" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="7111" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">reason</text>
+<text x="7817" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(120)</text>
+<line x1="6981" y1="1023" x2="7819" y2="1023" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="1045" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="7111" y="1045" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">created_at</text>
+<text x="7817" y="1045" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="7875" y="457" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 7889 457 H 8731 Q 8745 457 8745 471 V 515 H 7875 V 471 Q 7875 457 7889 457 Z" fill="#cc8500"/>
+<text x="7897" y="496" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">customer_contacts</text>
+<text x="8727" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="7893" y="541" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="8021" y="541" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">contact_id</text>
+<text x="8727" y="541" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="7891" y1="553" x2="8729" y2="553" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="575" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="8021" y="575" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="8727" y="575" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="7891" y1="587" x2="8729" y2="587" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="609" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="609" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">full_name</text>
+<text x="8727" y="609" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(120)</text>
+<line x1="7891" y1="621" x2="8729" y2="621" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="643" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="8021" y="643" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">email</text>
+<text x="8727" y="643" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<line x1="7891" y1="655" x2="8729" y2="655" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="677" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="8021" y="677" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">phone</text>
+<text x="8727" y="677" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="7891" y1="689" x2="8729" y2="689" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="711" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="8021" y="711" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">role_title</text>
+<text x="8727" y="711" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="7875" y="791" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 7889 791 H 8731 Q 8745 791 8745 805 V 849 H 7875 V 805 Q 7875 791 7889 791 Z" fill="#cc8500"/>
+<text x="7897" y="830" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">customer_notes</text>
+<text x="8727" y="829" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="7893" y="875" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="8021" y="875" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">note_id</text>
+<text x="8727" y="875" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="7891" y1="887" x2="8729" y2="887" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="909" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="8021" y="909" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="8727" y="909" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="7891" y1="921" x2="8729" y2="921" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="943" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="8021" y="943" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">employee_id</text>
+<text x="8727" y="943" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="7891" y1="955" x2="8729" y2="955" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="977" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="977" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">note_text</text>
+<text x="8727" y="977" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TEXT</text>
+<line x1="7891" y1="989" x2="8729" y2="989" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="1011" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="8021" y="1011" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">created_at</text>
+<text x="8727" y="1011" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="7875" y="1091" width="870" height="198" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 7889 1091 H 8731 Q 8745 1091 8745 1105 V 1149 H 7875 V 1105 Q 7875 1091 7889 1091 Z" fill="#cc8500"/>
+<text x="7897" y="1130" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">customer_segments</text>
+<text x="8727" y="1129" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">3 cols</text>
+<text x="7893" y="1175" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="8021" y="1175" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">segment_id</text>
+<text x="8727" y="1175" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="7891" y1="1187" x2="8729" y2="1187" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="1209" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="8021" y="1209" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="8727" y="1209" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="7891" y1="1221" x2="8729" y2="1221" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="1243" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="1243" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="8727" y="1243" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="125" y="1915" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 1915 H 981 Q 995 1915 995 1929 V 1973 H 125 V 1929 Q 125 1915 139 1915 Z" fill="#d94f32"/>
+<text x="147" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">order_status_history</text>
+<text x="977" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="143" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">history_id</text>
+<text x="977" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="141" y1="2011" x2="979" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="271" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="977" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2045" x2="979" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="271" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status_code</text>
+<text x="977" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="141" y1="2079" x2="979" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="271" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">changed_at</text>
+<text x="977" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="141" y1="2113" x2="979" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">changed_by</text>
+<text x="977" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="125" y="2215" width="870" height="470" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 2215 H 981 Q 995 2215 995 2229 V 2273 H 125 V 2229 Q 125 2215 139 2215 Z" fill="#d94f32"/>
+<text x="147" y="2254" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">orders</text>
+<text x="977" y="2253" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">11 cols</text>
+<text x="143" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="977" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="141" y1="2311" x2="979" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="271" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="977" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2345" x2="979" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="271" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="977" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2379" x2="979" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">amount</text>
+<text x="977" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(10, 2)</text>
+<line x1="141" y1="2413" x2="979" y2="2413" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2435" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="2435" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_date</text>
+<text x="977" y="2435" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="141" y1="2447" x2="979" y2="2447" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2469" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="271" y="2469" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="977" y="2469" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="141" y1="2481" x2="979" y2="2481" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2503" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2503" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">channel_id</text>
+<text x="977" y="2503" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2515" x2="979" y2="2515" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2537" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2537" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">sales_rep_id</text>
+<text x="977" y="2537" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2549" x2="979" y2="2549" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2571" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2571" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="977" y="2571" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="141" y1="2583" x2="979" y2="2583" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2605" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2605" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">currency_code</text>
+<text x="977" y="2605" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">CHAR(3)</text>
+<line x1="141" y1="2617" x2="979" y2="2617" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2639" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="271" y="2639" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_number</text>
+<text x="977" y="2639" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<rect x="125" y="2719" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 139 2719 H 981 Q 995 2719 995 2733 V 2777 H 125 V 2733 Q 125 2719 139 2719 Z" fill="#d94f32"/>
+<text x="147" y="2758" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">return_lines</text>
+<text x="977" y="2757" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="143" y="2803" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="271" y="2803" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">return_line_id</text>
+<text x="977" y="2803" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="141" y1="2815" x2="979" y2="2815" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2837" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="271" y="2837" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">return_id</text>
+<text x="977" y="2837" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="141" y1="2849" x2="979" y2="2849" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2871" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="271" y="2871" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_line_id</text>
+<text x="977" y="2871" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="141" y1="2883" x2="979" y2="2883" stroke="#e8eef3" stroke-width="1"/>
+<text x="143" y="2905" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="271" y="2905" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty</text>
+<text x="977" y="2905" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="1035" y="1915" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 1915 H 1891 Q 1905 1915 1905 1929 V 1973 H 1035 V 1929 Q 1035 1915 1049 1915 Z" fill="#d94f32"/>
+<text x="1057" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">returns</text>
+<text x="1887" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="1053" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">return_id</text>
+<text x="1887" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1051" y1="2011" x2="1889" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="1181" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="1887" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="2045" x2="1889" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="1181" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="1887" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="2079" x2="1889" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="1181" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">requested_at</text>
+<text x="1887" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="1051" y1="2113" x2="1889" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="1181" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="1887" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="1051" y1="2147" x2="1889" y2="2147" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2169" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="2169" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">reason</text>
+<text x="1887" y="2169" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<rect x="1035" y="2249" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 2249 H 1891 Q 1905 2249 1905 2263 V 2307 H 1035 V 2263 Q 1035 2249 1049 2249 Z" fill="#d94f32"/>
+<text x="1057" y="2288" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">shipment_lines</text>
+<text x="1887" y="2287" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="1053" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">shipment_line_id</text>
+<text x="1887" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1051" y1="2345" x2="1889" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="1181" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">shipment_id</text>
+<text x="1887" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="1051" y1="2379" x2="1889" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="1181" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_line_id</text>
+<text x="1887" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="1051" y1="2413" x2="1889" y2="2413" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2435" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="1181" y="2435" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty</text>
+<text x="1887" y="2435" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="1035" y="2515" width="870" height="368" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1049 2515 H 1891 Q 1905 2515 1905 2529 V 2573 H 1035 V 2529 Q 1035 2515 1049 2515 Z" fill="#d94f32"/>
+<text x="1057" y="2554" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">shipments</text>
+<text x="1887" y="2553" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">8 cols</text>
+<text x="1053" y="2599" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="1181" y="2599" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">shipment_id</text>
+<text x="1887" y="2599" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1051" y1="2611" x2="1889" y2="2611" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2633" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="1181" y="2633" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="1887" y="2633" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="2645" x2="1889" y2="2645" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2667" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="1181" y="2667" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">warehouse_id</text>
+<text x="1887" y="2667" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="2679" x2="1889" y2="2679" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2701" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="1181" y="2701" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">carrier_id</text>
+<text x="1887" y="2701" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1051" y1="2713" x2="1889" y2="2713" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2735" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="2735" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">tracking_number</text>
+<text x="1887" y="2735" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(60)</text>
+<line x1="1051" y1="2747" x2="1889" y2="2747" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2769" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="2769" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">shipped_at</text>
+<text x="1887" y="2769" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="1051" y1="2781" x2="1889" y2="2781" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2803" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="1181" y="2803" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">delivered_at</text>
+<text x="1887" y="2803" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="1051" y1="2815" x2="1889" y2="2815" stroke="#e8eef3" stroke-width="1"/>
+<text x="1053" y="2837" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="1181" y="2837" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="1887" y="2837" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<rect x="1945" y="1915" width="870" height="334" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 1915 H 2801 Q 2815 1915 2815 1929 V 1973 H 1945 V 1929 Q 1945 1915 1959 1915 Z" fill="#d94f32"/>
+<text x="1967" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">order_lines</text>
+<text x="2797" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">7 cols</text>
+<text x="1963" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_line_id</text>
+<text x="2797" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1961" y1="2011" x2="2799" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="2091" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="2797" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2045" x2="2799" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="2091" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">variant_id</text>
+<text x="2797" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2079" x2="2799" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="2091" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">product_id</text>
+<text x="2797" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2113" x2="2799" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">qty</text>
+<text x="2797" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2147" x2="2799" y2="2147" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2169" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="2169" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">unit_price</text>
+<text x="2797" y="2169" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(12, 2)</text>
+<line x1="1961" y1="2181" x2="2799" y2="2181" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2203" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="2203" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">line_amount</text>
+<text x="2797" y="2203" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<rect x="1945" y="2283" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 2283 H 2801 Q 2815 2283 2815 2297 V 2341 H 1945 V 2297 Q 1945 2283 1959 2283 Z" fill="#d94f32"/>
+<text x="1967" y="2322" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">payments</text>
+<text x="2797" y="2321" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="1963" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">payment_id</text>
+<text x="2797" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1961" y1="2379" x2="2799" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="2091" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="2797" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2413" x2="2799" y2="2413" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2435" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="2091" y="2435" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">payment_method_id</text>
+<text x="2797" y="2435" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="1961" y1="2447" x2="2799" y2="2447" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2469" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="2469" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">amount</text>
+<text x="2797" y="2469" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<line x1="1961" y1="2481" x2="2799" y2="2481" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2503" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="2091" y="2503" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">paid_at</text>
+<text x="2797" y="2503" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="1961" y1="2515" x2="2799" y2="2515" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2537" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="2091" y="2537" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="2797" y="2537" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<rect x="1945" y="2617" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 1959 2617 H 2801 Q 2815 2617 2815 2631 V 2675 H 1945 V 2631 Q 1945 2617 1959 2617 Z" fill="#d94f32"/>
+<text x="1967" y="2656" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">refunds</text>
+<text x="2797" y="2655" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="1963" y="2701" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="2091" y="2701" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">refund_id</text>
+<text x="2797" y="2701" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="1961" y1="2713" x2="2799" y2="2713" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2735" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="2091" y="2735" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">payment_id</text>
+<text x="2797" y="2735" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="1961" y1="2747" x2="2799" y2="2747" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2769" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="2091" y="2769" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">amount</text>
+<text x="2797" y="2769" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<line x1="1961" y1="2781" x2="2799" y2="2781" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2803" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="2091" y="2803" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">reason</text>
+<text x="2797" y="2803" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(160)</text>
+<line x1="1961" y1="2815" x2="2799" y2="2815" stroke="#e8eef3" stroke-width="1"/>
+<text x="1963" y="2837" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="2091" y="2837" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">refunded_at</text>
+<text x="2797" y="2837" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="3090" y="1915" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 1915 H 3946 Q 3960 1915 3960 1929 V 1973 H 3090 V 1929 Q 3090 1915 3104 1915 Z" fill="#2f8b4b"/>
+<text x="3112" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">coupon_redemptions</text>
+<text x="3942" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="3108" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="3236" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">redemption_id</text>
+<text x="3942" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="3106" y1="2011" x2="3944" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">coupon_id</text>
+<text x="3942" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2045" x2="3944" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="3942" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2079" x2="3944" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="3942" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2113" x2="3944" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="3236" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">redeemed_at</text>
+<text x="3942" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="3090" y="2215" width="870" height="164" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 2215 H 3946 Q 3960 2215 3960 2229 V 2273 H 3090 V 2229 Q 3090 2215 3104 2215 Z" fill="#2f8b4b"/>
+<text x="3112" y="2254" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">ticket_categories</text>
+<text x="3942" y="2253" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">2 cols</text>
+<text x="3108" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="3236" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">ticket_category_id</text>
+<text x="3942" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="3106" y1="2311" x2="3944" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="3236" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="3942" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(80)</text>
+<rect x="3090" y="2413" width="870" height="402" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 3104 2413 H 3946 Q 3960 2413 3960 2427 V 2471 H 3090 V 2427 Q 3090 2413 3104 2413 Z" fill="#2f8b4b"/>
+<text x="3112" y="2452" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">tickets</text>
+<text x="3942" y="2451" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">9 cols</text>
+<text x="3108" y="2497" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="3236" y="2497" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">ticket_id</text>
+<text x="3942" y="2497" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="3106" y1="2509" x2="3944" y2="2509" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2531" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="3236" y="2531" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="3942" y="2531" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2543" x2="3944" y2="2543" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2565" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="3236" y="2565" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">ticket_category_id</text>
+<text x="3942" y="2565" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2577" x2="3944" y2="2577" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2599" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="3236" y="2599" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">assignee_id</text>
+<text x="3942" y="2599" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="3106" y1="2611" x2="3944" y2="2611" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2633" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="3236" y="2633" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">subject</text>
+<text x="3942" y="2633" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(200)</text>
+<line x1="3106" y1="2645" x2="3944" y2="2645" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2667" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="3236" y="2667" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="3942" y="2667" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="3106" y1="2679" x2="3944" y2="2679" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2701" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="3236" y="2701" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">priority</text>
+<text x="3942" y="2701" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="3106" y1="2713" x2="3944" y2="2713" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2735" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="3236" y="2735" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">opened_at</text>
+<text x="3942" y="2735" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="3106" y1="2747" x2="3944" y2="2747" stroke="#e8eef3" stroke-width="1"/>
+<text x="3108" y="2769" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="3236" y="2769" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">closed_at</text>
+<text x="3942" y="2769" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="4000" y="1915" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 1915 H 4856 Q 4870 1915 4870 1929 V 1973 H 4000 V 1929 Q 4000 1915 4014 1915 Z" fill="#2f8b4b"/>
+<text x="4022" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">campaign_touches</text>
+<text x="4852" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="4018" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="4146" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">touch_id</text>
+<text x="4852" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="4016" y1="2011" x2="4854" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="4146" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">campaign_id</text>
+<text x="4852" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="2045" x2="4854" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="4146" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="4852" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="2079" x2="4854" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">touched_at</text>
+<text x="4852" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<line x1="4016" y1="2113" x2="4854" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">touch_type</text>
+<text x="4852" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<rect x="4000" y="2215" width="870" height="334" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 2215 H 4856 Q 4870 2215 4870 2229 V 2273 H 4000 V 2229 Q 4000 2215 4014 2215 Z" fill="#2f8b4b"/>
+<text x="4022" y="2254" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">campaigns</text>
+<text x="4852" y="2253" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">7 cols</text>
+<text x="4018" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="4146" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">campaign_id</text>
+<text x="4852" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4016" y1="2311" x2="4854" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="4852" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(120)</text>
+<line x1="4016" y1="2345" x2="4854" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="4146" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">channel_primary</text>
+<text x="4852" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="4016" y1="2379" x2="4854" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="4146" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">start_date</text>
+<text x="4852" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="4016" y1="2413" x2="4854" y2="2413" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2435" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="4146" y="2435" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">end_date</text>
+<text x="4852" y="2435" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="4016" y1="2447" x2="4854" y2="2447" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2469" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">DF</text>
+<text x="4146" y="2469" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">budget</text>
+<text x="4852" y="2469" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<line x1="4016" y1="2481" x2="4854" y2="2481" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2503" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="4146" y="2503" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="4852" y="2503" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<rect x="4000" y="2583" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4014 2583 H 4856 Q 4870 2583 4870 2597 V 2641 H 4000 V 2597 Q 4000 2583 4014 2583 Z" fill="#2f8b4b"/>
+<text x="4022" y="2622" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">order_discounts</text>
+<text x="4852" y="2621" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="4018" y="2667" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="4146" y="2667" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_discount_id</text>
+<text x="4852" y="2667" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="4016" y1="2679" x2="4854" y2="2679" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2701" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="4146" y="2701" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="4852" y="2701" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="2713" x2="4854" y2="2713" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2735" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="4146" y="2735" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">coupon_id</text>
+<text x="4852" y="2735" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4016" y1="2747" x2="4854" y2="2747" stroke="#e8eef3" stroke-width="1"/>
+<text x="4018" y="2769" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="4146" y="2769" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">discount_amount</text>
+<text x="4852" y="2769" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(12, 2)</text>
+<rect x="4910" y="1915" width="870" height="164" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 1915 H 5766 Q 5780 1915 5780 1929 V 1973 H 4910 V 1929 Q 4910 1915 4924 1915 Z" fill="#2f8b4b"/>
+<text x="4932" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">campaign_channels</text>
+<text x="5762" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">2 cols</text>
+<text x="4928" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="5056" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">campaign_id</text>
+<text x="5762" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="2011" x2="5764" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK FK NN</text>
+<text x="5056" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">channel_id</text>
+<text x="5762" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<rect x="4910" y="2113" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 2113 H 5766 Q 5780 2113 5780 2127 V 2171 H 4910 V 2127 Q 4910 2113 4924 2113 Z" fill="#2f8b4b"/>
+<text x="4932" y="2152" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">coupons</text>
+<text x="5762" y="2151" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="4928" y="2197" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="2197" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">coupon_id</text>
+<text x="5762" y="2197" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="4926" y1="2209" x2="5764" y2="2209" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2231" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="5056" y="2231" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="5762" y="2231" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="4926" y1="2243" x2="5764" y2="2243" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2265" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="5056" y="2265" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">campaign_id</text>
+<text x="5762" y="2265" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="2277" x2="5764" y2="2277" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">discount_pct</text>
+<text x="5762" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(5, 2)</text>
+<line x1="4926" y1="2311" x2="5764" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="5056" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">discount_amount</text>
+<text x="5762" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(12, 2)</text>
+<line x1="4926" y1="2345" x2="5764" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="5056" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">active</text>
+<text x="5762" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<rect x="4910" y="2447" width="870" height="300" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 4924 2447 H 5766 Q 5780 2447 5780 2461 V 2505 H 4910 V 2461 Q 4910 2447 4924 2447 Z" fill="#2f8b4b"/>
+<text x="4932" y="2486" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">ticket_messages</text>
+<text x="5762" y="2485" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">6 cols</text>
+<text x="4928" y="2531" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="5056" y="2531" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">message_id</text>
+<text x="5762" y="2531" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="4926" y1="2543" x2="5764" y2="2543" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2565" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="5056" y="2565" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">ticket_id</text>
+<text x="5762" y="2565" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="4926" y1="2577" x2="5764" y2="2577" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2599" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="5056" y="2599" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">employee_id</text>
+<text x="5762" y="2599" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="4926" y1="2611" x2="5764" y2="2611" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2633" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="5056" y="2633" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">is_from_customer</text>
+<text x="5762" y="2633" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BOOLEAN</text>
+<line x1="4926" y1="2645" x2="5764" y2="2645" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2667" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="5056" y="2667" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">body</text>
+<text x="5762" y="2667" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TEXT</text>
+<line x1="4926" y1="2679" x2="5764" y2="2679" stroke="#e8eef3" stroke-width="1"/>
+<text x="4928" y="2701" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="5056" y="2701" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">created_at</text>
+<text x="5762" y="2701" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">TIMESTAMPTZ</text>
+<rect x="6055" y="1915" width="870" height="368" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6069 1915 H 6911 Q 6925 1915 6925 1929 V 1973 H 6055 V 1929 Q 6055 1915 6069 1915 Z" fill="#355da8"/>
+<text x="6077" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">invoices</text>
+<text x="6907" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">8 cols</text>
+<text x="6073" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="6201" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">invoice_id</text>
+<text x="6907" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="6071" y1="2011" x2="6909" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="6201" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_id</text>
+<text x="6907" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6071" y1="2045" x2="6909" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="6201" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">customer_id</text>
+<text x="6907" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6071" y1="2079" x2="6909" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="6201" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">invoice_number</text>
+<text x="6907" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(40)</text>
+<line x1="6071" y1="2113" x2="6909" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="6201" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">issued_at</text>
+<text x="6907" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="6071" y1="2147" x2="6909" y2="2147" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2169" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="6201" y="2169" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">due_at</text>
+<text x="6907" y="2169" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="6071" y1="2181" x2="6909" y2="2181" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2203" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="2203" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">status</text>
+<text x="6907" y="2203" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<line x1="6071" y1="2215" x2="6909" y2="2215" stroke="#e8eef3" stroke-width="1"/>
+<text x="6073" y="2237" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="6201" y="2237" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">total_amount</text>
+<text x="6907" y="2237" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<rect x="6965" y="1915" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6979 1915 H 7821 Q 7835 1915 7835 1929 V 1973 H 6965 V 1929 Q 6965 1915 6979 1915 Z" fill="#355da8"/>
+<text x="6987" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">exchange_rates</text>
+<text x="7817" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="6983" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="7111" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">rate_id</text>
+<text x="7817" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="6981" y1="2011" x2="7819" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK UQ NN</text>
+<text x="7111" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">currency_code</text>
+<text x="7817" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">CHAR(3)</text>
+<line x1="6981" y1="2045" x2="7819" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="7111" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">rate_date</text>
+<text x="7817" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="6981" y1="2079" x2="7819" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="7111" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">rate_to_usd</text>
+<text x="7817" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(18, 8)</text>
+<rect x="6965" y="2181" width="870" height="334" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 6979 2181 H 7821 Q 7835 2181 7835 2195 V 2239 H 6965 V 2195 Q 6965 2181 6979 2181 Z" fill="#355da8"/>
+<text x="6987" y="2220" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">ledger_entries</text>
+<text x="7817" y="2219" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">7 cols</text>
+<text x="6983" y="2265" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="7111" y="2265" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">entry_id</text>
+<text x="7817" y="2265" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="6981" y1="2277" x2="7819" y2="2277" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="7111" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">account_id</text>
+<text x="7817" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">INT</text>
+<line x1="6981" y1="2311" x2="7819" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="7111" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">invoice_id</text>
+<text x="7817" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="6981" y1="2345" x2="7819" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="7111" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">entry_date</text>
+<text x="7817" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DATE</text>
+<line x1="6981" y1="2379" x2="7819" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="7111" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">debit</text>
+<text x="7817" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<line x1="6981" y1="2413" x2="7819" y2="2413" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2435" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN DF</text>
+<text x="7111" y="2435" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">credit</text>
+<text x="7817" y="2435" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<line x1="6981" y1="2447" x2="7819" y2="2447" stroke="#e8eef3" stroke-width="1"/>
+<text x="6983" y="2469" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="7111" y="2469" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">memo</text>
+<text x="7817" y="2469" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(200)</text>
+<rect x="7875" y="1915" width="870" height="266" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 7889 1915 H 8731 Q 8745 1915 8745 1929 V 1973 H 7875 V 1929 Q 7875 1915 7889 1915 Z" fill="#355da8"/>
+<text x="7897" y="1954" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">invoice_lines</text>
+<text x="8727" y="1953" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">5 cols</text>
+<text x="7893" y="1999" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="8021" y="1999" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">invoice_line_id</text>
+<text x="8727" y="1999" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGSERIAL</text>
+<line x1="7891" y1="2011" x2="8729" y2="2011" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2033" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK NN</text>
+<text x="8021" y="2033" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">invoice_id</text>
+<text x="8727" y="2033" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="7891" y1="2045" x2="8729" y2="2045" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2067" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">FK</text>
+<text x="8021" y="2067" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">order_line_id</text>
+<text x="8727" y="2067" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">BIGINT</text>
+<line x1="7891" y1="2079" x2="8729" y2="2079" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2101" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">·</text>
+<text x="8021" y="2101" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">description</text>
+<text x="8727" y="2101" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(200)</text>
+<line x1="7891" y1="2113" x2="8729" y2="2113" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2135" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="2135" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">amount</text>
+<text x="8727" y="2135" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">DECIMAL(14, 2)</text>
+<rect x="7875" y="2215" width="870" height="232" rx="14" fill="#ffffff" stroke="#bcccdc" stroke-width="2" filter="url(#shadow)"/>
+<path d="M 7889 2215 H 8731 Q 8745 2215 8745 2229 V 2273 H 7875 V 2229 Q 7875 2215 7889 2215 Z" fill="#355da8"/>
+<text x="7897" y="2254" font-family="Arial, sans-serif" font-size="25" font-weight="800" fill="#ffffff">ledger_accounts</text>
+<text x="8727" y="2253" text-anchor="end" font-family="Arial, sans-serif" font-size="17" fill="#ffffff" opacity=".8">4 cols</text>
+<text x="7893" y="2299" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#b42318">PK NN</text>
+<text x="8021" y="2299" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">account_id</text>
+<text x="8727" y="2299" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">SERIAL</text>
+<line x1="7891" y1="2311" x2="8729" y2="2311" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2333" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">UQ NN</text>
+<text x="8021" y="2333" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">code</text>
+<text x="8727" y="2333" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(20)</text>
+<line x1="7891" y1="2345" x2="8729" y2="2345" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2367" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="2367" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">name</text>
+<text x="8727" y="2367" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(100)</text>
+<line x1="7891" y1="2379" x2="8729" y2="2379" stroke="#e8eef3" stroke-width="1"/>
+<text x="7893" y="2401" font-family="Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="#1f5f99">NN</text>
+<text x="8021" y="2401" font-family="Menlo,Consolas,monospace" font-size="19" font-weight="600" fill="#243b53">account_type</text>
+<text x="8727" y="2401" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="17" fill="#627d98">VARCHAR(30)</text>
+<text x="70" y="3116" font-family="Arial, sans-serif" font-size="18" fill="#627d98">Relationship lines point from FK-bearing table to referenced table. Open the SVG for lossless zoom and relationship tooltips.</text>
+</svg>

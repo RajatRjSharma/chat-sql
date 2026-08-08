@@ -15,6 +15,7 @@ import {
 import type { ChartDisplayKind, ChartSeries, MultiSeriesRow } from "@/lib/chart";
 import {
   AXIS_TICK,
+  CATEGORY_TICK_ANGLE,
   cartesianPlotMargin,
   DENSE_CATEGORY_COUNT,
   formatValue,
@@ -80,10 +81,10 @@ function CategoryTick({
     <g transform={`translate(${x},${y})`}>
       <title>{label}</title>
       <text
-        dy={angled ? 6 : 10}
+        dy={angled ? 5 : 10}
         dx={angled ? -1 : 0}
         textAnchor={angled ? "end" : "middle"}
-        transform={angled ? "rotate(-35)" : undefined}
+        transform={angled ? `rotate(${CATEGORY_TICK_ANGLE})` : undefined}
         fill="var(--text-secondary)"
         fontSize={11}
         style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}

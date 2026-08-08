@@ -99,7 +99,7 @@ export function ChartShell({
       </header>
 
       {/* Plot area: allow axis ticks / legend breathing room */}
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--bg-card)] px-0.5 pb-0.5 outline-none [&_*]:outline-none">
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-visible bg-[var(--bg-card)] px-0.5 pb-3 outline-none [&_*]:outline-none">
         <ChartPlot
           kind={activeKind}
           series={series}
