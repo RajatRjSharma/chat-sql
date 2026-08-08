@@ -27,6 +27,7 @@ def _chunk(table: str) -> SchemaChunk:
 class TestIsCatalogOverviewQuestion:
     def test_summary_of_db(self) -> None:
         assert is_catalog_overview_question("give me the summary of db") is True
+        assert is_catalog_overview_question("give me the summary for the db") is True
 
     def test_summary_of_the_full_database(self) -> None:
         """Production demo phrasing — intensifier before database."""
