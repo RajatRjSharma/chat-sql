@@ -56,14 +56,70 @@ _ANAPHORA_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Short, incomplete analytics refinements that omit the prior metric, e.g.
-# "get monthly insights from North". Keep this structural and domain-agnostic:
-# a time grain + analytical view noun + filter phrase are all required.
+# Short, incomplete analytics refinements that omit some prior context, e.g.
+# "monthly insights from North" / "insights on monthly revenue for North".
+# Keep this structural and domain-agnostic; topic overlap with history is also
+# required before this pattern is accepted.
 _IMPLICIT_REFINEMENT_RE = re.compile(
-    r"\b(?:monthly|weekly|daily|quarterly|yearly|annual)\s+"
-    r"(?:insights?|breakdown|trends?|analysis|view|numbers?|results?)\b"
+    r"\b(?:"
+    r"(?:monthly|weekly|daily|quarterly|yearly|annual)\s+"
+    r"(?:insights?|breakdown|trends?|analysis|view|numbers?|results?)"
+    r"|(?:insights?|breakdown|trends?|analysis|view|numbers?|results?)\s+"
+    r"(?:on|for|into)\s+(?:monthly|weekly|daily|quarterly|yearly|annual)"
+    r"(?:\s+\w+){0,3}"
+    r")\b"
     r".*\b(?:for|from|in|only)\s+\w+",
     re.IGNORECASE,
+)
+
+_TOPIC_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "me",
+        "my",
+        "our",
+        "give",
+        "get",
+        "show",
+        "tell",
+        "about",
+        "on",
+        "for",
+        "from",
+        "in",
+        "by",
+        "per",
+        "only",
+        "insight",
+        "insights",
+        "breakdown",
+        "trend",
+        "trends",
+        "analysis",
+        "view",
+        "number",
+        "numbers",
+        "result",
+        "results",
+        "month",
+        "months",
+        "monthly",
+        "week",
+        "weeks",
+        "weekly",
+        "day",
+        "days",
+        "daily",
+        "quarter",
+        "quarters",
+        "quarterly",
+        "year",
+        "years",
+        "yearly",
+        "annual",
+    }
 )
 
 # Enough signal that a soft/anaphoric cue is still an analytics refinement.
@@ -113,7 +169,11 @@ def looks_like_follow_up(
     if _HARD_FOLLOW_UP_RE.search(q):
         return True
 
-    if len(q.split()) <= 12 and _IMPLICIT_REFINEMENT_RE.search(q):
+    if (
+        len(q.split()) <= 12
+        and _IMPLICIT_REFINEMENT_RE.search(q)
+        and _shares_topic_with_history(q, history)
+    ):
         return True
 
     continues_analytics = bool(_BI_CONTINUATION_RE.search(q)) or _mentions_schema(
@@ -128,6 +188,31 @@ def looks_like_follow_up(
         return True
 
     return False
+
+
+def _shares_topic_with_history(
+    question: str,
+    history: list[dict[str, str]] | None,
+) -> bool:
+    """True when a short implicit refinement repeats a recent topic/value."""
+
+    def topic_tokens(text: str) -> set[str]:
+        return {
+            token
+            for match in _WORD_RE.finditer(text or "")
+            if len(token := match.group(0).lower()) >= 3
+            and token not in _TOPIC_STOPWORDS
+        }
+
+    current = topic_tokens(question)
+    if not current:
+        return False
+    recent: set[str] = set()
+    for item in (history or [])[-4:]:
+        content = item.get("content") if isinstance(item, dict) else None
+        if isinstance(content, str):
+            recent.update(topic_tokens(content))
+    return bool(current & recent)
 
 
 def _mentions_schema(

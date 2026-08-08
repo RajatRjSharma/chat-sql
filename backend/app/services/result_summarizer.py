@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from app.providers.ai import AIClient, get_ai_client
@@ -21,7 +22,53 @@ Rules:
 5. You may briefly name the warehouse engine/schema from metadata (e.g. "in the
    <schema> schema") without dumping connection details.
 6. If row_count is 0, say no matching rows were returned — do not guess an answer.
+7. rows_preview may be only a subset. Use full_result_numeric_extrema for any
+   minimum/maximum/range claim; it is computed over ALL returned rows.
+8. If rows contain multiple categorical dimensions, describe an extremum as the
+   highest/lowest COMBINATION (cell). Do not call it a dimension's overall total
+   unless the SQL result is grouped only at that dimension's level.
+9. Double-check number formatting. Never transpose digits or produce malformed
+   currency/grouping (for example "$1,6403").
 """
+
+
+def _number(value: Any) -> Decimal | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    return number if number.is_finite() else None
+
+
+def _numeric_extrema(
+    rows: list[dict[str, Any]],
+    columns: list[str],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Min/max row snapshots for every fully numeric result column."""
+    extrema: dict[str, dict[str, dict[str, Any]]] = {}
+    for column in columns:
+        values: list[tuple[Decimal, dict[str, Any]]] = []
+        numeric = True
+        for row in rows:
+            raw = row.get(column)
+            if raw is None or raw == "":
+                continue
+            parsed = _number(raw)
+            if parsed is None:
+                numeric = False
+                break
+            values.append((parsed, row))
+        if not numeric or not values:
+            continue
+        minimum = min(values, key=lambda item: item[0])
+        maximum = max(values, key=lambda item: item[0])
+        extrema[column] = {
+            "min": {"value": minimum[1].get(column), "row": minimum[1]},
+            "max": {"value": maximum[1].get(column), "row": maximum[1]},
+        }
+    return extrema
 
 
 class ResultSummarizer:
@@ -46,6 +93,7 @@ class ResultSummarizer:
             "columns": columns,
             "row_count": len(rows),
             "rows_preview": preview,
+            "full_result_numeric_extrema": _numeric_extrema(rows, columns),
             "warehouse": {
                 "engine": (source_metadata or {}).get("engine"),
                 "database": (source_metadata or {}).get("database"),

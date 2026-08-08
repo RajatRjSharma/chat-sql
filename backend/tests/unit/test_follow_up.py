@@ -105,10 +105,24 @@ class TestLooksLikeFollowUp:
             {"role": "assistant", "content": "North Web Store led."},
         ]
         assert looks_like_follow_up("get monthly insights from north", history) is True
+        assert (
+            looks_like_follow_up(
+                "give me insights on monthly revenue for north",
+                history,
+            )
+            is True
+        )
 
     def test_complete_monthly_external_question_is_not_refinement(self) -> None:
         history = [{"role": "user", "content": "revenue by region"}]
         assert looks_like_follow_up("show monthly weather from London", history) is False
+        assert (
+            looks_like_follow_up(
+                "give me insights on monthly weather for London",
+                history,
+            )
+            is False
+        )
 
     def test_independent_question_not_follow_up(self) -> None:
         assert (
@@ -227,6 +241,14 @@ class TestBuildRetrievalQuery:
         assert "get monthly insights from north" in query
         assert "orders" in query
         assert "channels" in query
+
+        reversed_phrase = build_retrieval_query(
+            "give me insights on monthly revenue for north",
+            history,
+            prior_sql=_PRIOR_SQL,
+        )
+        assert "revenue by region and sales channel" in reversed_phrase
+        assert "orders" in reversed_phrase
 
     def test_independent_question_unchanged(self) -> None:
         history = [
