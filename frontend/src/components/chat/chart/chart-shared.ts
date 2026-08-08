@@ -70,8 +70,11 @@ export function cartesianPlotMargin(options: {
 }
 
 export function xAxisTickHeight(angled: boolean, maxLabelChars: number): number {
-  if (!angled) return 28;
-  return Math.min(72, Math.max(40, 18 + maxLabelChars * 2.2));
+  if (!angled) return 32;
+  // At -35°, a 14-character monospace label projects roughly 58px downward.
+  // Include tick margin / descender room so the shell's overflow clipping never
+  // cuts off the bottom of category names.
+  return Math.min(88, Math.max(56, 24 + maxLabelChars * 3));
 }
 
 export function truncateLabel(label: string, maxChars = MAX_TICK_CHARS): string {
