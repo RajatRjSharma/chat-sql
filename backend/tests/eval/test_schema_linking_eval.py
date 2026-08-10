@@ -18,6 +18,7 @@ from app.services.catalog_overview import (
     tables_mentioned_in_question,
 )
 from app.services.chat_service import ChatService
+from app.services.intent_router import IntentRouter
 from app.services.schema_chunker import is_synthetic_table
 from app.services.schema_linking_pipeline import apply_schema_linking, real_tables
 from app.services.scope_guard import ScopeGuard
@@ -33,13 +34,22 @@ def _run_linking(case: GoldenCase):
     catalog = build_eval_catalog()
     by_name = {c.table: c for c in catalog}
     seeds = [by_name[t] for t in case.rag_seed_tables if t in by_name]
+    # IntentRouter fallback drives overview override (covers DP typo).
+    intent = IntentRouter.fallback(
+        case.question,
+        history=list(case.history),
+        prior_sql_present=case.prior_sql_present,
+        table_names=list(EVAL_CATALOG_TABLES),
+    )
+    overview = intent.intent == "catalog_overview" or case.expect_overview
     # Missing seed names are ignored (simulates sparse RAG).
     return apply_schema_linking(
-        case.question,
+        IntentRouter.normalize_question(case.question),
         seeds,
         catalog,
         default_hops=settings.rag_expand_hops,
         max_tables=settings.rag_max_tables,
+        overview=overview,
     )
 
 
@@ -78,7 +88,25 @@ def _capture_schema_context(prepared_mode: str, linked) -> tuple[str, list[str]]
 
 @pytest.mark.parametrize("case", GOLDEN_CASES, ids=lambda c: c.id)
 def test_overview_routing(case: GoldenCase) -> None:
-    assert is_catalog_overview_question(case.question) is case.expect_overview
+    normalized = IntentRouter.normalize_question(case.question)
+    assert is_catalog_overview_question(normalized) is case.expect_overview
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in GOLDEN_CASES if c.expect_intent],
+    ids=lambda c: c.id,
+)
+def test_intent_router_fallback(case: GoldenCase) -> None:
+    decision = IntentRouter.fallback(
+        case.question,
+        history=list(case.history),
+        prior_sql_present=case.prior_sql_present,
+        table_names=list(EVAL_CATALOG_TABLES),
+    )
+    assert decision.intent == case.expect_intent, (
+        f"{case.id}: expected intent {case.expect_intent}, got {decision.intent}"
+    )
 
 
 @pytest.mark.parametrize(

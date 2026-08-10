@@ -25,3 +25,20 @@ class ChatGraphState(TypedDict, total=False):
     max_attempts: int
     scope: Literal["answerable", "out_of_scope", "needs_clarification"]
     status: Literal["ok", "failed", "running"]
+    # Prepare / NLP (full graph)
+    prior_sql: str | None
+    intent: str
+    intent_confidence: float
+    intent_source: str
+    normalized_question: str
+    retrieval_question: str
+    overview: bool
+    extra_force_tables: list[str]
+    catalog_table_names: list[str]
+    linked_chunks: list[dict[str, Any]]
+    context_mode: str
+    did_expand_retry: bool
+    did_empty_retry: bool
+    expand_noop: bool
+    # Snapshot before empty-retry (keep better outcome)
+    pre_empty_retry_snapshot: dict[str, Any]

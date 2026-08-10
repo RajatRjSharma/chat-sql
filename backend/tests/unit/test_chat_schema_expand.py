@@ -26,12 +26,12 @@ class TestNeedsAllowlistExpand:
             "status": "failed",
             "sql_error": "Table 'channels' is not in the allowed table set.",
         }
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert ChatService._needs_allowlist_expand(prepared, final) is True
 
     def test_false_when_ok(self) -> None:
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert (
                 ChatService._needs_allowlist_expand(
@@ -53,7 +53,7 @@ class TestNeedsAllowlistExpand:
             "status": "ok",
             "answer": "That question isn't something I can answer",
         }
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert ChatService._needs_unanswerable_expand(prepared, final) is True
 
@@ -64,12 +64,12 @@ class TestNeedsAllowlistExpand:
             "context_mode": "rag",
         }
         final = {"scope": "out_of_scope", "attempts": 1, "status": "ok"}
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert ChatService._needs_unanswerable_expand(prepared, final) is False
 
     def test_false_when_already_expanded(self) -> None:
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert (
                 ChatService._needs_allowlist_expand(
@@ -83,7 +83,7 @@ class TestNeedsAllowlistExpand:
             )
 
     def test_reads_miss_from_answer(self) -> None:
-        with patch("app.services.chat_service.settings") as settings:
+        with patch("app.graph.retry_policy.settings") as settings:
             settings.rag_expand_on_retry = True
             assert (
                 ChatService._needs_allowlist_expand(
@@ -112,10 +112,10 @@ class TestPriorTurnTables:
         seed_rows = [_chunk("orders")]
         with (
             patch(
-                "app.services.chat_service.RagService.fetch_chunks_by_tables",
+                "app.graph.prep_nodes.RagService.fetch_chunks_by_tables",
                 new=AsyncMock(return_value=[_chunk("invoice_lines"), _chunk("channels")]),
             ) as fetch,
-            patch("app.services.chat_service.settings") as settings,
+            patch("app.graph.prep_nodes.settings") as settings,
         ):
             settings.rag_max_tables = 15
             out = await ChatService._with_prior_turn_tables(
@@ -131,7 +131,7 @@ class TestPriorTurnTables:
     async def test_no_prior_sql_is_passthrough(self) -> None:
         seed_rows = [_chunk("orders")]
         with patch(
-            "app.services.chat_service.RagService.fetch_chunks_by_tables",
+            "app.graph.prep_nodes.RagService.fetch_chunks_by_tables",
             new=AsyncMock(return_value=[]),
         ) as fetch:
             out = await ChatService._with_prior_turn_tables(
@@ -147,7 +147,7 @@ class TestPriorTurnTables:
     async def test_skips_fetch_when_all_present(self) -> None:
         seed_rows = [_chunk("invoice_lines"), _chunk("orders"), _chunk("channels")]
         with patch(
-            "app.services.chat_service.RagService.fetch_chunks_by_tables",
+            "app.graph.prep_nodes.RagService.fetch_chunks_by_tables",
             new=AsyncMock(return_value=[]),
         ) as fetch:
             out = await ChatService._with_prior_turn_tables(
@@ -185,22 +185,31 @@ async def test_maybe_expand_and_retry_rebuilds_once() -> None:
     rebuilt_state = {"status": "ok", "attempts": 1, "answer": "ok", "sql": "SELECT 1"}
 
     with (
-        patch("app.services.chat_service.settings") as settings,
+        patch("app.graph.retry_policy.settings") as settings,
+        patch("app.graph.prep_nodes.settings") as prep_settings,
         patch(
-            "app.services.chat_service.RagService.fetch_chunks_by_tables",
+            "app.graph.prep_nodes.RagService.fetch_chunks_by_tables",
             new=AsyncMock(return_value=[channels]),
         ),
         patch(
-            "app.services.chat_service.RagService.load_catalog",
+            "app.graph.prep_nodes.RagService.load_catalog",
             new=AsyncMock(return_value=[orders, channels]),
         ),
         patch(
-            "app.services.chat_service.run_chat_graph",
+            "app.graph.chat_graph.run_chat_graph",
             return_value=rebuilt_state,
         ),
         patch(
             "app.services.chat_service.build_source_metadata",
             return_value={"context_mode": "rag_expanded"},
+        ),
+        patch(
+            "app.graph.prep_nodes.build_source_metadata",
+            return_value={"context_mode": "rag_expanded"},
+        ),
+        patch(
+            "app.graph.chat_graph.initial_chat_state",
+            return_value={"attempts": 0},
         ),
         patch(
             "app.services.chat_service.initial_chat_state",
@@ -210,11 +219,18 @@ async def test_maybe_expand_and_retry_rebuilds_once() -> None:
             "app.services.chat_service.build_chat_graph",
             return_value=MagicMock(),
         ),
+        patch(
+            "app.graph.chat_graph.build_chat_graph",
+            return_value=MagicMock(),
+        ),
     ):
         settings.rag_expand_on_retry = True
         settings.rag_expand_hops = 1
         settings.rag_max_tables = 15
         settings.sql_max_attempts = 3
+        prep_settings.rag_expand_on_retry = True
+        prep_settings.rag_expand_hops = 1
+        prep_settings.rag_max_tables = 15
 
         out_prepared, out_final = await ChatService._maybe_expand_and_retry(
             MagicMock(),
@@ -284,7 +300,7 @@ async def test_maybe_empty_result_retry_reruns_graph() -> None:
         "scope": "answerable",
     }
     with patch(
-        "app.services.chat_service.run_chat_graph",
+        "app.graph.chat_graph.run_chat_graph",
         return_value={
             "status": "ok",
             "sql": "SELECT fixed",
@@ -321,7 +337,7 @@ async def test_maybe_empty_result_retry_keeps_first_when_retry_worse() -> None:
         "scope": "answerable",
     }
     with patch(
-        "app.services.chat_service.run_chat_graph",
+        "app.graph.chat_graph.run_chat_graph",
         return_value={
             "status": "failed",
             "sql": "SELECT worse",

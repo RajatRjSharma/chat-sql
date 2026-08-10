@@ -91,28 +91,28 @@ SSE events:
 - `result` — full chat response payload
 - `error` — `{ "detail": "..." }`
 
-## Chat pipeline (prepare + LangGraph)
+## Chat pipeline (LangGraph end-to-end)
 
 ```text
-prepare (ChatService)
-  cosine top-K RAG  →  FK neighborhood expand  →  allowlist + schema_context
+ChatService bootstrap (NOT LangGraph)
+  auth + chat session + history + catalog load
        │
        ▼
-LangGraph
-  assess_relevance → generate_sql → validate (sqlglot)
-         │                    ↑______________| (retry ≤ SQL_MAX_ATTEMPTS)
-         │ out_of_scope /     ↓
-         │ needs_clarification → END
-         └─ answerable ──→ execute → summarize
-
-On allowlist miss after failure: one expand-and-retry (RAG_EXPAND_ON_RETRY), then re-run graph.
+LangGraph (ainvoke / astream)
+  route_intent → link_entities → retrieve_and_link
+  → assess_relevance
+  → generate_sql → validate_sql ↺ → execute_sql → summarize
+  expand_schema (allowlist miss / UNANSWERABLE BI) → generate again
+  prepare_empty_retry (zero rows) → generate again → resolve best
 ```
 
 See [docs/architecture.md](../docs/architecture.md) for the system diagram.
 
-**Scope gate** (before SQL): schema-name overlap and analytics cues → answerable; ultra-vague asks → clarification; LLM only when still ambiguous (unsure → answerable). Hard refuse is for clear off-warehouse questions. SQL may still return `UNANSWERABLE`.
+**Soft NLP:** IntentRouter + EntityLinker use small-token LLM JSON (`NLP_PREFER_LLM`; optional `LLM_ROUTER_MODEL`). Heuristics are fallback-only. Schema vocabulary is derived from the connected warehouse (any domain).
 
-**Schema linking:** seeds stay small (`RAG_TOP_K`); FK expand grows context up to `RAG_MAX_TABLES` so multi-table joins are not limited to cosine top-K alone.
+**Hard rails:** SELECT-only sqlglot validation + table allowlist. Scope may still end early; SQL may still return `UNANSWERABLE`.
+
+**Schema linking:** seeds stay small (`RAG_TOP_K`); FK expand grows context up to `RAG_MAX_TABLES`.
 
 Only `SELECT` is allowed. Warehouse runs as the connected (preferably readonly) user.
 

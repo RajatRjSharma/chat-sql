@@ -155,12 +155,19 @@ class AIClient:
         *,
         temperature: float = 0.1,
         max_tokens: int = 2048,
+        preferred_model: str | None = None,
     ) -> str:
-        """Chat completion with primary, then configured fallback models."""
+        """Chat completion with primary, then configured fallback models.
+
+        When ``preferred_model`` is set (e.g. LLM_ROUTER_MODEL), try that model
+        first before the default primary/fallback chain.
+        """
         lc_messages = _to_langchain_messages(messages)
         errors: list[str] = []
 
-        for model in self._chat_models_for_attempt(temperature, max_tokens):
+        for model in self._chat_models_for_attempt(
+            temperature, max_tokens, preferred_model=preferred_model
+        ):
             text, error = self._invoke_with_rate_limit_retry(
                 model,
                 lc_messages,
@@ -218,11 +225,31 @@ class AIClient:
         self,
         temperature: float,
         max_tokens: int,
+        *,
+        preferred_model: str | None = None,
     ) -> list[BaseChatModel]:
-        models: list[BaseChatModel] = [
-            self._bound_chat(self._chat, temperature, max_tokens),
-            self._bound_chat(self._fallback_chat, temperature, max_tokens),
-        ]
+        models: list[BaseChatModel] = []
+        preferred = (preferred_model or "").strip()
+        if preferred and preferred not in {self._llm_model, self._llm_model_fallback}:
+            models.append(
+                build_chat_model(
+                    model=preferred,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    api_key=self._api_key,
+                    base_url=self._base_url,
+                )
+            )
+        elif preferred and preferred == self._llm_model:
+            # Prefer primary when preferred_model aliases LLM_MODEL.
+            pass
+
+        models.extend(
+            [
+                self._bound_chat(self._chat, temperature, max_tokens),
+                self._bound_chat(self._fallback_chat, temperature, max_tokens),
+            ]
+        )
         if self._enable_extra_router:
             models.append(
                 build_chat_model(

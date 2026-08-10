@@ -56,14 +56,19 @@ async def test_unanswerable_revenue_ask_expands_customers() -> None:
     }
 
     with (
-        patch("app.services.chat_service.settings") as settings,
+        patch("app.graph.retry_policy.settings") as settings,
+        patch("app.graph.prep_nodes.settings") as prep_settings,
         patch(
-            "app.services.chat_service.RagService.load_catalog",
+            "app.graph.prep_nodes.RagService.load_catalog",
             new=AsyncMock(return_value=catalog),
         ),
         patch(
-            "app.services.chat_service.run_chat_graph",
+            "app.graph.chat_graph.run_chat_graph",
             return_value=rebuilt_state,
+        ),
+        patch(
+            "app.graph.prep_nodes.build_source_metadata",
+            return_value={"context_mode": "rag_expanded"},
         ),
         patch(
             "app.services.chat_service.build_source_metadata",
@@ -74,7 +79,15 @@ async def test_unanswerable_revenue_ask_expands_customers() -> None:
             return_value={"attempts": 0},
         ),
         patch(
+            "app.graph.chat_graph.initial_chat_state",
+            return_value={"attempts": 0},
+        ),
+        patch(
             "app.services.chat_service.build_chat_graph",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.graph.chat_graph.build_chat_graph",
             return_value=MagicMock(),
         ),
     ):
@@ -82,6 +95,9 @@ async def test_unanswerable_revenue_ask_expands_customers() -> None:
         settings.rag_expand_hops = 1
         settings.rag_max_tables = 15
         settings.sql_max_attempts = 3
+        prep_settings.rag_expand_on_retry = True
+        prep_settings.rag_expand_hops = 1
+        prep_settings.rag_max_tables = 15
 
         assert ChatService._needs_unanswerable_expand(prepared, final) is True
         out_prepared, out_final = await ChatService._maybe_expand_and_retry(
@@ -112,6 +128,6 @@ async def test_trivia_unanswerable_does_not_expand() -> None:
         "status": "ok",
         "answer": OUT_OF_SCOPE_MESSAGE,
     }
-    with patch("app.services.chat_service.settings") as settings:
+    with patch("app.graph.retry_policy.settings") as settings:
         settings.rag_expand_on_retry = True
         assert ChatService._needs_unanswerable_expand(prepared, final) is False

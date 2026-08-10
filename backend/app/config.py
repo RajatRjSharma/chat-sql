@@ -57,6 +57,23 @@ class Settings(BaseSettings):
         default="google/gemma-4-31b-it:free",
         alias="LLM_MODEL_FALLBACK",
     )
+    # Optional fast/small model for IntentRouter + EntityLinker (defaults to LLM_MODEL).
+    llm_router_model: str | None = Field(default=None, alias="LLM_ROUTER_MODEL")
+    # Prefer small-token LLM for soft NL (intent/entities/scope). Heuristics = fallback only.
+    nlp_prefer_llm: bool = Field(default=True, alias="NLP_PREFER_LLM")
+    nlp_router_max_tokens: int = Field(
+        default=120, alias="NLP_ROUTER_MAX_TOKENS", ge=64, le=512
+    )
+    nlp_entity_max_tokens: int = Field(
+        default=180, alias="NLP_ENTITY_MAX_TOKENS", ge=64, le=512
+    )
+    nlp_intent_confidence_trust: float = Field(
+        default=0.55,
+        alias="NLP_INTENT_CONFIDENCE_TRUST",
+        ge=0.0,
+        le=1.0,
+        description="Trust IntentRouter pre_decision at/above this confidence",
+    )
     embedding_model: str = Field(
         default="nvidia/llama-nemotron-embed-vl-1b-v2:free",
         alias="EMBEDDING_MODEL",
@@ -274,6 +291,19 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_app_db_schema(cls, value: str | None) -> str | None:
         return validate_optional_schema(value)
+
+    @field_validator("llm_router_model", mode="before")
+    @classmethod
+    def normalize_llm_router_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @property
+    def effective_llm_router_model(self) -> str:
+        """Model used for IntentRouter / EntityLinker (falls back to LLM_MODEL)."""
+        return self.llm_router_model or self.llm_model
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -1,4 +1,4 @@
-"""Orchestrate analytics chat: RAG prep + LangGraph + persistence."""
+"""Orchestrate analytics chat: session bootstrap + LangGraph + persistence."""
 
 from __future__ import annotations
 
@@ -6,53 +6,49 @@ import asyncio
 import logging
 import uuid
 from collections.abc import AsyncIterator
-from queue import Empty, Queue
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.exceptions import (
     AIProviderError,
-    SchemaEmbeddingError,
     SqlValidationError,
     WarehouseQueryError,
 )
 from app.core.memory_guard import heavy_memory_op
 from app.graph.chat_graph import (
     STAGE_LABELS,
+    aiter_chat_graph,
+    arun_chat_graph,
     build_chat_graph,
     initial_chat_state,
-    iter_chat_graph,
-    run_chat_graph,
+)
+from app.graph.chunk_codec import chunks_from_dicts
+from app.graph.prep_nodes import _with_prior_turn_tables as _prior_turn_tables_impl
+from app.graph.prep_nodes import (
+    build_schema_context,
+    extract_allowed_tables,
+)
+from app.graph.retry_policy import (
+    empty_retry_improves as graph_empty_retry_improves,
+)
+from app.graph.retry_policy import (
+    needs_allowlist_expand as graph_needs_allowlist_expand,
+)
+from app.graph.retry_policy import (
+    needs_empty_result_retry as graph_needs_empty_result_retry,
+)
+from app.graph.retry_policy import (
+    needs_unanswerable_expand as graph_needs_unanswerable_expand,
 )
 from app.providers.ai import AIClient, get_ai_client
 from app.security.http_errors import GENERIC_AI, GENERIC_CHAT, safe_public_detail
-from app.services.catalog_overview import (
-    format_catalog_inventory,
-    is_catalog_overview_question,
-)
 from app.services.chat_persistence import ChatPersistenceService
 from app.services.data_source_service import DataSourceService
-from app.services.follow_up import (
-    build_retrieval_query,
-    looks_like_follow_up,
-    sanitize_source_metadata_for_client,
-    tables_from_sql,
-)
+from app.services.follow_up import sanitize_source_metadata_for_client
 from app.services.rag_service import RagService
-from app.services.schema_chunker import is_synthetic_table
-from app.services.schema_introspection import SchemaIntrospectionService
-from app.services.schema_linker import (
-    SchemaChunk,
-    SchemaLinker,
-    chunk_from_content,
-    parse_allowlist_miss_tables,
-)
-from app.services.schema_linking_pipeline import apply_schema_linking
-from app.services.scope_guard import ScopeGuard
+from app.services.schema_linker import SchemaChunk
 from app.services.source_metadata import build_source_metadata
-from app.services.sql_generator import EMPTY_RESULT_SQL_HINT
 from app.services.sql_validator import SqlValidator
 from app.services.warehouse_executor import WarehouseExecutor
 
@@ -65,14 +61,9 @@ def _public_chat_error(exc: BaseException) -> str:
         return GENERIC_AI
     return safe_public_detail(exc, fallback=GENERIC_CHAT)
 
+
 class ChatService:
     """High-level chat entrypoint used by the API layer."""
-
-    @staticmethod
-    def _run_graph(graph: Any, state: dict[str, Any]) -> dict[str, Any]:
-        """Run LangGraph under the process memory guard (no overlap with TTS)."""
-        with heavy_memory_op("chat_graph"):
-            return run_chat_graph(graph, state)
 
     @staticmethod
     async def ask(
@@ -84,7 +75,7 @@ class ChatService:
         session_id: uuid.UUID | None = None,
         client: AIClient | None = None,
     ) -> dict[str, Any]:
-        prepared = await ChatService._prepare(
+        prepared = await ChatService._bootstrap(
             session,
             user_id=user_id,
             data_source_id=data_source_id,
@@ -92,18 +83,8 @@ class ChatService:
             session_id=session_id,
             client=client,
         )
-        final = await asyncio.to_thread(
-            ChatService._run_graph, prepared["graph"], prepared["state"]
-        )
-        prepared, final = await ChatService._maybe_expand_and_retry(
-            session,
-            prepared=prepared,
-            final=final,
-        )
-        prepared, final = await ChatService._maybe_empty_result_retry(
-            prepared=prepared,
-            final=final,
-        )
+        with heavy_memory_op("chat_graph"):
+            final = await arun_chat_graph(prepared["graph"], prepared["state"])
         return await ChatService._persist_result(
             session,
             prepared=prepared,
@@ -125,7 +106,7 @@ class ChatService:
         q_preview = (question or "").strip()[:120]
 
         try:
-            prepared = await ChatService._prepare(
+            prepared = await ChatService._bootstrap(
                 session,
                 user_id=user_id,
                 data_source_id=data_source_id,
@@ -135,7 +116,7 @@ class ChatService:
             )
         except Exception as exc:
             logger.exception(
-                "chat prepare failed user=%s data_source=%s question=%r",
+                "chat bootstrap failed user=%s data_source=%s question=%r",
                 user_id,
                 data_source_id,
                 q_preview,
@@ -148,116 +129,65 @@ class ChatService:
             }
             return
 
-        yield ChatService._stage_event("retrieving_context")
-
-        event_queue: Queue[dict[str, Any] | None] = Queue()
         session_key = str(prepared["chat_session"].session_id)
-
-        def worker() -> None:
-            last_stage = "retrieving_context"
-            try:
-                final_state: dict[str, Any] | None = None
-                with heavy_memory_op("chat_graph_stream"):
-                    for kind, *rest in iter_chat_graph(
-                        prepared["graph"], prepared["state"]
-                    ):
-                        if kind == "stage":
-                            node_name, current = rest
-                            last_stage = str(node_name)
-                            logger.info(
-                                "chat stage=%s attempts=%s session=%s",
-                                last_stage,
-                                int(current.get("attempts") or 0),
-                                session_key,
-                            )
-                            event_queue.put(
-                                ChatService._stage_event(
-                                    last_stage,
-                                    attempts=int(current.get("attempts") or 0),
-                                    sql=current.get("sql"),
-                                )
-                            )
-                        elif kind == "final":
-                            final_state = rest[0]
-                event_queue.put({"type": "_final", "state": final_state or {}})
-            except Exception as exc:  # noqa: BLE001
-                logger.exception(
-                    "chat graph stream failed stage=%s session=%s question=%r",
-                    last_stage,
-                    session_key,
-                    q_preview,
-                )
-                event_queue.put(
-                    {
-                        "type": "error",
-                        "detail": _public_chat_error(exc),
-                        "error_type": type(exc).__name__,
-                        "stage": last_stage,
-                    }
-                )
-            finally:
-                event_queue.put(None)
-
-        loop = asyncio.get_running_loop()
-        worker_future = loop.run_in_executor(None, worker)
+        last_stage = "preparing"
+        final_state: dict[str, Any] | None = None
 
         try:
-            while True:
-                item = await asyncio.to_thread(ChatService._queue_get, event_queue)
-                if item is None:
-                    break
-                if item.get("type") == "_final":
-                    final_state = item.get("state") or {}
-                    try:
-                        if ChatService._needs_allowlist_expand(
-                            prepared, final_state
-                        ) or ChatService._needs_unanswerable_expand(
-                            prepared, final_state
-                        ):
-                            yield ChatService._stage_event("expanding_schema")
-                        prepared_out, final_out = await ChatService._maybe_expand_and_retry(
-                            session,
-                            prepared=prepared,
-                            final=final_state,
-                        )
-                        if ChatService._needs_empty_result_retry(prepared_out, final_out):
-                            yield ChatService._stage_event("retrying_empty_sql")
-                        prepared_out, final_out = await ChatService._maybe_empty_result_retry(
-                            prepared=prepared_out,
-                            final=final_out,
-                        )
-                        result = await ChatService._persist_result(
-                            session,
-                            prepared=prepared_out,
-                            final=final_out,
-                        )
-                        yield {"type": "result", **result}
-                    except Exception as exc:
-                        logger.exception(
-                            "chat post-graph failed session=%s question=%r",
+            with heavy_memory_op("chat_graph_stream"):
+                async for kind, *rest in aiter_chat_graph(
+                    prepared["graph"], prepared["state"]
+                ):
+                    if kind == "stage":
+                        node_name, current = rest
+                        last_stage = str(node_name)
+                        logger.info(
+                            "chat stage=%s attempts=%s session=%s",
+                            last_stage,
+                            int(current.get("attempts") or 0),
                             session_key,
-                            q_preview,
                         )
-                        yield {
-                            "type": "error",
-                            "detail": _public_chat_error(exc),
-                            "error_type": type(exc).__name__,
-                            "stage": "persist",
-                        }
-                elif item.get("type") == "error":
-                    yield item
-                else:
-                    yield item
-        finally:
-            await worker_future
+                        yield ChatService._stage_event(
+                            last_stage,
+                            attempts=int(current.get("attempts") or 0),
+                            sql=current.get("sql"),
+                        )
+                    elif kind == "final":
+                        final_state = rest[0]
+        except Exception as exc:
+            logger.exception(
+                "chat graph stream failed stage=%s session=%s question=%r",
+                last_stage,
+                session_key,
+                q_preview,
+            )
+            yield {
+                "type": "error",
+                "detail": _public_chat_error(exc),
+                "error_type": type(exc).__name__,
+                "stage": last_stage,
+            }
+            return
 
-    @staticmethod
-    def _queue_get(queue: Queue[dict[str, Any] | None]) -> dict[str, Any] | None:
-        while True:
-            try:
-                return queue.get(timeout=0.25)
-            except Empty:
-                continue
+        try:
+            result = await ChatService._persist_result(
+                session,
+                prepared=prepared,
+                final=final_state or {},
+            )
+            yield {"type": "result", **result}
+        except Exception as exc:
+            logger.exception(
+                "chat persist failed session=%s question=%r",
+                session_key,
+                q_preview,
+            )
+            yield {
+                "type": "error",
+                "detail": _public_chat_error(exc),
+                "error_type": type(exc).__name__,
+                "stage": "persist",
+            }
 
     @staticmethod
     def _stage_event(
@@ -275,7 +205,7 @@ class ChatService:
         }
 
     @staticmethod
-    async def _prepare(
+    async def _bootstrap(
         session: AsyncSession,
         *,
         user_id: uuid.UUID,
@@ -284,6 +214,7 @@ class ChatService:
         session_id: uuid.UUID | None,
         client: AIClient | None,
     ) -> dict[str, Any]:
+        """Load auth/session/catalog; NLP + SQL run inside LangGraph."""
         ai = client or get_ai_client()
         data_source = await DataSourceService.get_active(
             session, data_source_id, user_id=user_id
@@ -303,106 +234,40 @@ class ChatService:
         prior_sql = await ChatPersistenceService.load_last_successful_sql(
             session, chat_session.session_id
         )
-        # Only reuse prior SQL for clear follow-ups (not every turn in the session).
-        if prior_sql and not looks_like_follow_up(question, history):
-            prior_sql = None
+        catalog = await RagService.load_catalog(session, data_source_id)
 
-        # Follow-ups are retrieval-poor on their own text; anchor with the prior
-        # question + its tables so the join path survives the refinement.
-        retrieval_query = build_retrieval_query(
-            question, history, prior_sql=prior_sql
-        )
-        seed_rows = await RagService.retrieve_rows(
-            session,
-            data_source_id,
-            retrieval_query,
-            client=ai,
-        )
-        seed_rows = await ChatService._with_prior_turn_tables(
-            session,
-            data_source_id=data_source_id,
-            seed_rows=list(seed_rows),
-            prior_sql=prior_sql,
-        )
-        context_mode = "rag" if seed_rows else "empty"
-        linked_chunks = list(seed_rows)
-        overview = is_catalog_overview_question(question)
-
-        if seed_rows or overview:
-            catalog = await RagService.load_catalog(session, data_source_id)
-            if catalog or overview:
-                linking = apply_schema_linking(
-                    question,
-                    list(seed_rows),
-                    catalog,
-                    default_hops=settings.rag_expand_hops,
-                    max_tables=settings.rag_max_tables,
-                )
-                linked_chunks = linking.linked_chunks
-                context_mode = linking.context_mode
-
-        if not linked_chunks:
-            try:
-                tables = await asyncio.to_thread(
-                    SchemaIntrospectionService.introspect, info
-                )
-                from app.services.schema_chunker import chunk_tables
-
-                fallback: list[SchemaChunk] = []
-                for content, metadata in chunk_tables(tables):
-                    parsed = chunk_from_content(content, metadata)
-                    if parsed:
-                        fallback.append(parsed)
-                if fallback:
-                    if overview:
-                        linked_chunks = fallback
-                        context_mode = "catalog_overview"
-                    else:
-                        linked_chunks = fallback[: settings.rag_max_tables]
-                        context_mode = "introspection_fallback"
-            except SchemaEmbeddingError:
-                linked_chunks = []
-                context_mode = "empty"
-
-        return ChatService._build_prepared(
-            ai=ai,
-            data_source=data_source,
+        state = initial_chat_state(
             data_source_id=data_source_id,
             question=question,
-            chat_session=chat_session,
+            connection_url=info.connection_url,
+            schema_name=info.schema_name,
+            allowed_tables=[],
+            session_id=chat_session.session_id,
             history=history,
-            info=info,
-            linked_chunks=linked_chunks,
-            context_mode=context_mode,
-            prior_successful_sql=prior_sql,
+            source_metadata={},
+            prior_sql=prior_sql,
         )
-
-    @staticmethod
-    async def _with_prior_turn_tables(
-        session: AsyncSession,
-        *,
-        data_source_id: uuid.UUID,
-        seed_rows: list[SchemaChunk],
-        prior_sql: str | None,
-    ) -> list[SchemaChunk]:
-        """Re-seed the tables the prior turn actually joined (follow-up continuity)."""
-        wanted = tables_from_sql(prior_sql)
-        if not wanted:
-            return seed_rows
-        present = {c.table.lower() for c in seed_rows if c.table}
-        missing = [name for name in wanted if name.lower() not in present]
-        if not missing:
-            return seed_rows
-        fetched = await RagService.fetch_chunks_by_tables(
-            session, data_source_id, missing
+        graph = build_chat_graph(
+            client=ai,
+            session=session,
+            data_source_id=data_source_id,
+            catalog=catalog,
+            warehouse_info=info,
+            data_source=data_source,
         )
-        if not fetched:
-            return seed_rows
-        return SchemaLinker.merge_chunks(
-            seed_rows,
-            fetched,
-            max_tables=settings.rag_max_tables,
-        )
+        return {
+            "ai": ai,
+            "data_source": data_source,
+            "data_source_id": data_source_id,
+            "question": question,
+            "chat_session": chat_session,
+            "info": info,
+            "history": history,
+            "catalog": catalog,
+            "graph": graph,
+            "state": state,
+            "prior_successful_sql": prior_sql,
+        }
 
     @staticmethod
     def _build_prepared(
@@ -417,31 +282,20 @@ class ChatService:
         linked_chunks: list[SchemaChunk],
         context_mode: str,
         prior_successful_sql: str | None = None,
+        intent_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        contents = [
-            c.content
-            for c in linked_chunks
-            if context_mode == "catalog_overview" or not is_synthetic_table(c.table)
-        ]
-        allowed_tables = ChatService._extract_allowed_tables(
-            contents,
-            info.schema_name,
-            linked_chunks=linked_chunks,
+        """Test helper: build a SQL-only graph with pre-linked context."""
+        schema_context, allowed_tables = build_schema_context(
+            linked_chunks,
+            context_mode=context_mode,
+            schema_name=info.schema_name,
         )
-        if context_mode == "catalog_overview":
-            # Names-only inventory (full DDL for 50+ tables blows the planner context).
-            schema_context = format_catalog_inventory(
-                schema_name=info.schema_name,
-                table_names=allowed_tables,
-            )
-        else:
-            # Never inject catalog/ER overview prose into column-level SQL planning.
-            schema_context = RagService.format_context(contents)
         source_metadata = build_source_metadata(
             data_source,
             tables_in_context=allowed_tables,
             chunks_retrieved=len(linked_chunks),
             context_mode=context_mode,
+            intent_metadata=intent_metadata,
         )
         if prior_successful_sql:
             source_metadata = {
@@ -458,7 +312,10 @@ class ChatService:
             session_id=chat_session.session_id,
             history=history,
             source_metadata=source_metadata,
+            prior_sql=prior_successful_sql,
         )
+        state["schema_context"] = schema_context
+        state["context_mode"] = context_mode
         graph = build_chat_graph(schema_context=schema_context, client=ai)
         return {
             "ai": ai,
@@ -474,46 +331,51 @@ class ChatService:
             "source_metadata": source_metadata,
             "context_mode": context_mode,
             "prior_successful_sql": prior_successful_sql,
+            "intent_metadata": intent_metadata or {},
         }
+
+    # --- Compat shims for unit/eval tests (logic lives in graph.retry_policy) ---
 
     @staticmethod
     def _needs_allowlist_expand(
         prepared: dict[str, Any],
         final: dict[str, Any],
     ) -> bool:
-        if not settings.rag_expand_on_retry:
-            return False
-        if prepared.get("_expanded_retry"):
-            return False
-        if (final.get("status") or "") == "failed":
-            missing = parse_allowlist_miss_tables(final.get("sql_error"))
-            if not missing:
-                missing = parse_allowlist_miss_tables(final.get("answer"))
-            return bool(missing)
-        return False
+        merged = {
+            **final,
+            "did_expand_retry": bool(prepared.get("_expanded_retry")),
+        }
+        return graph_needs_allowlist_expand(merged)
 
     @staticmethod
     def _needs_unanswerable_expand(
         prepared: dict[str, Any],
         final: dict[str, Any],
     ) -> bool:
-        """Retry with deeper linking when SQL model refused a BI-shaped ask."""
-        if not settings.rag_expand_on_retry:
-            return False
-        if prepared.get("_expanded_retry"):
-            return False
-        if final.get("scope") != "out_of_scope":
-            return False
-        if not prepared.get("linked_chunks"):
-            return False
-        question = prepared.get("question") or ""
-        if not ScopeGuard.has_analytics_intent(question):
-            return False
-        # Trivia / hard refuse from the scope gate already set answer before SQL.
-        # UNANSWERABLE path also sets OUT_OF_SCOPE_MESSAGE — only retry when we
-        # actually entered SQL generation (attempts > 0) or had thin context.
-        attempts = int(final.get("attempts") or 0)
-        return attempts > 0 or (prepared.get("context_mode") or "").startswith("rag")
+        from app.graph.chunk_codec import chunks_to_dicts
+
+        merged = {
+            **final,
+            "did_expand_retry": bool(prepared.get("_expanded_retry")),
+            "question": prepared.get("question") or final.get("question"),
+            "context_mode": prepared.get("context_mode") or "",
+            "linked_chunks": chunks_to_dicts(
+                list(prepared.get("linked_chunks") or [])
+            ),
+        }
+        return graph_needs_unanswerable_expand(merged)
+
+    @staticmethod
+    def _needs_empty_result_retry(
+        prepared: dict[str, Any],
+        final: dict[str, Any],
+    ) -> bool:
+        merged = {
+            **final,
+            "did_empty_retry": bool(prepared.get("_empty_sql_retry")),
+            "question": prepared.get("question") or final.get("question"),
+        }
+        return graph_needs_empty_result_retry(merged)
 
     @staticmethod
     async def _maybe_expand_and_retry(
@@ -522,79 +384,53 @@ class ChatService:
         prepared: dict[str, Any],
         final: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        """
-        One service-level expand when SQL failed on an allowlist miss, or when
-        the SQL model returned UNANSWERABLE for an analytics-shaped question.
-        """
+        """Test helper: one expand via graph node, then SQL-only re-invoke."""
+        from app.graph.chat_graph import run_chat_graph
+        from app.graph.chunk_codec import chunks_to_dicts
+        from app.graph.prep_nodes import expand_schema_node
+
         allowlist_miss = ChatService._needs_allowlist_expand(prepared, final)
         unanswerable = ChatService._needs_unanswerable_expand(prepared, final)
         if not allowlist_miss and not unanswerable:
             return prepared, final
 
-        data_source_id = prepared["data_source_id"]
-        catalog = await RagService.load_catalog(session, data_source_id)
-        if not catalog:
-            return prepared, final
-
-        extra: list[SchemaChunk] = []
-        if allowlist_miss:
-            missing = parse_allowlist_miss_tables(final.get("sql_error"))
-            if not missing:
-                missing = parse_allowlist_miss_tables(final.get("answer"))
-            fetched = await RagService.fetch_chunks_by_tables(
-                session, data_source_id, missing
-            )
-            extra.extend(fetched)
-
-        if unanswerable:
-            # Re-run full linking with deeper default hops from original seeds.
-            retry_link = apply_schema_linking(
-                prepared.get("question") or "",
-                list(prepared.get("linked_chunks") or []) + extra,
-                catalog,
-                default_hops=max(2, settings.rag_expand_hops + 1),
-                max_tables=settings.rag_max_tables,
-            )
-            neighbor_expanded = retry_link.linked_chunks
-        else:
-            seeds = list(prepared.get("linked_chunks") or []) + extra
-            if not seeds:
-                return prepared, final
-            neighbor_expanded = SchemaLinker.expand(
-                seeds,
-                catalog,
-                hops=max(1, settings.rag_expand_hops),
-                max_tables=settings.rag_max_tables,
-            )
-
-        if not neighbor_expanded and not extra:
-            return prepared, final
-
-        merged = SchemaLinker.merge_chunks(
-            list(prepared.get("linked_chunks") or []),
-            neighbor_expanded if neighbor_expanded else extra,
-            max_tables=settings.rag_max_tables,
+        seed_state = dict(final)
+        seed_state["question"] = prepared.get("question") or final.get("question")
+        seed_state["linked_chunks"] = chunks_to_dicts(
+            list(prepared.get("linked_chunks") or [])
         )
-        before = {c.table for c in (prepared.get("linked_chunks") or [])}
-        if not any(c.table not in before for c in merged):
+        seed_state["schema_name"] = prepared["info"].schema_name
+        seed_state["prior_sql"] = prepared.get("prior_successful_sql")
+        seed_state["source_metadata"] = prepared.get("source_metadata") or {}
+        seed_state["did_expand_retry"] = False
+
+        patch = await expand_schema_node(
+            seed_state,  # type: ignore[arg-type]
+            session=session,
+            data_source_id=prepared["data_source_id"],
+            catalog=list(prepared.get("catalog") or []),
+            data_source=prepared.get("data_source"),
+        )
+        if patch.get("expand_noop"):
             return prepared, final
 
+        merged_chunks = chunks_from_dicts(patch.get("linked_chunks"))
         rebuilt = ChatService._build_prepared(
             ai=prepared["ai"],
             data_source=prepared["data_source"],
-            data_source_id=data_source_id,
+            data_source_id=prepared["data_source_id"],
             question=prepared["question"],
             chat_session=prepared["chat_session"],
             history=prepared.get("history") or [],
             info=prepared["info"],
-            linked_chunks=merged,
+            linked_chunks=merged_chunks,
             context_mode="rag_expanded",
             prior_successful_sql=prepared.get("prior_successful_sql"),
+            intent_metadata=prepared.get("intent_metadata"),
         )
         rebuilt["_expanded_retry"] = True
-
         retry_final = await asyncio.to_thread(
-            ChatService._run_graph, rebuilt["graph"], rebuilt["state"]
+            run_chat_graph, rebuilt["graph"], rebuilt["state"]
         )
         first_attempts = int(final.get("attempts") or 0)
         retry_attempts = int(retry_final.get("attempts") or 0)
@@ -602,37 +438,16 @@ class ChatService:
         return rebuilt, retry_final
 
     @staticmethod
-    def _needs_empty_result_retry(
-        prepared: dict[str, Any],
-        final: dict[str, Any],
-    ) -> bool:
-        """One rewrite when SQL ran cleanly but returned zero rows on a BI ask."""
-        if prepared.get("_empty_sql_retry"):
-            return False
-        if (final.get("status") or "") != "ok":
-            return False
-        if final.get("scope") in {"out_of_scope", "needs_clarification"}:
-            return False
-        sql = final.get("sql")
-        if not isinstance(sql, str) or not sql.strip():
-            return False
-        rows = final.get("rows")
-        if rows is None or len(rows) > 0:
-            return False
-        question = prepared.get("question") or ""
-        return ScopeGuard.has_analytics_intent(question)
-
-    @staticmethod
     async def _maybe_empty_result_retry(
         *,
         prepared: dict[str, Any],
         final: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        """
-        Re-run the graph once with join-path feedback after an empty result set.
+        """Test helper mirroring in-graph empty-result retry."""
+        from app.graph.chat_graph import run_chat_graph
+        from app.graph.retry_policy import empty_retry_improves
+        from app.services.sql_generator import EMPTY_RESULT_SQL_HINT
 
-        Does not expand the allowlist — same schema context, corrected SQL.
-        """
         if not ChatService._needs_empty_result_retry(prepared, final):
             return prepared, final
 
@@ -645,19 +460,17 @@ class ChatService:
         retry_state["attempts"] = 0
         retry_state["scope"] = "answerable"
         retry_state["status"] = "running"
+        retry_state["did_empty_retry"] = True
 
         retry_final = await asyncio.to_thread(
-            ChatService._run_graph, prepared["graph"], retry_state
+            run_chat_graph, prepared["graph"], retry_state
         )
         first_attempts = int(final.get("attempts") or 0)
         retry_attempts = int(retry_final.get("attempts") or 0)
-
         next_prepared = dict(prepared)
         next_prepared["_empty_sql_retry"] = True
 
-        # Industry pattern: keep the better outcome — never replace a clean empty
-        # answer with a failed/out-of-scope retry.
-        if ChatService._empty_retry_improves(final, retry_final):
+        if empty_retry_improves(final, retry_final):
             retry_final["attempts"] = first_attempts + retry_attempts
             return next_prepared, retry_final
 
@@ -670,13 +483,7 @@ class ChatService:
         first: dict[str, Any],
         retry: dict[str, Any],
     ) -> bool:
-        """Retry wins only when it returns a successful non-empty result set."""
-        if (retry.get("status") or "") != "ok":
-            return False
-        if retry.get("scope") in {"out_of_scope", "needs_clarification"}:
-            return False
-        rows = retry.get("rows")
-        return isinstance(rows, list) and len(rows) > 0
+        return graph_empty_retry_improves(first, retry)
 
     @staticmethod
     async def _persist_result(
@@ -715,7 +522,7 @@ class ChatService:
         await session.flush()
 
         source_metadata = sanitize_source_metadata_for_client(
-            prepared.get("source_metadata") or final.get("source_metadata")
+            final.get("source_metadata") or prepared.get("source_metadata")
         )
 
         return {
@@ -874,26 +681,27 @@ class ChatService:
         return hydrated
 
     @staticmethod
+    async def _with_prior_turn_tables(
+        session: AsyncSession,
+        *,
+        data_source_id: uuid.UUID | str,
+        seed_rows: list[SchemaChunk],
+        prior_sql: str | None,
+    ) -> list[SchemaChunk]:
+        """Compat wrapper — used by unit tests; graph uses prep_nodes directly."""
+        return await _prior_turn_tables_impl(
+            session,
+            data_source_id=data_source_id,
+            seed_rows=seed_rows,
+            prior_sql=prior_sql,
+        )
+
+    @staticmethod
     def _extract_allowed_tables(
         chunks: list[str],
         schema_name: str | None,
         *,
         linked_chunks: list[SchemaChunk] | None = None,
     ) -> list[str]:
-        tables: set[str] = set()
-        if linked_chunks:
-            for chunk in linked_chunks:
-                if chunk.table and not is_synthetic_table(chunk.table):
-                    tables.add(chunk.table)
-        for chunk in chunks:
-            for line in chunk.splitlines():
-                if line.startswith("Table:"):
-                    qualified = line.split(":", 1)[1].strip()
-                    name = (
-                        qualified.split(".", 1)[1]
-                        if "." in qualified
-                        else qualified
-                    )
-                    if name and not is_synthetic_table(name):
-                        tables.add(name)
-        return sorted(tables)
+        _ = schema_name
+        return extract_allowed_tables(chunks, linked_chunks=linked_chunks)

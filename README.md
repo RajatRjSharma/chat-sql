@@ -12,7 +12,7 @@ Conversational BI assistant: ask questions in natural language, get validated SQ
 
 ![System architecture](docs/architecture.png)
 
-See [docs/architecture.md](docs/architecture.md) for the layer map. The poster is the high-level deploy/pipeline view; **schema linking** (RAG + FK expand) and refresh-index behavior are documented there in text.
+See [docs/architecture.md](docs/architecture.md) for the layer map. The poster shows the **full chat agent under LangGraph** (intent → entities → RAG → SQL). Schema linking is documented there in text.
 
 | Database | Port (local) | Role |
 |----------|----------------|------|
@@ -78,24 +78,23 @@ JWT settings: `JWT_SECRET`, `JWT_ISSUER` (default `voice-driven-data-analyst`).
 2. Open the UI — pick a **saved warehouse**, **connect** credentials, or **upload CSV/Excel**
 3. Schema indexing runs when needed (`POST /api/data/embed-schema`); re-run anytime via **Refresh schema index** in Evidence
 4. Sidebar suggestions load from schema (+ recent successes) (`GET /api/data/sources/{id}/suggested-questions`)
-5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live pipeline stages; prepare does **schema RAG + FK expand**, then LangGraph SQL)
+5. Ask a question — type or use the **mic** (`POST /api/chat/stream` for live stages; LangGraph runs **IntentRouter → EntityLinker → schema RAG + FK expand → SQL**)
 6. **Play** any answer summary (chat bubble or insight panel) via offline Piper TTS (`POST /api/voice/speak`)
 7. Reopen past chats via **History** in the sidebar (`GET /api/chat/sessions?data_source_id=…`, then `GET /api/chat/sessions/{id}`)
 8. **Switch warehouse** returns to the connect screen to open another saved source
 
 ### Schema linking (multi-table joins)
 
-Before SQL generation, prepare retrieves cosine **top-K** schema chunks, then **expands FK neighbors** into context and the validator allowlist (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`). If validation fails because a table was missing from the allowlist, the service does **one** expand-and-retry. See [docs/architecture.md](docs/architecture.md).
+Before SQL generation, LangGraph runs **route_intent** + **link_entities** (small-token LLM), then **retrieve_and_link** (cosine top-K + FK neighbors) into context and the validator allowlist (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`). If validation fails because a table was missing from the allowlist, the graph does **one** `expand_schema` retry. See [docs/architecture.md](docs/architecture.md).
 
 ### Scope guard (relevance)
 
-Before SQL generation, chat runs a **layered warehouse-scope gate** (`assess_relevance`):
+LangGraph `route_intent` runs first. Then `assess_relevance`:
 
-1. **Schema overlap** — if the question mentions a table/column (including short forms / plurals like `sale`→`sales`, `customer`→`customers`), treat as **answerable** (no LLM refuse).
-2. **Analytics intent** — cues like `db`, `orders`, `count`, `revenue` keep the question on the SQL path.
-3. **Clarification** — ultra-vague asks with no entity (`summary`, `help`) get a short prompt to name a table/measure instead of a hard refuse.
-4. **LLM classifier** — only for remaining cases; **unsure → answerable**. **Out of scope** is reserved for clear world-knowledge / off-domain asks (trivia, weather, coding help, etc.).
-5. **Defense in depth** — the SQL generator may still emit `UNANSWERABLE`; empty result sets use a fixed “no rows” message (no invented facts).
+1. **Trust IntentRouter** when confidence ≥ `NLP_INTENT_CONFIDENCE_TRUST` (catalog overview / analytics / follow-up / out_of_scope / clarify).
+2. **Low-confidence fallback** — small-token JSON scope LLM (heuristics only if that fails).
+3. **Out of scope / clarify** ends the graph early (no SQL).
+4. **Defense in depth** — SQL may still emit `UNANSWERABLE`; empty results use a fixed “no rows” message (no invented facts).
 
 ### Offline text-to-speech
 

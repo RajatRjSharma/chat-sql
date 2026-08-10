@@ -36,18 +36,27 @@ def apply_schema_linking(
     *,
     default_hops: int = 1,
     max_tables: int = 15,
+    overview: bool | None = None,
+    extra_force_tables: list[str] | None = None,
 ) -> LinkingResult:
     """
     Mirror of ChatService prepare linking (without DB / introspection fallback).
 
     1. Catalog-overview questions → full catalog, names-only mode upstream
-    2. Else: force-include mentioned + column/synonym tables into seeds
+    2. Else: force-include mentioned + column/synonym + extra_force tables into seeds
     3. FK-neighborhood expand (deeper hops when ≥2 forced tables)
+
+    ``overview`` / ``extra_force_tables`` let IntentRouter + EntityLinker drive
+    linking without relying solely on regex detectors.
     """
-    overview = is_catalog_overview_question(question)
+    is_overview = (
+        bool(overview)
+        if overview is not None
+        else is_catalog_overview_question(question)
+    )
     seeds = list(seed_rows)
 
-    if overview and catalog:
+    if is_overview and catalog:
         return LinkingResult(
             linked_chunks=list(catalog),
             context_mode="catalog_overview",
@@ -77,7 +86,8 @@ def apply_schema_linking(
     catalog_names = [c.table for c in catalog]
     mentioned = tables_mentioned_in_question(question, catalog_names)
     concept_linked = link_tables_for_question(question, catalog)
-    force_names = list(dict.fromkeys([*mentioned, *concept_linked]))
+    extra = [t for t in (extra_force_tables or []) if t]
+    force_names = list(dict.fromkeys([*extra, *mentioned, *concept_linked]))
 
     context_mode = "rag"
     if force_names:
@@ -118,14 +128,10 @@ def apply_schema_linking(
 
 def real_tables(chunks: list[SchemaChunk]) -> list[str]:
     """Bare table names excluding synthetic overview placeholders."""
-    out: list[str] = []
-    seen: set[str] = set()
-    for chunk in chunks:
-        if is_synthetic_table(chunk.table):
-            continue
-        key = chunk.table.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(chunk.table)
-    return out
+    return sorted(
+        {
+            c.table
+            for c in chunks
+            if c.table and not is_synthetic_table(c.table)
+        }
+    )

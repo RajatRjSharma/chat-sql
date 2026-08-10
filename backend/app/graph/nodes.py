@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from app.config import settings
 from app.core.exceptions import SqlValidationError, WarehouseQueryError
@@ -28,7 +28,7 @@ def retrieve_schema_node(
     *,
     schema_context: str,
 ) -> dict[str, Any]:
-    """Inject pre-fetched RAG context (loaded async before graph invoke)."""
+    """SQL-only / test path: inject pre-built schema text into graph state."""
     return {
         "schema_context": schema_context or RagService.format_context([]),
         "status": "running",
@@ -40,15 +40,19 @@ def assess_relevance_node(
     *,
     client: AIClient | None = None,
 ) -> dict[str, Any]:
-    """Layered scope gate before SQL (overlap → clarify → LLM)."""
+    """Scope gate before SQL — prefers IntentRouter prep decision when present."""
     schema_context = state.get("schema_context") or ""
     allowed_tables = list(state.get("allowed_tables") or [])
+    meta = state.get("source_metadata") or {}
+    pre = _scope_from_intent_metadata(meta)
     decision = ScopeGuard.assess(
         question=state["question"],
         schema_context=schema_context,
         allowed_tables=allowed_tables,
         history=list(state.get("history") or []),
         client=client,
+        pre_decision=pre,
+        intent_confidence=_as_float(meta.get("intent_confidence")),
     )
     if decision == "out_of_scope":
         return {
@@ -74,6 +78,28 @@ def assess_relevance_node(
             "status": "ok",
         }
     return {"scope": "answerable", "status": "running"}
+
+
+def _scope_from_intent_metadata(
+    meta: dict[str, Any],
+) -> Literal["answerable", "out_of_scope", "needs_clarification"] | None:
+    intent = str(meta.get("intent") or "").strip().lower()
+    if intent in {"analytics", "follow_up", "catalog_overview"}:
+        return "answerable"
+    if intent == "out_of_scope":
+        return "out_of_scope"
+    if intent == "clarify":
+        return "needs_clarification"
+    return None
+
+
+def _as_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def generate_sql_node(
@@ -207,6 +233,12 @@ def route_after_relevance(state: ChatGraphState) -> str:
 def route_after_generate(state: ChatGraphState) -> str:
     # SQL model may refuse with UNANSWERABLE even if the gate said answerable.
     if state.get("scope") == "out_of_scope" and state.get("answer"):
+        from app.graph.retry_policy import needs_unanswerable_expand
+
+        if needs_unanswerable_expand(dict(state)):
+            return "expand"
+        if state.get("pre_empty_retry_snapshot"):
+            return "resolve_empty"
         return "end"
     return "validate"
 
@@ -218,6 +250,12 @@ def route_after_validate(state: ChatGraphState) -> str:
     max_attempts = int(state.get("max_attempts") or settings.sql_max_attempts)
     if attempts < max_attempts:
         return "retry"
+    from app.graph.retry_policy import needs_allowlist_expand
+
+    if needs_allowlist_expand(dict(state)):
+        return "expand"
+    if state.get("pre_empty_retry_snapshot"):
+        return "resolve_empty"
     return "fail"
 
 
@@ -227,5 +265,29 @@ def route_after_execute(state: ChatGraphState) -> str:
         max_attempts = int(state.get("max_attempts") or settings.sql_max_attempts)
         if attempts < max_attempts:
             return "retry"
+        if state.get("pre_empty_retry_snapshot"):
+            return "resolve_empty"
         return "fail"
     return "summarize"
+
+
+def route_after_summarize(state: ChatGraphState) -> str:
+    from app.graph.retry_policy import needs_empty_result_retry
+
+    if needs_empty_result_retry(dict(state)):
+        return "empty_retry"
+    if state.get("pre_empty_retry_snapshot"):
+        return "resolve_empty"
+    return "end"
+
+
+def route_after_expand(state: ChatGraphState) -> str:
+    if state.get("expand_noop"):
+        if state.get("answer"):
+            return "end"
+        return "fail"
+    return "generate"
+
+
+def route_after_empty_retry(state: ChatGraphState) -> str:
+    return "generate"

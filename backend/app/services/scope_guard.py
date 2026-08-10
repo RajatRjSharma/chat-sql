@@ -12,9 +12,12 @@ from __future__ import annotations
 import re
 from typing import Literal
 
+from app.config import settings
 from app.providers.ai import AIClient, get_ai_client
 from app.services.follow_up import looks_like_follow_up
 from app.services.nl_normalize import nouns_match
+from app.services.nlp_json import clamp_confidence, extract_json_object
+from app.services.schema_vocab import measure_ask_tokens
 
 ScopeDecision = Literal["answerable", "out_of_scope", "needs_clarification"]
 
@@ -205,6 +208,7 @@ _WAREHOUSE_INTENT_HINTS = frozenset(
 # Softer BI vocabulary that also occurs in ordinary English ("cost of a Tesla",
 # "Messi vs Ronaldo"). Good enough to justify a deeper-linking retry after a
 # failed turn, but not to bypass the scope classifier.
+# Domain measure-ask words (revenue/salary/temperature/…) come from schema_vocab.
 _SOFT_ANALYTICS_HINTS = frozenset(
     {
         "median",
@@ -230,15 +234,16 @@ _SOFT_ANALYTICS_HINTS = frozenset(
         "kpi",
         "kpis",
         "highlights",
-        "revenue",
-        "sales",
-        "gmv",
-        "bookings",
-        "margin",
-        "profit",
-        "cost",
+        "metric",
+        "metrics",
+        "measure",
+        "measures",
+        "aggregate",
+        "aggregates",
+        "breakdown",
+        "distribution",
     }
-)
+) | measure_ask_tokens()
 
 _ANALYTICS_HINTS = _WAREHOUSE_INTENT_HINTS | _SOFT_ANALYTICS_HINTS
 
@@ -248,12 +253,8 @@ You gate questions for a read-only warehouse analytics assistant (Text2SQL / BI 
 You receive SCHEMA CONTEXT (tables/columns in the user's database) and a USER QUESTION.
 Decide whether the question belongs to this warehouse.
 
-Reply with exactly one token on the first line:
-ANSWERABLE
-or
-OUT_OF_SCOPE
-or
-NEEDS_CLARIFICATION
+Return ONLY compact JSON (no markdown):
+{"decision":"ANSWERABLE|OUT_OF_SCOPE|NEEDS_CLARIFICATION","confidence":0.0}
 
 Rules (follow in order):
 1. ANSWERABLE — the question could plausibly be answered with SELECT analytics over the listed
@@ -267,7 +268,7 @@ Rules (follow in order):
    general trivia, world facts, celebrities, buildings, weather, sports scores, coding help,
    or topics the schema cannot support at all.
 4. When unsure between ANSWERABLE and OUT_OF_SCOPE, choose ANSWERABLE.
-5. Do not explain. Do not output SQL.
+5. Do not assume any industry. Do not explain. Do not output SQL.
 """
 
 
@@ -302,44 +303,76 @@ class ScopeGuard:
         allowed_tables: list[str] | None = None,
         history: list[dict[str, str]] | None = None,
         client: AIClient | None = None,
+        pre_decision: ScopeDecision | None = None,
+        intent_confidence: float | None = None,
     ) -> ScopeDecision:
+        """Relevance gate.
+
+        When IntentRouter already decided with decent confidence, trust it and
+        skip the redundant scope LLM. Low-confidence / missing prep still uses
+        the layered heuristic + LLM path.
+        """
         q = (question or "").strip()
         if not q:
             return "needs_clarification"
 
+        # Prep-time IntentRouter mapping → graph scope.
+        trust = settings.nlp_intent_confidence_trust
+        if pre_decision is not None and (
+            intent_confidence is None or intent_confidence >= trust
+        ):
+            return pre_decision
+
+        # Align with IntentRouter typo normalization (DP → DB) for overlap checks.
+        from app.services.intent_router import IntentRouter
+
+        q_norm = IntentRouter.normalize_question(q)
+
         schema_ids = ScopeGuard.extract_schema_identifiers(schema_context, allowed_tables)
 
         # 0) Conversational refinements of a prior BI turn stay in the SQL path.
-        # Without this, "Break that down by month" has no schema tokens and the
-        # scope LLM often wrongly returns OUT_OF_SCOPE.
-        if looks_like_follow_up(q, history, schema_tokens=schema_ids):
+        if looks_like_follow_up(q_norm, history, schema_tokens=schema_ids):
             return "answerable"
 
         # 1) Deterministic: schema / analytics signal → stay in the SQL path.
-        if _has_overlap(q, schema_ids):
+        if _has_overlap(q_norm, schema_ids):
             return "answerable"
-        if ScopeGuard.has_warehouse_intent(q):
+        if ScopeGuard.has_warehouse_intent(q_norm):
+            return "answerable"
+        from app.services.catalog_overview import is_catalog_overview_question
+
+        if is_catalog_overview_question(q_norm):
             return "answerable"
 
         # 2) Ultra-vague with no schema cue → clarify (do not hard-refuse).
-        if ScopeGuard.is_vague_only(q):
+        if ScopeGuard.is_vague_only(q_norm):
             return "needs_clarification"
 
-        # 3) LLM only when still ambiguous.
+        # 3) Small-token JSON LLM only when still ambiguous.
+        if not settings.nlp_prefer_llm:
+            return "answerable"
+
         ai = client or get_ai_client()
         context = (schema_context or "").strip() or "No schema context available."
+        # Keep context compact for speed/cost.
+        context_snip = context if len(context) <= 4000 else context[:4000] + "\n…"
         messages = [
             {"role": "system", "content": _SYSTEM},
             {
                 "role": "user",
                 "content": (
                     "SCHEMA CONTEXT:\n"
-                    f"{context}\n\n"
-                    f"USER QUESTION:\n{q}"
+                    f"{context_snip}\n\n"
+                    f"USER QUESTION:\n{q_norm}"
                 ),
             },
         ]
-        raw = ai.complete(messages, temperature=0.0, max_tokens=16)
+        raw = ai.complete(
+            messages,
+            temperature=0.0,
+            max_tokens=64,
+            preferred_model=settings.effective_llm_router_model,
+        )
         return ScopeGuard.parse_decision(raw)
 
     @staticmethod
@@ -353,8 +386,19 @@ class ScopeGuard:
             "OUT_OF_SCOPE": "out_of_scope",
             "NEEDS_CLARIFICATION": "needs_clarification",
         }
-        # Whole-label match on the first line so "OUTPUT" / "OUTLIER" / "NEED MORE"
-        # are not mistaken for a decision, while "Out of scope." still resolves.
+
+        # Prefer compact JSON contract from the small-token scope LLM.
+        payload = extract_json_object(text)
+        if payload:
+            label = str(
+                payload.get("decision") or payload.get("intent") or ""
+            ).strip().upper().replace(" ", "_")
+            if label in token_map:
+                # confidence is observational only; fail-open to answerable on unsure.
+                _ = clamp_confidence(payload.get("confidence", 0.5))
+                return token_map[label]  # type: ignore[return-value]
+
+        # Whole-label match on the first line (legacy single-token replies).
         first = re.sub(r"[^A-Z]+", "_", text.splitlines()[0].upper()).strip("_")
         for label, decision in token_map.items():
             if first == label or first.startswith(f"{label}_"):

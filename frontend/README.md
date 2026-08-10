@@ -35,7 +35,7 @@ Backend env vars are documented in the repo-root [`.env.example`](../.env.exampl
 
 Sign-up is gated by backend `REGISTRATION_ENABLED` (default off) — the UI hides “Create an account” when disabled (`GET /api/auth/config`).
 
-Backend prepare does **schema RAG + FK neighborhood expand** before LangGraph SQL, so multi-table joins are not limited to cosine top-K alone. See the root README “Schema linking” section.
+Backend chat runs **full LangGraph**: IntentRouter → EntityLinker → schema RAG + FK expand → SQL. See [docs/architecture.md](../docs/architecture.md).
 
 ### Voice notes
 

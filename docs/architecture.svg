@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060">
+  <defs>
+    <filter id="card" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1060" fill="#F8FAFC"/>
+  <rect x="40" y="40" width="1520" height="980" rx="24" fill="#FFFFFF" stroke="#E2E8F0"/>
+
+  <text font-family="Helvetica, Arial, sans-serif" font-size="32" font-weight="700" fill="#0F172A" x="80" y="96">Voice-Driven Data Analyst - System Architecture</text>
+
+  <!-- CLIENT -->
+  <rect x="80" y="128" width="1440" height="96" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="156">CLIENT</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0F172A" x="104" y="182">Browser / Next.js (Vercel)</text>
+  <rect x="320" y="160" width="70" height="28" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#334155" x="336" y="179">Auth</text>
+  <rect x="402" y="160" width="128" height="28" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#334155" x="414" y="179">Connect / Upload</text>
+  <rect x="542" y="160" width="112" height="28" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#334155" x="554" y="179">Chat + charts</text>
+  <rect x="666" y="160" width="128" height="28" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#334155" x="678" y="179">Web Speech STT</text>
+  <rect x="806" y="160" width="104" height="28" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#334155" x="822" y="179">Piper speak</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="1040" y="179">same-origin /api proxy (httpOnly cookies)</text>
+
+  <!-- API -->
+  <rect x="80" y="240" width="1440" height="80" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="268">API</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0F172A" x="104" y="294">FastAPI (Render)</text>
+  <rect x="280" y="274" width="96" height="26" rx="7" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F766E" x="294" y="292">/api/auth</text>
+  <rect x="388" y="274" width="96" height="26" rx="7" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F766E" x="402" y="292">/api/data</text>
+  <rect x="496" y="274" width="96" height="26" rx="7" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F766E" x="510" y="292">/api/chat</text>
+  <rect x="604" y="274" width="104" height="26" rx="7" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F766E" x="618" y="292">/api/voice</text>
+  <rect x="720" y="274" width="80" height="26" rx="7" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F766E" x="736" y="292">/health</text>
+
+  <!-- PIPELINE -->
+  <rect x="80" y="340" width="1440" height="200" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="368">PIPELINE</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A" x="104" y="392">CHAT PIPELINE - LangGraph</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#0F766E" x="360" y="392">full agent: intent - entities - RAG - scope - SQL - summarize</text>
+
+  <rect x="104" y="416" width="108" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="116" y="440">route_intent</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="116" y="456">IntentRouter</text>
+  <polygon points="220,439 232,444 220,449" fill="#94A3B8"/>
+
+  <rect x="240" y="416" width="112" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="252" y="440">link_entities</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="252" y="456">EntityLinker</text>
+  <polygon points="360,439 372,444 360,449" fill="#94A3B8"/>
+
+  <rect x="380" y="416" width="140" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="392" y="440">retrieve_and_link</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="392" y="456">RAG + FK</text>
+  <polygon points="528,439 540,444 528,449" fill="#94A3B8"/>
+
+  <rect x="548" y="416" width="120" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="560" y="440">assess_relevance</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="560" y="456">scope</text>
+  <polygon points="676,439 688,444 676,449" fill="#94A3B8"/>
+
+  <rect x="696" y="416" width="100" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="708" y="440">generate_sql</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="708" y="456">SQL</text>
+  <polygon points="804,439 816,444 804,449" fill="#94A3B8"/>
+
+  <rect x="824" y="416" width="100" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="836" y="440">validate_sql</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="836" y="456">sqlglot</text>
+  <polygon points="932,439 944,444 932,449" fill="#94A3B8"/>
+
+  <rect x="952" y="416" width="100" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="964" y="440">execute_sql</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="964" y="456">SELECT</text>
+  <polygon points="1060,439 1072,444 1060,449" fill="#94A3B8"/>
+
+  <rect x="1080" y="416" width="100" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="1092" y="440">summarize</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="1092" y="456">NL answer</text>
+
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="104" y="508">expand_schema + empty_retry recovery  |  out of scope / clarify ends early  |  SSE stream</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8" x="104" y="528">Outside graph: JWT auth, warehouse decrypt, chat session CRUD, persistence, Piper TTS</text>
+
+  <!-- DATA -->
+  <rect x="80" y="560" width="1440" height="120" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="588">DATA AND AI</text>
+  <rect x="104" y="608" width="420" height="52" rx="12" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0F172A" x="124" y="630">App Postgres + pgvector</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="124" y="648">metadata, chat history, schemas, embeddings</text>
+  <rect x="544" y="608" width="420" height="52" rx="12" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0F172A" x="564" y="630">User warehouse (readonly)</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="564" y="648">Postgres / other - SQL execution target</text>
+  <rect x="984" y="608" width="500" height="52" rx="12" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0F172A" x="1004" y="630">OpenRouter</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="1004" y="648">LLM + embeddings (models via API)</text>
+
+  <!-- VOICE + SECURITY -->
+  <rect x="80" y="700" width="700" height="88" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="728">VOICE</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#0F172A" x="104" y="756">browser STT (Web Speech API)  -&gt;  offline Piper TTS on API (CPU)</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="104" y="774">no external TTS calls</text>
+
+  <rect x="800" y="700" width="720" height="88" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="824" y="728">SECURITY / DEPLOY</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#0F172A" x="824" y="756">httpOnly cookies  |  encrypted passwords  |  SELECT-only SQL  |  rate limits</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#64748B" x="824" y="774">Deploy: Vercel + Render</text>
+
+  <!-- BOTTOM FLOW -->
+  <rect x="80" y="808" width="1440" height="180" rx="16" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#card)"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5" x="104" y="836">END-TO-END</text>
+
+  <circle cx="140" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="188" y="896">User asks</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="188" y="912">(voice or text)</text>
+
+  <circle cx="360" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="408" y="896">Intent + Entity</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="408" y="912">LangGraph</text>
+
+  <circle cx="580" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="628" y="896">schema RAG</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="628" y="912">+ FK expand</text>
+
+  <circle cx="800" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="848" y="896">scope + SQL</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="848" y="912">gen - val - exec</text>
+
+  <circle cx="1020" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="1068" y="896">rows + summary</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="1068" y="912">chart</text>
+
+  <circle cx="1240" cy="900" r="28" fill="#ECFDF5" stroke="#99F6E4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F172A" x="1288" y="896">optional speak</text>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748B" x="1288" y="912">Piper TTS</text>
+
+  <path d="M1268 940 C1268 980 160 980 160 940" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#64748B" x="680" y="972">iterative conversation</text>
+</svg>

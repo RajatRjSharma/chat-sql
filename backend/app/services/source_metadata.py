@@ -88,6 +88,7 @@ def build_source_metadata(
     chunks_retrieved: int = 0,
     context_mode: str = "rag",
     include_full_data_profile: bool = False,
+    intent_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Provenance for one answer: warehouse identity + dialect + AI models used.
@@ -103,7 +104,7 @@ def build_source_metadata(
     else:
         data_profile = profile_for_tables_in_context(stored_profile, tables)
 
-    return {
+    meta: dict[str, Any] = {
         "source_name": data_source.name,
         "data_source_id": str(data_source.id),
         "db_type": profile["db_type"],
@@ -127,6 +128,7 @@ def build_source_metadata(
         "embedding_dimensions": settings.embedding_dimensions,
         "llm_model": settings.llm_model,
         "llm_model_fallback": settings.llm_model_fallback,
+        "llm_router_model": settings.effective_llm_router_model,
         "rag_top_k": settings.rag_top_k,
         "rag_expand_hops": settings.rag_expand_hops,
         "rag_max_tables": settings.rag_max_tables,
@@ -136,6 +138,11 @@ def build_source_metadata(
         "data_profile": data_profile,
         "data_profile_version": (data_profile or {}).get("version") if data_profile else None,
     }
+    if intent_metadata:
+        for key, value in intent_metadata.items():
+            if value is not None:
+                meta[key] = value
+    return meta
 
 
 def format_metadata_for_llm(metadata: dict[str, Any] | None) -> str:

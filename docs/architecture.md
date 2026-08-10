@@ -2,15 +2,15 @@
 
 ![Voice-Driven Data Analyst — System Architecture](./architecture.png)
 
-High-level system poster for demos and reviews. The diagram is the **layer / deploy view**; schema-linking details below match current code (`backend/app/`).
+Editable source: [architecture.svg](./architecture.svg). High-level poster for demos and reviews; details below match current code (`backend/app/`).
 
 Related docs:
 
-- Root [README.md](../README.md) — setup, typical flow, schema linking, keep-alive / Render log tips
-- [backend/README.md](../backend/README.md) — API, prepare + LangGraph pipeline, TTS, chat log prefixes, scripts
+- Root [README.md](../README.md) — setup, typical flow, schema linking, keep-alive / Render tips
+- [backend/README.md](../backend/README.md) — API, LangGraph pipeline, TTS, scripts
 - [frontend/README.md](../frontend/README.md) — UI flow, Evidence refresh, E2E
 - [backend/scripts/sales_extended/README.md](../backend/scripts/sales_extended/README.md) — multi-table sales demo warehouse
-- [`.env.example`](../.env.example) — full backend Settings aliases; [frontend/.env.local.example](../frontend/.env.local.example) — Next proxy
+- [`.env.example`](../.env.example) — backend Settings; [frontend/.env.local.example](../frontend/.env.local.example) — Next proxy
 
 ## What the diagram shows
 
@@ -18,46 +18,90 @@ Related docs:
 |-------|------|
 | **Client** | Next.js on Vercel — auth, connect/upload, chat + charts, Web Speech STT, Piper speak |
 | **API** | FastAPI on Render — `/api/auth`, `/api/data`, `/api/chat`, `/api/voice`, `/health` |
-| **Chat pipeline** | LangGraph: retrieve schema → assess relevance → generate / validate / execute SQL → summarize |
+| **LangGraph** | Full chat agent: IntentRouter → EntityLinker → RAG/FK → scope → SQL loop → summarize (+ expand / empty-result retries) |
 | **Data & AI** | App Postgres + pgvector; user warehouse (read-only); OpenRouter (LLM + embeddings) |
 | **Voice / security** | Browser STT; offline Piper TTS; httpOnly cookies; SELECT-only SQL; rate limits |
 
-> **Note:** Health checks are served at `/health` (not `/api/health`). Same-origin `/api` proxy is used for cookie auth.
+> **Note:** Health checks are `/health` (not `/api/health`). Same-origin `/api` proxy is used for cookie auth.
 
-## Schema linking (not drawn as separate boxes)
+## Chat pipeline — full flow under LangGraph
 
-Before the graph runs, `ChatService` prepare does industry-style linking:
+Industry practice for Text2SQL agents (LangGraph / agent graphs): **one compiled graph** owns soft NLP, retrieval, scope, SQL retries, and summarization so stages are observable (SSE) and edges own recovery.
 
-1. **Cosine top-K** (`RAG_TOP_K`, default 5) — seed chunks from the schema index.
-   Index stores **one chunk per table** plus two warehouse-wide overview chunks:
-   - `catalog_overview` — full table inventory (summary / all-tables asks)
-   - `relationship_graph` — ER / FK edge list (join-path asks)
-2. **FK expand** (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`) — neighboring tables into context + allowlist
-   (overview chunks do not consume the real-table budget).
-3. **Catalog overview path** — NL like “summary of db” only (not merely retrieving the
-   catalog overview chunk) → allowlist **every** indexed table with a names-only inventory
-   context suited to row-count / all-tables SQL.
-4. **Mention linking** — table names appearing in the question are force-included from the
-   catalog so column DDL stays available (avoids false UNANSWERABLE on asks like
-   “amounts in invoices”).
-5. LangGraph SQL loop against that allowlist (retries as in the diagram).
-6. On allowlist miss, **one** expand-and-retry (`RAG_EXPAND_ON_RETRY`).
+`ChatService` only **bootstraps** (auth, chat session, history, catalog load), then `ainvoke` / `astream` the graph. Persistence stays outside the graph.
 
-In the UI, **Refresh schema index** (Evidence panel → `POST /api/data/embed-schema`) re-indexes after warehouse DDL so RAG + FK metadata stay current. After this chunking change, refresh once so the two overview chunks are embedded.
+```mermaid
+flowchart TB
+  subgraph api [FastAPI ChatService]
+    B[Bootstrap: session + catalog]
+    subgraph lg [LangGraph]
+      IR[route_intent]
+      EL[link_entities]
+      RL[retrieve_and_link]
+      AR[assess_relevance]
+      GS[generate_sql]
+      VS[validate_sql]
+      ES[execute_sql]
+      SU[summarize]
+      EX[expand_schema]
+      ER[prepare_empty_retry]
+    end
+    B --> IR --> EL --> RL --> AR
+    AR -->|out_of_scope / clarify| END1[END]
+    AR -->|answerable| GS --> VS
+    VS -->|retry| GS
+    VS -->|allowlist miss| EX --> GS
+    VS -->|ok| ES --> SU
+    ES -->|retry| GS
+    GS -->|UNANSWERABLE analytics| EX
+    SU -->|empty rows| ER --> GS
+    SU -->|ok| END2[END]
+  end
+```
 
-Offline linking/routing eval (Spider/BIRD-inspired, CI-safe): `make eval` → `backend/tests/eval/`
-(full pipeline recall via production `apply_schema_linking`; includes revenue×region×channel regression).
+| Node | Role |
+|------|------|
+| `route_intent` | IntentRouter (small-token JSON) |
+| `link_entities` | EntityLinker (analytics / follow-up) |
+| `retrieve_and_link` | Cosine RAG + FK expand + allowlist freeze |
+| `assess_relevance` | Scope gate (trusts IntentRouter when confident) |
+| `generate_sql` → `validate_sql` → `execute_sql` | SQL loop with sqlglot hard rails |
+| `expand_schema` | One-shot deeper linking on allowlist miss / UNANSWERABLE BI asks |
+| `prepare_empty_retry` / `resolve_empty_retry` | One rewrite after zero rows; keep better outcome |
+| `summarize` | NL answer from rows |
+
+**Outside LangGraph (by design):** JWT/auth, data-source decrypt, chat session CRUD, message persistence, TTS.
+
+## Soft NLP + hard rails (domain-agnostic)
+
+| Layer | Mechanism |
+|-------|-----------|
+| Intent + entities | Small-token LLM JSON (`NLP_PREFER_LLM`, optional `LLM_ROUTER_MODEL`) |
+| Schema vocabulary | Derived from **this** warehouse’s columns (`schema_vocab`) |
+| Retrieval | Embeddings + FK expand (`RAG_*`) |
+| SQL safety | sqlglot SELECT-only + table allowlist |
+| Heuristics | Fallback only when the LLM errors / returns invalid JSON |
+
+Offline eval: `make eval` → `backend/tests/eval/` (sales + HR + IoT generic packs).
+
+## Schema linking (graph detail)
+
+1. **route_intent** — `catalog_overview | analytics | follow_up | out_of_scope | clarify`
+2. **link_entities** (analytics / follow-up) — tables / measures / dimensions from schema
+3. **retrieve_and_link** — cosine top-K → FK expand (`RAG_EXPAND_HOPS`, `RAG_MAX_TABLES`)
+4. Catalog overview path — names-only inventory for full-DB summary asks
+5. On allowlist miss / thin UNANSWERABLE — **expand_schema** once (`RAG_EXPAND_ON_RETRY`)
+
+UI: **Refresh schema index** (Evidence → `POST /api/data/embed-schema`) after warehouse DDL.
 
 ## End-to-end
 
 ```text
 Ask (voice/text)
-  → schema RAG + FK expand
-  → scope gate (clarify / out-of-scope may end early)
-  → SQL generate → validate → execute (retries)
-  → rows → summary + chart
-     (auto: bar/line/pie · grouped/stacked/multi-line · scatter · heatmap)
+  → Bootstrap session + catalog
+  → LangGraph: intent → entities → RAG/FK → scope → SQL → summarize
+  → rows → chart
   → optional Piper speak
 ```
 
-Streaming: `POST /api/chat/stream` (SSE stages).
+Streaming: `POST /api/chat/stream` (SSE stages for every LangGraph node).

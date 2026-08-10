@@ -28,6 +28,14 @@ class TestIsCatalogOverviewQuestion:
     def test_summary_of_db(self) -> None:
         assert is_catalog_overview_question("give me the summary of db") is True
         assert is_catalog_overview_question("give me the summary for the db") is True
+        from app.services.intent_router import IntentRouter
+
+        assert (
+            is_catalog_overview_question(
+                IntentRouter.normalize_question("tell me the summary for the DP")
+            )
+            is True
+        )
 
     def test_summary_of_the_full_database(self) -> None:
         """Production demo phrasing — intensifier before database."""

@@ -25,35 +25,44 @@ _NUMERIC_TYPES = (
     "smallint",
 )
 _ID_NAME_RE = re.compile(r"(^id$|_id$)", re.IGNORECASE)
+# Structural only — no industry nouns (revenue/sales/product/customer).
 _METRIC_HINTS = (
     "amount",
     "total",
-    "revenue",
-    "sales",
+    "value",
     "price",
     "cost",
     "qty",
     "quantity",
     "units",
     "count",
-    "value",
+    "score",
+    "rate",
+    "balance",
+    "salary",
+    "reading",
+    "duration",
+    "volume",
 )
 _CATEGORY_HINTS = (
-    "region",
-    "category",
     "status",
-    "city",
-    "country",
-    "segment",
     "type",
     "name",
-    "product",
-    "customer",
+    "code",
+    "category",
+    "segment",
+    "region",
+    "city",
+    "country",
+    "department",
+    "title",
+    "state",
+    "label",
 )
 _FALLBACK_QUESTIONS = [
     "What tables are available in this warehouse?",
     "Summarize the main entities in this schema.",
-    "Which tables look most useful for sales analysis?",
+    "Which tables look most useful for analysis?",
     "Show me a high-level overview of the data model.",
 ]
 

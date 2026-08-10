@@ -53,8 +53,8 @@ _SCOPED_TABLE_ASK_RE = re.compile(
         related|joining|join|reference|references|referencing
       | linked\s+to|connected\s+to|associated\s+with|containing
       | that\s+have
-      | having\s+(?:an?\s+)?(?:amount|column|columns|field|fields)
-      | with\s+amount|with\s+column
+      | having\s+(?:an?\s+)?(?:column|columns|field|fields|measure|metric|amount)
+      | with\s+(?:column|field|measure|metric|amount)
     )\b
     """
 )
@@ -191,29 +191,8 @@ _COLUMN_LINK_STOPWORDS = frozenset(
 )
 
 # BI vocabulary → warehouse measure columns (generic across schemas).
-_MEASURE_SYNONYMS: dict[str, tuple[str, ...]] = {
-    "revenue": (
-        "amount",
-        "total_amount",
-        "line_amount",
-        "unit_price",
-        "price",
-        "net_amount",
-    ),
-    "sales": ("amount", "total_amount", "line_amount"),
-    "gmv": ("amount", "total_amount", "line_amount"),
-    "spend": ("amount", "total_amount"),
-    "income": ("amount", "total_amount"),
-    "turnover": ("amount", "total_amount"),
-    "bookings": ("amount", "total_amount", "booking_amount"),
-    "margin": ("margin", "gross_margin", "net_margin", "amount"),
-    "profit": ("profit", "net_profit", "gross_profit", "amount"),
-    "cost": ("cost", "unit_cost", "total_cost", "amount"),
-    "expense": ("expense", "amount", "total_amount"),
-    "fee": ("fee", "fees", "amount"),
-    "arr": ("arr", "amount", "total_amount"),
-    "mrr": ("mrr", "amount", "total_amount"),
-}
+# Kept as a thin linguistic alias layer; prefer schema_vocab for linking.
+_MEASURE_SYNONYMS: dict[str, tuple[str, ...]] = {}
 
 
 class _ChunkLike(Protocol):
@@ -365,26 +344,40 @@ def parse_columns_from_chunk(content: str) -> list[str]:
 
 # Prefer these table-name hints when linking via measure synonyms only
 # (avoid attaching every lookup table that happens to share a column name).
+# Domain-neutral structural fragments only — see schema_vocab.table_is_factish.
 _FACTISH_TABLE_HINTS = (
+    "fact",
+    "event",
+    "metric",
+    "measure",
+    "txn",
+    "transaction",
+    "ledger",
+    "line",
+    "log",
+    "history",
+    "reading",
+    "usage",
+    "record",
+    # Common operational fact stems (still structural, not retail-only).
     "order",
     "invoice",
     "payment",
     "sale",
-    "revenue",
-    "transaction",
-    "ledger",
-    "line",
-    "event",
-    "fact",
-    "metric",
-    "usage",
     "shipment",
     "booking",
     "ticket",
+    "claim",
+    "encounter",
+    "sensor",
 )
 
 
-def _is_factish_table(table: str) -> bool:
+def _is_factish_table(table: str, content: str = "", *, has_fk: bool = False) -> bool:
+    from app.services.schema_vocab import table_is_factish
+
+    if content:
+        return table_is_factish(table, content, has_fk=has_fk)
     t = table.lower()
     return any(hint in t for hint in _FACTISH_TABLE_HINTS)
 
@@ -394,18 +387,28 @@ def tables_matching_columns(
     catalog_chunks: list[_ChunkLike],
 ) -> list[str]:
     """
-    Force-include tables whose columns match question tokens or BI synonyms.
+    Force-include tables whose columns match question tokens or measure stems.
 
-    Example: "revenue by region" → customers (region) + orders (amount via revenue).
+    Domain-agnostic: uses this warehouse's numeric columns + structural stems
+    (see schema_vocab), not a fixed retail synonym dictionary.
     """
+    from app.services.schema_vocab import (
+        catalog_measure_columns,
+        synonym_columns_for_question_tokens,
+        table_has_fk_metadata,
+    )
+
     tokens = _question_tokens(question)
     if not tokens:
         return []
 
-    synonym_cols: set[str] = set()
-    for token in tokens:
-        for col in _MEASURE_SYNONYMS.get(token, ()):
-            synonym_cols.add(col)
+    measure_cols = catalog_measure_columns(catalog_chunks)
+    synonym_cols = {
+        c.lower()
+        for c in synonym_columns_for_question_tokens(
+            tokens, catalog_measure_cols=measure_cols
+        )
+    }
 
     matched: list[str] = []
     seen: set[str] = set()
@@ -433,8 +436,15 @@ def tables_matching_columns(
             if dimension_hit and synonym_hit:
                 break
 
-        # Synonym-only hits stay on fact-ish tables (orders/invoices/…).
-        if dimension_hit or (synonym_hit and _is_factish_table(table)):
+        # Synonym-only hits stay on fact-ish tables (structural, any domain).
+        if dimension_hit or (
+            synonym_hit
+            and _is_factish_table(
+                table,
+                chunk.content,
+                has_fk=table_has_fk_metadata(chunk),
+            )
+        ):
             seen.add(key)
             matched.append(table)
     return matched
