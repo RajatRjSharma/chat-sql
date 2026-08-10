@@ -1,6 +1,10 @@
-# Keep Render free-tier API warm so Piper TTS stays loaded.
+# Keep Render free-tier API warm AND generate enough Supabase DB activity
+# so a Free plan project is less likely to auto-pause after ~7 days of
+# inactivity (https://supabase.com/docs/guides/platform/free-project-pausing).
+#
 # Render spins down free web services after 15 minutes without inbound HTTP
-# (https://render.com/docs/free).
+# (https://render.com/docs/free). Cold start can take 1–2+ minutes, so this
+# job retries with a long per-attempt timeout (curl exit 28 alone ≠ outage).
 #
 # GitHub Actions `schedule` can run late under load; */5 is still the best
 # we can do from Actions alone (no external monitor).
@@ -8,13 +12,16 @@
 # Set repository secret KEEPALIVE_HEALTH_URL to the full health URL, e.g.:
 #   https://your-api.onrender.com/health
 #
+# The job also GETs the sibling /health/db URL (derived from that secret),
+# which runs SELECT 1 against APP_DB_* (your Supabase project DB).
+#
 # If this workflow fails with:
 #   - Internal server error (correlation ID)
 #   - "job was not acquired by Runner of type hosted…"
 #   - stuck on "Waiting for a runner…"
 # while `curl "$KEEPALIVE_HEALTH_URL"` still returns {"status":"ok"}, that is a
 # GitHub hosted-runner / Actions outage — not your API. Re-run or wait; check
-# https://www.githubstatus.com . See root README "Keep Render awake".
+# https://www.githubstatus.com . See root README keep-alive section.
 name: Keep-alive
 
 on:
@@ -22,28 +29,62 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+# Do not cancel an in-flight cold-start wake when the next cron fires.
 concurrency:
   group: keep-alive
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   ping:
-    name: Ping API /health
+    name: Ping /health and /health/db
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
-      - name: Warm backend
+      - name: Warm backend + touch project DB
         env:
           KEEPALIVE_HEALTH_URL: ${{ secrets.KEEPALIVE_HEALTH_URL }}
         run: |
-          if [ -z "$KEEPALIVE_HEALTH_URL" ]; then
+          set -euo pipefail
+          if [ -z "${KEEPALIVE_HEALTH_URL:-}" ]; then
             echo "Secret KEEPALIVE_HEALTH_URL is not set — skipping ping."
             exit 0
           fi
-          echo "GET $KEEPALIVE_HEALTH_URL"
-          curl -fsS --max-time 90 "$KEEPALIVE_HEALTH_URL"
-          echo
-          echo "Keep-alive OK"
+
+          # Derive /health/db from .../health (with or without trailing slash).
+          HEALTH_URL="${KEEPALIVE_HEALTH_URL%/}"
+          case "$HEALTH_URL" in
+            */health) DB_HEALTH_URL="${HEALTH_URL}/db" ;;
+            *)        DB_HEALTH_URL="${HEALTH_URL%/health}/health/db" ;;
+          esac
+
+          # Render free cold starts often exceed 90s and return curl (28).
+          # Retry: first attempts wake the service; later ones should succeed.
+          ping_with_retries() {
+            local url="$1"
+            local label="$2"
+            local attempt max_attempts=6 sleep_secs=20
+            local max_time=120
+
+            echo "=== $label ==="
+            echo "GET $url"
+            for attempt in $(seq 1 "$max_attempts"); do
+              echo "Attempt $attempt/$max_attempts (max-time ${max_time}s)..."
+              if curl -fsS --connect-timeout 30 --max-time "$max_time" "$url"; then
+                echo
+                echo "$label OK"
+                return 0
+              fi
+              echo
+              echo "Attempt $attempt failed (often Render cold start). Waiting ${sleep_secs}s..."
+              sleep "$sleep_secs"
+            done
+            echo "$label FAILED after $max_attempts attempts"
+            return 1
+          }
+
+          ping_with_retries "$HEALTH_URL" "/health"
+          ping_with_retries "$DB_HEALTH_URL" "/health/db"
+          echo "Keep-alive OK (API + DB)"

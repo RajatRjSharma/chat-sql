@@ -121,16 +121,21 @@ Play uses **`POST /api/voice/speak-stream`**. Prefetch starts when the answer ar
 
 Refresh the bundled voice: `make tts-models`. Mic input still uses the browser Web Speech API (STT). Browser TTS is only used if the speak API fails.
 
-### Keep Render awake (free tier)
+### Keep Render + Supabase awake (free tier)
 
-Render free web services [spin down after **15 minutes**](https://render.com/docs/free) without inbound HTTP (spin-up ~1 minute), which makes the first TTS call after idle slow.
+Render free web services [spin down after **15 minutes**](https://render.com/docs/free) without inbound HTTP (spin-up ~1 minute), which makes the first TTS call after idle slow. Supabase Free projects can [pause after ~7 days of low DB activity](https://supabase.com/docs/guides/platform/free-project-pausing).
 
 GitHub Actions keep-alive:
 
 1. Repo **Settings → Secrets → Actions** → add `KEEPALIVE_HEALTH_URL` = `https://your-api.onrender.com/health`
-2. Workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings every **5 minutes** (and on manual **Run workflow**)
+2. Workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings every **5 minutes** (and on manual **Run workflow**):
+   - `GET /health` — keeps the Render API warm
+   - `GET /health/db` — runs `SELECT 1` on `APP_DB_*` (Supabase) so the DB stays active
+3. Each ping **retries up to 6 times** (120s timeout) because Render free **cold starts** often exceed 90s (`curl: (28) Operation timed out`).
 
 Without the secret, the workflow no-ops safely.
+
+**If Keep-alive is red with `curl: (28)`:** usually the API was asleep and did not wake within the retry window — re-run the workflow, or open the health URL in a browser once. Occasional flakes are normal on free Render.
 
 **If Keep-alive is red but `/health` returns OK** (e.g. `curl https://your-api.onrender.com/health` works): that is almost always a **GitHub Actions hosted-runner** problem, not your API. Typical annotations:
 
@@ -257,7 +262,7 @@ make check-all            # check + Playwright E2E
 
 Schema-linking regressions (e.g. multi-dim “revenue by region and channel”) are covered by `backend/tests/eval/` and run in CI via `pytest tests`. Multi-turn history / second-question SQL generation is covered by `backend/tests/unit/test_chat_history_scenarios.py`.
 
-Keep-alive (`.github/workflows/keep-alive.yml`) is separate from CI: it only curls `/health`. Failures with “runner not acquired” while `/health` is healthy are GitHub infrastructure — see **Keep Render awake** above.
+Keep-alive (`.github/workflows/keep-alive.yml`) is separate from CI: it curls `/health` and `/health/db`. Failures with “runner not acquired” while those endpoints are healthy are GitHub infrastructure — see **Keep Render + Supabase awake** above.
 
 ## Useful commands
 
