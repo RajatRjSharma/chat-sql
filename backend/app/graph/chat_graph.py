@@ -35,6 +35,7 @@ from app.graph.prep_nodes import (
 )
 from app.graph.state import ChatGraphState
 from app.providers.ai import AIClient
+from app.services.schema_chunker import is_synthetic_table
 from app.services.schema_linker import SchemaChunk
 from app.warehouse import WarehouseConnectionInfo
 
@@ -60,13 +61,20 @@ def build_chat_graph(
     """
     graph = StateGraph(ChatGraphState)
     catalog = list(catalog or [])
+    catalog_names = [
+        c.table for c in catalog if c.table and not is_synthetic_table(c.table)
+    ]
     full_prepare = session is not None and data_source_id is not None
 
     # --- nodes ---
     if full_prepare:
         graph.add_node(
             "route_intent",
-            partial(route_intent_node, client=client, catalog=catalog),
+            partial(
+                route_intent_node,
+                client=client,
+                catalog_names=catalog_names,
+            ),
         )
         graph.add_node(
             "link_entities",
@@ -235,13 +243,40 @@ def initial_chat_state(
 def run_chat_graph(graph, state: ChatGraphState) -> dict[str, Any]:
     """Invoke compiled graph synchronously (SQL-only / tests)."""
     result = graph.invoke(state)
-    return dict(result)
+    return scrub_graph_state(dict(result))
 
 
 async def arun_chat_graph(graph, state: ChatGraphState) -> dict[str, Any]:
     """Invoke compiled graph asynchronously (full prepare + SQL)."""
     result = await graph.ainvoke(state)
-    return dict(result)
+    return scrub_graph_state(dict(result))
+
+
+# Large fields kept only while the graph needs them (expand / empty retry).
+_BULKY_STATE_KEYS = (
+    "linked_chunks",
+    "pre_empty_retry_snapshot",
+    "catalog_table_names",
+    "extra_force_tables",
+)
+
+
+def scrub_graph_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Drop bulky prep payloads before returning to ChatService / SSE final."""
+    cleaned = dict(state)
+    for key in _BULKY_STATE_KEYS:
+        cleaned.pop(key, None)
+    return cleaned
+
+
+def _stage_view(current: dict[str, Any]) -> dict[str, Any]:
+    """Slim stage snapshot — avoid copying full catalog DDL on every SSE tick."""
+    return {
+        "attempts": current.get("attempts") or 0,
+        "sql": current.get("sql"),
+        "status": current.get("status"),
+        "scope": current.get("scope"),
+    }
 
 
 STAGE_LABELS: dict[str, str] = {
@@ -270,8 +305,8 @@ def iter_chat_graph(graph, state: ChatGraphState):
     Stream LangGraph node updates synchronously, then yield the merged final state.
 
     Yields:
-      ("stage", node_name, merged_state_dict)
-      ("final", merged_state_dict)
+      ("stage", node_name, slim_state_dict)
+      ("final", scrubbed_state_dict)
     """
     current: dict[str, Any] = dict(state)
     for update in graph.stream(state, stream_mode="updates"):
@@ -280,8 +315,8 @@ def iter_chat_graph(graph, state: ChatGraphState):
         for node_name, patch in update.items():
             if isinstance(patch, dict):
                 current.update(patch)
-            yield "stage", str(node_name), dict(current)
-    yield "final", dict(current)
+            yield "stage", str(node_name), _stage_view(current)
+    yield "final", scrub_graph_state(current)
 
 
 async def aiter_chat_graph(graph, state: ChatGraphState):
@@ -293,5 +328,5 @@ async def aiter_chat_graph(graph, state: ChatGraphState):
         for node_name, patch in update.items():
             if isinstance(patch, dict):
                 current.update(patch)
-            yield "stage", str(node_name), dict(current)
-    yield "final", dict(current)
+            yield "stage", str(node_name), _stage_view(current)
+    yield "final", scrub_graph_state(current)

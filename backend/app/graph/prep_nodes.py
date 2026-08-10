@@ -81,17 +81,46 @@ def build_schema_context(
     return schema_context, allowed
 
 
+def _name_only_chunks(chunks: list[SchemaChunk]) -> list[SchemaChunk]:
+    """Drop DDL bodies after overview inventory is built (keeps state small)."""
+    slim: list[SchemaChunk] = []
+    seen: set[str] = set()
+    for chunk in chunks:
+        if not chunk.table or is_synthetic_table(chunk.table):
+            continue
+        key = chunk.table.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        qualified = (
+            f"{chunk.schema_name}.{chunk.table}"
+            if chunk.schema_name
+            else chunk.table
+        )
+        slim.append(
+            SchemaChunk(
+                content=f"Table: {qualified}",
+                table=chunk.table,
+                schema_name=chunk.schema_name,
+                metadata={"table": chunk.table, "slim": True},
+            )
+        )
+    return slim
+
+
 async def route_intent_node(
     state: ChatGraphState,
     *,
     client: AIClient | None = None,
     catalog: list[SchemaChunk] | None = None,
+    catalog_names: list[str] | None = None,
 ) -> dict[str, Any]:
     """IntentRouter — first NLP node in the graph."""
-    catalog = catalog or []
-    catalog_names = [
-        c.table for c in catalog if c.table and not is_synthetic_table(c.table)
-    ]
+    names = list(catalog_names or [])
+    if not names and catalog:
+        names = [
+            c.table for c in catalog if c.table and not is_synthetic_table(c.table)
+        ]
     question = state["question"]
     history = list(state.get("history") or [])
     prior_sql = state.get("prior_sql")
@@ -101,7 +130,7 @@ async def route_intent_node(
         question,
         history=history,
         prior_sql_present=bool(prior_sql),
-        table_names=catalog_names,
+        table_names=names,
         client=client,
     )
 
@@ -113,7 +142,7 @@ async def route_intent_node(
             question,
             history=history,
             prior_sql_present=False,
-            table_names=catalog_names,
+            table_names=names,
         )
 
     overview = intent.intent == "catalog_overview"
@@ -138,7 +167,7 @@ async def route_intent_node(
         "overview": overview,
         "extra_force_tables": [],
         "source_metadata": meta,
-        "catalog_table_names": catalog_names,
+        "catalog_table_names": names,
         "status": "running",
     }
 
@@ -287,6 +316,13 @@ async def retrieve_and_link_node(
         schema_name=state.get("schema_name"),
     )
 
+    # Overview / clarify paths only need table names in state — keep DDL out of
+    # LangGraph state (Render RAM). Analytics keeps linked DDL for expand_schema.
+    if context_mode == "catalog_overview" or intent in {"clarify", "out_of_scope"}:
+        linked_for_state = _name_only_chunks(linked_chunks)
+    else:
+        linked_for_state = linked_chunks
+
     intent_meta = {
         k: v
         for k, v in (state.get("source_metadata") or {}).items()
@@ -319,7 +355,7 @@ async def retrieve_and_link_node(
         source_metadata = {**source_metadata, "prior_successful_sql": prior_sql}
 
     return {
-        "linked_chunks": chunks_to_dicts(linked_chunks),
+        "linked_chunks": chunks_to_dicts(linked_for_state),
         "context_mode": context_mode,
         "schema_context": schema_context,
         "allowed_tables": allowed,

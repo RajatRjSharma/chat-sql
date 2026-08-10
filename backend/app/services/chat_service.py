@@ -83,13 +83,17 @@ class ChatService:
             session_id=session_id,
             client=client,
         )
-        with heavy_memory_op("chat_graph"):
-            final = await arun_chat_graph(prepared["graph"], prepared["state"])
-        return await ChatService._persist_result(
-            session,
-            prepared=prepared,
-            final=final,
-        )
+        try:
+            # Hold lock only for the graph invoke (no SSE yields here).
+            with heavy_memory_op("chat_graph"):
+                final = await arun_chat_graph(prepared["graph"], prepared["state"])
+            return await ChatService._persist_result(
+                session,
+                prepared=prepared,
+                final=final,
+            )
+        finally:
+            ChatService._release_graph_refs(prepared)
 
     @staticmethod
     async def ask_stream(
@@ -134,26 +138,27 @@ class ChatService:
         final_state: dict[str, Any] | None = None
 
         try:
-            with heavy_memory_op("chat_graph_stream"):
-                async for kind, *rest in aiter_chat_graph(
-                    prepared["graph"], prepared["state"]
-                ):
-                    if kind == "stage":
-                        node_name, current = rest
-                        last_stage = str(node_name)
-                        logger.info(
-                            "chat stage=%s attempts=%s session=%s",
-                            last_stage,
-                            int(current.get("attempts") or 0),
-                            session_key,
-                        )
-                        yield ChatService._stage_event(
-                            last_stage,
-                            attempts=int(current.get("attempts") or 0),
-                            sql=current.get("sql"),
-                        )
-                    elif kind == "final":
-                        final_state = rest[0]
+            # Do NOT hold heavy_memory_op across SSE yields — that would pin the
+            # process lock while the client drains the stream (blocks TTS/chat).
+            async for kind, *rest in aiter_chat_graph(
+                prepared["graph"], prepared["state"]
+            ):
+                if kind == "stage":
+                    node_name, current = rest
+                    last_stage = str(node_name)
+                    logger.info(
+                        "chat stage=%s attempts=%s session=%s",
+                        last_stage,
+                        int(current.get("attempts") or 0),
+                        session_key,
+                    )
+                    yield ChatService._stage_event(
+                        last_stage,
+                        attempts=int(current.get("attempts") or 0),
+                        sql=current.get("sql"),
+                    )
+                elif kind == "final":
+                    final_state = rest[0]
         except Exception as exc:
             logger.exception(
                 "chat graph stream failed stage=%s session=%s question=%r",
@@ -168,7 +173,9 @@ class ChatService:
                 "stage": last_stage,
             }
             return
-
+        finally:
+            # Drop strong refs only — no forced GC (avoids chat latency spikes).
+            ChatService._release_graph_refs(prepared)
         try:
             result = await ChatService._persist_result(
                 session,
@@ -188,6 +195,13 @@ class ChatService:
                 "error_type": type(exc).__name__,
                 "stage": "persist",
             }
+
+    @staticmethod
+    def _release_graph_refs(prepared: dict[str, Any]) -> None:
+        """Drop per-request graph + catalog so closures can be GC'd."""
+        prepared.pop("graph", None)
+        prepared.pop("catalog", None)
+        prepared.pop("state", None)
 
     @staticmethod
     def _stage_event(
@@ -255,6 +269,8 @@ class ChatService:
             warehouse_info=info,
             data_source=data_source,
         )
+        # Do not keep a second strong ref to the full catalog list on `prepared`
+        # (graph node closures already hold it for the request lifetime).
         return {
             "ai": ai,
             "data_source": data_source,
@@ -263,7 +279,6 @@ class ChatService:
             "chat_session": chat_session,
             "info": info,
             "history": history,
-            "catalog": catalog,
             "graph": graph,
             "state": state,
             "prior_successful_sql": prior_sql,
