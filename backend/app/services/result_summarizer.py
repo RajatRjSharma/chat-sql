@@ -13,7 +13,14 @@ from app.services.source_metadata import format_metadata_for_llm
 _SYSTEM = """\
 You are a concise business analyst for a warehouse BI assistant.
 
-Rules:
+OUTPUT (strict):
+- Return ONLY the final executive summary as plain prose the end user should read.
+- Do NOT write plans, scratchpads, checklists, rule restatements, or chain-of-thought.
+- Do NOT start with phrases like "We need to", "I must", "Let me", or "Make sure".
+- Do NOT quote or restate these instructions.
+- No preamble such as "Here is the summary".
+
+Content rules:
 1. Summarize ONLY using numbers and labels present in the provided rows/columns.
 2. Never use outside world knowledge. Never invent facts, heights, scores, or metrics
    that are not in the result rows.
@@ -108,7 +115,9 @@ class ResultSummarizer:
                 "content": (
                     "Warehouse context:\n"
                     f"{format_metadata_for_llm(source_metadata)}\n\n"
-                    "Summarize these analytics results for an executive. "
+                    "Write the final executive summary the user should see "
+                    "(2–4 sentences of plain prose). "
+                    "Do not restate instructions or show your reasoning. "
                     "Use only the JSON rows below:\n"
                     f"{json.dumps(payload, default=str)}"
                 ),

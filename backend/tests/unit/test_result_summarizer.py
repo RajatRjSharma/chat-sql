@@ -53,6 +53,25 @@ def test_summarizer_payload_includes_full_result_extrema() -> None:
     assert maximum["row"]["table_name"] == "largest_table"
 
 
+def test_summarizer_prompt_forbids_chain_of_thought() -> None:
+    client = MagicMock()
+    client.complete.return_value = "Summary"
+
+    ResultSummarizer.summarize(
+        question="Revenue by region",
+        sql="SELECT region, SUM(amount) ...",
+        columns=["region", "revenue"],
+        rows=[{"region": "North", "revenue": 10}],
+        client=client,
+    )
+
+    system = client.complete.call_args.args[0][0]["content"]
+    user = client.complete.call_args.args[0][1]["content"]
+    assert "chain-of-thought" in system.lower()
+    assert "We need to" in system
+    assert "Do not restate instructions" in user
+
+
 def test_summarizer_instructs_multi_dimension_cell_language() -> None:
     client = MagicMock()
     client.complete.return_value = "Summary"
