@@ -73,7 +73,7 @@ intent must be one of:
 
 Rules:
 1. Prefer catalog_overview when the user wants a summary/overview of the database
-   even with light typos for "db/database".
+   even with spelling mistakes in either phrase.
 2. Bare "summary" with no DB/table/metric cue → clarify.
 3. World Cup, celebrities, weather, general knowledge → out_of_scope.
 4. If prior_sql_present is true and the ask refines prior results (by month,
@@ -83,6 +83,14 @@ Rules:
 7. Do not assume any industry (retail, HR, IoT, …); use only the provided tables.
 8. Normalize obvious warehouse synonyms in normalized_question (e.g. "dp"→"database"
    only when it clearly means the database, not a department code).
+
+Examples:
+- "summay of db" → {"intent":"catalog_overview","confidence":0.95,
+  "reason":"database overview","normalized_question":"summary of database"}
+- "sumary for the warehous" → {"intent":"catalog_overview","confidence":0.95,
+  "reason":"warehouse overview","normalized_question":"summary for the warehouse"}
+- "north vs south sales" → {"intent":"analytics","confidence":0.95,
+  "reason":"regional sales comparison","normalized_question":"north vs south sales"}
 """
 
 
@@ -234,16 +242,21 @@ class IntentRouter:
     ) -> IntentDecision:
         """Deterministic overrides for free-model false refuses / missed catalog."""
         q = IntentRouter.normalize_question(question)
+        normalized = (
+            IntentRouter.normalize_question(decision.normalized_question)
+            if decision.source == "llm"
+            else q
+        )
         schema_ids = {n.lower() for n in (table_names or []) if n}
 
-        # Catalog overview phrasing must not fall through to clarify/refuse.
+        # Trust the LLM's corrected wording when checking a missed overview.
         if decision.intent in {"clarify", "out_of_scope", "analytics"}:
-            if is_catalog_overview_question(q):
+            if is_catalog_overview_question(q) or is_catalog_overview_question(normalized):
                 return IntentDecision(
                     intent="catalog_overview",
                     confidence=max(decision.confidence, 0.85),
                     reason="safety: catalog overview",
-                    normalized_question=q,
+                    normalized_question=normalized,
                     source=decision.source,
                 )
 
@@ -330,8 +343,24 @@ class IntentRouter:
             )
             parsed = IntentRouter.parse_decision(raw, question=q)
             if parsed is None:
-                logger.info("IntentRouter invalid JSON; using fallback")
-                decision = IntentRouter.fallback(
+                logger.info("IntentRouter invalid JSON; asking model to repair")
+                repair = ai.complete(
+                    [
+                        {
+                            "role": "system",
+                            "content": (
+                                _SYSTEM
+                                + "\nThe previous reply was invalid. Return one JSON object only."
+                            ),
+                        },
+                        {"role": "user", "content": user_block},
+                    ],
+                    temperature=0.0,
+                    max_tokens=settings.nlp_router_max_tokens,
+                    preferred_model=settings.effective_llm_router_model,
+                )
+                parsed = IntentRouter.parse_decision(repair, question=q)
+                decision = parsed or IntentRouter.fallback(
                     q,
                     history=history,
                     prior_sql_present=prior_sql_present,

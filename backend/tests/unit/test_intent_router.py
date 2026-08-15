@@ -22,6 +22,16 @@ class _FakeAI:
         return self.text or ""
 
 
+class _SequenceAI:
+    def __init__(self, responses: list[str]) -> None:
+        self.responses = iter(responses)
+        self.calls: list[dict] = []
+
+    def complete(self, messages, **kwargs):  # noqa: ANN001
+        self.calls.append({"messages": messages, "kwargs": kwargs})
+        return next(self.responses)
+
+
 class TestIntentRouter:
     def test_normalize_dp_typo_in_overview_context(self) -> None:
         assert IntentRouter.normalize_question("summary for the DP") == "summary for the db"
@@ -99,6 +109,45 @@ class TestIntentRouter:
         )
         assert d.intent == "catalog_overview"
         assert d.source == "fallback"
+
+    def test_route_uses_llm_normalization_for_misspelled_overview(self) -> None:
+        ai = _FakeAI(
+            '{"intent":"analytics","confidence":0.82,"reason":"warehouse ask",'
+            '"normalized_question":"summary of the database"}'
+        )
+
+        d = IntentRouter.route(
+            "summay of db",
+            table_names=["orders", "customers"],
+            client=ai,  # type: ignore[arg-type]
+        )
+
+        assert d.intent == "catalog_overview"
+        assert d.source == "llm"
+        assert d.normalized_question == "summary of the database"
+
+    def test_route_asks_llm_to_repair_invalid_json(self) -> None:
+        ai = _SequenceAI(
+            [
+                "I would classify this as a database overview.",
+                (
+                    '{"intent":"catalog_overview","confidence":0.96,'
+                    '"reason":"database overview",'
+                    '"normalized_question":"summary of database"}'
+                ),
+            ]
+        )
+
+        d = IntentRouter.route(
+            "summay of db",
+            table_names=["orders", "customers"],
+            client=ai,  # type: ignore[arg-type]
+        )
+
+        assert d.intent == "catalog_overview"
+        assert d.source == "llm"
+        assert len(ai.calls) == 2
+        assert "previous reply was invalid" in ai.calls[1]["messages"][0]["content"]
 
 
 class TestEntityLinker:

@@ -18,7 +18,7 @@ _DET = r"(?:the|this|my|our|a|an)\s+"
 _DB_SCOPE = r"(?:full|entire|complete|whole)\s+"
 _DB_NOUN = r"(?:db|database|schema|warehouse|catalog|data)"
 _OVERVIEW_NOUN = (
-    r"(?:summar(?:y|ize|ise)|overview|highlights|description|contents?|"
+    r"(?:summar(?:y|ize|ise)|sum{1,2}ar?y|overview|highlights|description|contents?|"
     r"inventory|catalog)"
 )
 _OVERVIEW_RE = re.compile(

@@ -49,6 +49,8 @@ class TestIsCatalogOverviewQuestion:
 
     def test_overview_phrasing_variants(self) -> None:
         assert is_catalog_overview_question("summary of this database") is True
+        assert is_catalog_overview_question("summay of db") is True
+        assert is_catalog_overview_question("sumary for the warehouse") is True
         assert is_catalog_overview_question("summarize the database") is True
         assert is_catalog_overview_question("summarise my warehouse") is True
         assert is_catalog_overview_question("describe the database") is True
