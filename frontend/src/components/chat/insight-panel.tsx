@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, RefreshCw, X } from "lucide-react";
 import { SpeakButton } from "@/components/chat/speak-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -424,7 +425,7 @@ export function InsightPanel({
   );
 }
 
-/** Collapsible evidence block for viewports without the right rail. */
+/** Scrollable evidence sheet for viewports without the right rail. */
 export function MobileInsightDrawer({
   turns,
   dataSourceName,
@@ -438,38 +439,133 @@ export function MobileInsightDrawer({
   onRefreshSchemaIndex,
 }: Omit<InsightPanelProps, "embedded">) {
   const hasContent = turns.some((t) => t.status === "ok");
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const titleId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const trigger = triggerRef.current;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      trigger?.focus();
+    };
+  }, [open]);
 
   return (
-    <details
-      className={cn(
-        "group",
-        "rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)]",
-      )}
-    >
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-[var(--text-primary)] marker:content-none [&::-webkit-details-marker]:hidden">
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        className={cn(
+          "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl",
+          "border border-[var(--border-card)] bg-[var(--bg-card)] px-4 py-3",
+          "text-sm font-medium text-[var(--text-primary)] transition-colors",
+          "hover:bg-[var(--bg-user)] active:translate-y-px",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+        )}
+      >
         <span>Session evidence</span>
-        <span className="text-[11px] font-normal uppercase tracking-[0.12em] text-[var(--text-secondary)] group-open:hidden">
-          {hasContent ? "Show" : "Empty"}
+        <span className="text-[11px] font-normal uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+          {hasContent ? "Open" : "Empty"}
         </span>
-        <span className="hidden text-[11px] font-normal uppercase tracking-[0.12em] text-[var(--text-secondary)] group-open:inline">
-          Hide
-        </span>
-      </summary>
-      <div className="border-t border-[var(--border-card)] px-3 py-3 sm:px-4">
-        <InsightPanel
-          turns={turns}
-          dataSourceName={dataSourceName}
-          sourceMetadata={sourceMetadata}
-          chunksEmbedded={chunksEmbedded}
-          tablesIndexed={tablesIndexed}
-          schemaIndexedAt={schemaIndexedAt}
-          refreshBusy={refreshBusy}
-          refreshError={refreshError}
-          refreshMessage={refreshMessage}
-          onRefreshSchemaIndex={onRefreshSchemaIndex}
-          embedded
-        />
-      </div>
-    </details>
+      </button>
+
+      {mounted && open
+        ? createPortal(
+            <div className="fixed inset-0 z-[70] flex items-end justify-center sm:p-4">
+              <button
+                type="button"
+                aria-label="Close session evidence"
+                className="absolute inset-0 bg-[var(--bg-shell)]/65 backdrop-blur-[3px] animate-fade-in"
+                onClick={() => setOpen(false)}
+              />
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className={cn(
+                  "relative z-[71] flex min-h-0 w-full max-w-3xl flex-col overflow-hidden",
+                  "h-[min(88dvh,760px)] rounded-t-2xl border border-[var(--border-card)]",
+                  "bg-[var(--bg-surface)] text-[var(--text-primary)]",
+                  "shadow-[0_28px_90px_-28px_rgba(15,23,42,0.55)] animate-rise",
+                  "sm:h-[min(86dvh,760px)] sm:rounded-2xl",
+                )}
+              >
+                <header className="shrink-0 border-b border-[var(--border-card)] bg-[var(--bg-card)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5 sm:pt-3">
+                  <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[var(--border-strong)] sm:hidden" />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2
+                        id={titleId}
+                        className="font-[family-name:var(--font-display)] text-lg tracking-tight"
+                      >
+                        Session evidence
+                      </h2>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        Session digest and charts for this chat
+                      </p>
+                    </div>
+                    <button
+                      ref={closeRef}
+                      type="button"
+                      aria-label="Close session evidence"
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+                        "border border-[var(--border-card)] bg-[var(--bg-card)]",
+                        "transition-colors hover:bg-[var(--bg-user)] active:translate-y-px",
+                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+                      )}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </header>
+
+                <div
+                  data-testid="mobile-evidence-scroll"
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5"
+                >
+                  <InsightPanel
+                    turns={turns}
+                    dataSourceName={dataSourceName}
+                    sourceMetadata={sourceMetadata}
+                    chunksEmbedded={chunksEmbedded}
+                    tablesIndexed={tablesIndexed}
+                    schemaIndexedAt={schemaIndexedAt}
+                    refreshBusy={refreshBusy}
+                    refreshError={refreshError}
+                    refreshMessage={refreshMessage}
+                    onRefreshSchemaIndex={onRefreshSchemaIndex}
+                    embedded
+                  />
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
