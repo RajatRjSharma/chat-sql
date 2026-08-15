@@ -60,15 +60,15 @@ Register with **email + username + password** (no Google Sign-In).
 | Mode | `EMAIL_OTP_ENABLED` | Behaviour |
 |------|---------------------|-----------|
 | **Local (default)** | `true` | After register, verify email via OTP sent through Gmail SMTP (`SMTP_USER`, `SMTP_PASSWORD` app password). |
-| **SMTP-blocked hosts** | `false` | Register marks the user verified immediately (local / free tiers without SMTP). **Not allowed** when `APP_ENV=production` and `REGISTRATION_ENABLED=true` (boot assert). |
+| **No SMTP** | `false` | Register marks verified immediately. Don't use with open registration in production. |
 
 **Registration gate:** `REGISTRATION_ENABLED` (default `false`). Set `true` to allow `POST /api/auth/register` and show “Create an account” in the UI. Existing users can still sign in when disabled. Public flag: `GET /api/auth/config`.
 
-Register / resend OTP use **soft enumeration** (same success shape whether or not the email exists). Wrong OTPs are locked after `OTP_MAX_ATTEMPTS` (default 5).
+Register / resend don't reveal whether an email already exists. OTP codes burn after `OTP_MAX_ATTEMPTS` wrong tries (default 5).
 
 When OTP is enabled, set `SMTP_USER` to your Gmail address and `SMTP_PASSWORD` to a [Google App Password](https://myaccount.google.com/apppasswords). Optional: `SMTP_FROM=Voice-Driven Data Analyst <you@gmail.com>`.
 
-JWT settings: `JWT_SECRET` (≥32 unique chars required when `APP_ENV=production`), `JWT_ISSUER` (default `voice-driven-data-analyst`).
+JWT settings: `JWT_SECRET` (32+ chars in production), `JWT_ISSUER` (default `voice-driven-data-analyst`).
 
 **Sessions:** access + refresh JWTs are **httpOnly cookies** (not `localStorage`). Logout revokes refresh tokens server-side.
 

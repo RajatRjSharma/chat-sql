@@ -63,7 +63,7 @@ class AuthService:
         conflict = existing.scalar_one_or_none()
         otp_enabled = settings.email_otp_enabled
 
-        # Soft enumeration: identical success shape whether or not the account exists.
+        # Same response if email/username already taken (don't leak which).
         if conflict is not None:
             if otp_enabled:
                 return RegisterResponse(email=request.email, message=_SOFT_REGISTERED)
@@ -97,7 +97,7 @@ class AuthService:
 
     @staticmethod
     async def resend_otp(session: AsyncSession, email: str) -> RegisterResponse:
-        # Soft enumeration + no-op when OTP is off or the account is unknown/verified.
+        # Always 200-ish success; only send mail if there is an unverified user.
         if settings.email_otp_enabled:
             user = await AuthService._find_user_by_email(session, email)
             if user is not None and not user.email_verified:

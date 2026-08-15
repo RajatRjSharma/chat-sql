@@ -286,13 +286,11 @@ class Settings(BaseSettings):
         alias="OTP_MAX_ATTEMPTS",
         ge=3,
         le=20,
-        description="Max wrong OTP guesses before the code is invalidated",
+        description="Wrong OTP tries before the code is burned",
     )
-    # When false, register marks the user verified and skips SMTP (local / SMTP-blocked hosts).
-    # Blocked at boot when APP_ENV=production and REGISTRATION_ENABLED=true.
+    # false = skip SMTP and mark verified on register (not for prod + open signup)
     email_otp_enabled: bool = Field(default=True, alias="EMAIL_OTP_ENABLED")
-    # When false (default), POST /api/auth/register is rejected and the UI hides sign-up.
-    # Set REGISTRATION_ENABLED=true to allow new accounts.
+    # false = no new signups; login still works
     registration_enabled: bool = Field(default=False, alias="REGISTRATION_ENABLED")
 
     @field_validator("app_db_schema", mode="before")
@@ -326,7 +324,7 @@ class Settings(BaseSettings):
         return self.app_env.lower() in {"production", "prod"}
 
     def assert_production_ready(self) -> None:
-        """Fail closed on weak auth config when APP_ENV is production."""
+        """Refuse to boot prod with a weak JWT_SECRET / open signup without OTP."""
         if not self.is_production:
             return
         secret = self.jwt_secret.get_secret_value()
@@ -337,12 +335,11 @@ class Settings(BaseSettings):
         }
         if len(secret) < 32 or secret in weak_defaults:
             raise RuntimeError(
-                "JWT_SECRET must be a unique secret (≥32 chars) when APP_ENV=production"
+                "Set a strong JWT_SECRET (32+ chars) for APP_ENV=production"
             )
         if self.registration_enabled and not self.email_otp_enabled:
             raise RuntimeError(
-                "EMAIL_OTP_ENABLED=false is not allowed when APP_ENV=production "
-                "and REGISTRATION_ENABLED=true (would auto-verify new accounts)"
+                "Cannot open registration with EMAIL_OTP_ENABLED=false in production"
             )
 
     @property

@@ -12,11 +12,7 @@ from app.security.password_policy import validate_password_strength
 
 
 class RegisterRequest(BaseModel):
-    """
-    Passwords use SecretStr so they are never printed in logs/repr.
-    They still arrive over TLS as JSON (industry standard) and are bcrypt-hashed
-    immediately — plaintext is never stored.
-    """
+    """Register payload. Passwords are SecretStr (hashed before storage)."""
 
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=64)
@@ -100,12 +96,7 @@ class UserPublic(BaseModel):
 
 
 class AuthTokenResponse(BaseModel):
-    """
-    Session payload after login / refresh / OTP verify.
-
-    Access + refresh JWTs are delivered as httpOnly cookies (not localStorage).
-    Tokens are intentionally omitted from the JSON body so XSS cannot exfiltrate them.
-    """
+    """Login/refresh/OTP response. JWTs go in httpOnly cookies, not this body."""
 
     token_type: Literal["bearer"] = "bearer"
     expires_in: int = Field(..., description="Access token lifetime in seconds")

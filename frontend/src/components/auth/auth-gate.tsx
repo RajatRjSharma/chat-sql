@@ -36,7 +36,7 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
         if (!cancelled) setRegistrationEnabled(cfg.registration_enabled);
       })
       .catch(() => {
-        // Fail closed — match server default when config cannot be loaded.
+        // default off if /config fails
         if (!cancelled) setRegistrationEnabled(false);
       });
     return () => {
