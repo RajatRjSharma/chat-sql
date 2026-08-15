@@ -31,6 +31,10 @@ from app.security.passwords import (
 )
 from app.services.email_service import EmailService
 
+_GENERIC_OTP = "Invalid or expired verification code"
+_SOFT_OTP_SENT = "If an account needs verification, a code was sent."
+_SOFT_REGISTERED = "If this email can be registered, next steps were sent."
+
 
 def _hash_jti(jti: str) -> str:
     return hashlib.sha256(jti.encode("utf-8")).hexdigest()
@@ -57,13 +61,19 @@ class AuthService:
             )
         )
         conflict = existing.scalar_one_or_none()
+        otp_enabled = settings.email_otp_enabled
+
+        # Soft enumeration: identical success shape whether or not the account exists.
         if conflict is not None:
-            if conflict.email == request.email:
-                raise ValueError("Email is already registered")
-            raise ValueError("Username is already taken")
+            if otp_enabled:
+                return RegisterResponse(email=request.email, message=_SOFT_REGISTERED)
+            return RegisterResponse(
+                status="verified",
+                email=request.email,
+                message="Account created. You can log in.",
+            )
 
         plain = request.password.get_secret_value()
-        otp_enabled = settings.email_otp_enabled
         user = User(
             email=request.email,
             username=request.username,
@@ -83,17 +93,16 @@ class AuthService:
             )
 
         await AuthService._issue_and_send_otp(session, user)
-        return RegisterResponse(email=user.email)
+        return RegisterResponse(email=user.email, message=_SOFT_REGISTERED)
 
     @staticmethod
     async def resend_otp(session: AsyncSession, email: str) -> RegisterResponse:
-        if not settings.email_otp_enabled:
-            raise ValueError("Email verification is currently disabled. You can log in.")
-        user = await AuthService._get_user_by_email(session, email)
-        if user.email_verified:
-            raise ValueError("Email is already verified. You can log in.")
-        await AuthService._issue_and_send_otp(session, user)
-        return RegisterResponse(email=user.email, message="A new verification code was sent.")
+        # Soft enumeration + no-op when OTP is off or the account is unknown/verified.
+        if settings.email_otp_enabled:
+            user = await AuthService._find_user_by_email(session, email)
+            if user is not None and not user.email_verified:
+                await AuthService._issue_and_send_otp(session, user)
+        return RegisterResponse(email=email, message=_SOFT_OTP_SENT)
 
     @staticmethod
     async def verify_otp(
@@ -102,7 +111,9 @@ class AuthService:
         *,
         user_agent: str | None = None,
     ) -> IssuedAuth:
-        user = await AuthService._get_user_by_email(session, request.email)
+        user = await AuthService._find_user_by_email(session, request.email)
+        if user is None:
+            raise ValueError(_GENERIC_OTP)
         if user.email_verified:
             return await AuthService.issue_session(session, user, user_agent=user_agent)
 
@@ -117,9 +128,17 @@ class AuthService:
         otp = result.scalar_one_or_none()
         now = datetime.now(UTC)
         if otp is None or otp.expires_at < now:
-            raise ValueError("Verification code expired. Request a new one.")
+            raise ValueError(_GENERIC_OTP)
+        if otp.attempt_count >= settings.otp_max_attempts:
+            otp.consumed_at = now
+            await session.flush()
+            raise ValueError(_GENERIC_OTP)
         if not verify_password(request.code, otp.code_hash):
-            raise ValueError("Invalid verification code")
+            otp.attempt_count += 1
+            if otp.attempt_count >= settings.otp_max_attempts:
+                otp.consumed_at = now
+            await session.flush()
+            raise ValueError(_GENERIC_OTP)
 
         otp.consumed_at = now
         user.email_verified = True
@@ -256,12 +275,9 @@ class AuthService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def _get_user_by_email(session: AsyncSession, email: str) -> User:
+    async def _find_user_by_email(session: AsyncSession, email: str) -> User | None:
         result = await session.execute(select(User).where(User.email == email.lower()))
-        user = result.scalar_one_or_none()
-        if user is None:
-            raise ValueError("No account found for that email")
-        return user
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def _issue_and_send_otp(session: AsyncSession, user: User) -> None:
@@ -280,6 +296,7 @@ class AuthService:
             code_hash=hash_password(code),
             expires_at=datetime.now(UTC)
             + timedelta(minutes=settings.otp_expire_minutes),
+            attempt_count=0,
         )
         session.add(otp)
         await session.flush()

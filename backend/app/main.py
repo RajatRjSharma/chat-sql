@@ -36,6 +36,7 @@ def _health_error(detail: str, *, status_code: int = 503, **extra: Any) -> JSONR
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Application lifespan hooks for startup and shutdown."""
+    settings.assert_production_ready()
     # Default: preload Piper so first Speak is warm (set TTS_PRELOAD=false on tiny RAM).
     if settings.tts_enabled and settings.tts_preload:
         TtsService.preload()

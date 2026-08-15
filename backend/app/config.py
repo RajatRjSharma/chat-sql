@@ -281,7 +281,15 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
     otp_expire_minutes: int = Field(default=10, alias="OTP_EXPIRE_MINUTES", ge=1, le=60)
     otp_length: int = Field(default=6, alias="OTP_LENGTH", ge=4, le=8)
-    # When false, register marks the user verified and skips SMTP (e.g. Render free tier).
+    otp_max_attempts: int = Field(
+        default=5,
+        alias="OTP_MAX_ATTEMPTS",
+        ge=3,
+        le=20,
+        description="Max wrong OTP guesses before the code is invalidated",
+    )
+    # When false, register marks the user verified and skips SMTP (local / SMTP-blocked hosts).
+    # Blocked at boot when APP_ENV=production and REGISTRATION_ENABLED=true.
     email_otp_enabled: bool = Field(default=True, alias="EMAIL_OTP_ENABLED")
     # When false (default), POST /api/auth/register is rejected and the UI hides sign-up.
     # Set REGISTRATION_ENABLED=true to allow new accounts.
@@ -311,7 +319,31 @@ class Settings(BaseSettings):
 
     @property
     def is_local(self) -> bool:
-        return self.app_env == "local"
+        return self.app_env.lower() == "local"
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.lower() in {"production", "prod"}
+
+    def assert_production_ready(self) -> None:
+        """Fail closed on weak auth config when APP_ENV is production."""
+        if not self.is_production:
+            return
+        secret = self.jwt_secret.get_secret_value()
+        weak_defaults = {
+            "dev-local-jwt-secret-change-in-production",
+            "change-me-to-a-long-random-jwt-secret",
+            "test-jwt-secret-at-least-32-chars!!",
+        }
+        if len(secret) < 32 or secret in weak_defaults:
+            raise RuntimeError(
+                "JWT_SECRET must be a unique secret (≥32 chars) when APP_ENV=production"
+            )
+        if self.registration_enabled and not self.email_otp_enabled:
+            raise RuntimeError(
+                "EMAIL_OTP_ENABLED=false is not allowed when APP_ENV=production "
+                "and REGISTRATION_ENABLED=true (would auto-verify new accounts)"
+            )
 
     @property
     def allow_private_warehouse_hosts(self) -> bool:

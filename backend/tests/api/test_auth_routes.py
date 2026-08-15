@@ -140,10 +140,17 @@ class TestAuthRegister:
         )
         assert response.status_code == 422
 
-    def test_register_conflict(self, unauthenticated_client: TestClient) -> None:
+    def test_register_conflict_is_soft_enumerated(
+        self, unauthenticated_client: TestClient
+    ) -> None:
         with patch(
             "app.routes.auth.AuthService.register",
-            new=AsyncMock(side_effect=ValueError("Email is already registered")),
+            new=AsyncMock(
+                return_value=RegisterResponse(
+                    email="taken@example.com",
+                    message="If this email can be registered, next steps were sent.",
+                )
+            ),
         ):
             response = unauthenticated_client.post(
                 "/api/auth/register",
@@ -154,7 +161,10 @@ class TestAuthRegister:
                     "password_confirm": STRONG_PASSWORD,
                 },
             )
-        assert response.status_code == 409
+        assert response.status_code == 201
+        assert response.json()["status"] == "otp_sent"
+        assert "already" not in response.json()["message"].lower()
+        assert "taken" not in response.json()["message"].lower()
 
 
 class TestAuthLogin:
@@ -304,6 +314,7 @@ class TestAuthServiceOtp:
             code_hash=hash_password(code),
             expires_at=datetime.now(UTC) + timedelta(minutes=10),
             consumed_at=None,
+            attempt_count=0,
         )
 
         user_result = MagicMock()
@@ -375,13 +386,16 @@ class TestAuthServiceOtp:
         added_user = mock_db_session.add.call_args[0][0]
         assert added_user.email_verified is True
 
-    async def test_resend_otp_rejects_when_disabled(self, mock_db_session) -> None:
+    async def test_resend_otp_soft_success_when_disabled(self, mock_db_session) -> None:
         from app.services.auth_service import AuthService
 
         with patch("app.services.auth_service.settings") as mock_settings:
             mock_settings.email_otp_enabled = False
-            with pytest.raises(ValueError, match="currently disabled"):
-                await AuthService.resend_otp(mock_db_session, "a@example.com")
+            response = await AuthService.resend_otp(mock_db_session, "a@example.com")
+
+        assert response.status == "otp_sent"
+        assert "needs verification" in response.message.lower()
+        mock_db_session.execute.assert_not_called()
 
     async def test_login_allows_unverified_when_otp_disabled(
         self, mock_db_session, sample_user: User
@@ -562,3 +576,121 @@ class TestAuthServiceOtp:
         send_otp.assert_awaited_once()
         added_user = mock_db_session.add.call_args[0][0]
         assert added_user.email_verified is False
+
+    async def test_register_conflict_soft_enumerated(
+        self, mock_db_session, sample_user: User
+    ) -> None:
+        from app.services.auth_service import AuthService
+
+        conflict = MagicMock()
+        conflict.scalar_one_or_none.return_value = sample_user
+        mock_db_session.execute = AsyncMock(return_value=conflict)
+
+        request = RegisterRequest(
+            email=sample_user.email,
+            username="othername99",
+            password=SecretStr(STRONG_PASSWORD),
+            password_confirm=SecretStr(STRONG_PASSWORD),
+        )
+
+        with (
+            patch("app.services.auth_service.settings") as mock_settings,
+            patch(
+                "app.services.auth_service.AuthService._issue_and_send_otp",
+                new=AsyncMock(),
+            ) as send_otp,
+        ):
+            mock_settings.email_otp_enabled = True
+            response = await AuthService.register(mock_db_session, request)
+
+        assert response.status == "otp_sent"
+        assert response.email == sample_user.email
+        assert "already" not in response.message.lower()
+        send_otp.assert_not_awaited()
+        mock_db_session.add.assert_not_called()
+
+    async def test_verify_otp_unknown_email_is_generic(self, mock_db_session) -> None:
+        from app.schemas.auth import VerifyOtpRequest
+        from app.services.auth_service import AuthService
+
+        empty = MagicMock()
+        empty.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=empty)
+
+        with pytest.raises(ValueError, match="Invalid or expired"):
+            await AuthService.verify_otp(
+                mock_db_session,
+                VerifyOtpRequest(email="nobody@example.com", code="123456"),
+            )
+
+    async def test_verify_otp_locks_after_max_attempts(
+        self, mock_db_session, sample_user: User
+    ) -> None:
+        from app.schemas.auth import VerifyOtpRequest
+        from app.services.auth_service import AuthService
+
+        sample_user.email_verified = False
+        otp = EmailOtp(
+            id=DEMO_USER_ID,
+            user_id=sample_user.id,
+            purpose="verify_email",
+            code_hash=hash_password("123456"),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            consumed_at=None,
+            attempt_count=4,
+        )
+
+        user_result = MagicMock()
+        user_result.scalar_one_or_none.return_value = sample_user
+        otp_result = MagicMock()
+        otp_result.scalar_one_or_none.return_value = otp
+        mock_db_session.execute = AsyncMock(side_effect=[user_result, otp_result])
+        mock_db_session.flush = AsyncMock()
+
+        with patch("app.services.auth_service.settings") as mock_settings:
+            mock_settings.otp_max_attempts = 5
+            with pytest.raises(ValueError, match="Invalid or expired"):
+                await AuthService.verify_otp(
+                    mock_db_session,
+                    VerifyOtpRequest(email=sample_user.email, code="000000"),
+                )
+
+        assert otp.attempt_count == 5
+        assert otp.consumed_at is not None
+
+
+class TestProductionAuthGuards:
+    def test_production_rejects_weak_jwt_secret(self) -> None:
+        from app.config import Settings
+
+        cfg = Settings.model_construct(
+            app_env="production",
+            jwt_secret=SecretStr("dev-local-jwt-secret-change-in-production"),
+            registration_enabled=False,
+            email_otp_enabled=True,
+        )
+        with pytest.raises(RuntimeError, match="JWT_SECRET"):
+            cfg.assert_production_ready()
+
+    def test_production_blocks_otp_off_with_open_registration(self) -> None:
+        from app.config import Settings
+
+        cfg = Settings.model_construct(
+            app_env="production",
+            jwt_secret=SecretStr("a" * 40),
+            registration_enabled=True,
+            email_otp_enabled=False,
+        )
+        with pytest.raises(RuntimeError, match="EMAIL_OTP_ENABLED"):
+            cfg.assert_production_ready()
+
+    def test_local_allows_dev_jwt_default(self) -> None:
+        from app.config import Settings
+
+        cfg = Settings.model_construct(
+            app_env="local",
+            jwt_secret=SecretStr("dev-local-jwt-secret-change-in-production"),
+            registration_enabled=True,
+            email_otp_enabled=False,
+        )
+        cfg.assert_production_ready()
